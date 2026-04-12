@@ -658,12 +658,14 @@ function buildCard(ex, i) {
           <div class="sr-line">
             <span class="sr-num">S${si+1}</span>
             <input class="sr-w${focCls}" id="iw${i}_${si}" type="text" inputmode="decimal"
-              placeholder="kg" value="${defW}">
+              placeholder="kg" value="${defW}"
+              onfocus="this.setSelectionRange(this.value.length,this.value.length)">
             <button class="sr-slash" onclick="insertSlash('iw${i}_${si}')">/</button>
             <button class="sr-copy-w" onclick="copyWeightToAll(${i},${si})">→all</button>
             <span class="sr-x">×</span>
             <input class="sr-r${focCls}" id="ir${i}_${si}" type="text" inputmode="numeric"
-              placeholder="${def.r||'—'}" value="${defR}">
+              placeholder="${def.r||'—'}" value="${defR}"
+              onfocus="this.setSelectionRange(this.value.length,this.value.length)">
             <input class="sr-note-inp" id="in${i}_${si}"
               value="${(set.note||def.n||'').replace(/"/g,'&quot;')}"
               oninput="saveSetNote(${i},${si},this.value)">
