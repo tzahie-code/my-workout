@@ -157,6 +157,10 @@
       border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
       cursor: pointer; flex-shrink: 0; white-space: nowrap; }
     .sr-copy-w:active { opacity: .6; }
+    .sr-slash { font-size: 12px; font-weight: 700; background: #f0f0f5; color: var(--txt2);
+      border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px;
+      cursor: pointer; flex-shrink: 0; }
+    .sr-slash:active { opacity: .6; }
     .sr-unit { font-size: 10px; color: var(--txt2); flex-shrink: 0; }
     .sr-note-inp { flex: 1; min-width: 0; font-size: 10px; color: var(--txt2);
       direction: rtl; text-align: right; font-family: 'Arial Hebrew', Arial, sans-serif;
@@ -655,6 +659,7 @@ function buildCard(ex, i) {
             <span class="sr-num">S${si+1}</span>
             <input class="sr-w${focCls}" id="iw${i}_${si}" type="text" inputmode="decimal"
               placeholder="kg" value="${defW}">
+            <button class="sr-slash" onclick="insertSlash('iw${i}_${si}')">/</button>
             <button class="sr-copy-w" onclick="copyWeightToAll(${i},${si})">→all</button>
             <span class="sr-x">×</span>
             <input class="sr-r${focCls}" id="ir${i}_${si}" type="text" inputmode="numeric"
@@ -729,6 +734,16 @@ function prevSetW(name, idx) {
 // ════════════════════════════════════
 // SET TOGGLE + SAVE HELPERS
 // ════════════════════════════════════
+function insertSlash(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = el.selectionStart, end = el.selectionEnd;
+  const val = el.value;
+  el.value = val.slice(0, start) + '/' + val.slice(end);
+  el.setSelectionRange(start + 1, start + 1);
+  el.focus();
+}
+
 function copyWeightToAll(ei, si) {
   const val = document.getElementById('iw'+ei+'_'+si).value;
   if (!val) return;
