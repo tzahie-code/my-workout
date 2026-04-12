@@ -564,7 +564,7 @@ function startWorkout(rid) {
     exercises: ROUTINES[rid].exercises.map(ex => ({
       name: ex.name,
       machine: (getPrefs().machines && getPrefs().machines[ex.name]) || ex.machine || '',
-      comment: '',
+      comment: (getPrefs().comments && getPrefs().comments[ex.name]) || '',
       variantIdx: ex.variants ? getVariantIdx(ex.name) : undefined,
       sets: ex.sets.map(def=>({w:null,r:null,done:false,note:def.n}))
     }))
@@ -644,9 +644,10 @@ function buildCard(ex, i) {
       const defW = set._pw !== undefined ? set._pw
                  : set.done ? (set.w||'')
                  : (prevW!==null ? prevW : (def.w||''));
+      const prevR = prevSetR(ex.name, si);
       const defR = set._pr !== undefined ? set._pr
                  : set.done ? (set.r||'')
-                 : (def.r||'');
+                 : (prevR !== null ? prevR : (def.r||''));
       const doneCls = set.done ? ' done' : '';
       const ckCls   = set.done ? ' done' : '';
       const ckIcon  = set.done ? '✓' : '○';
@@ -741,8 +742,16 @@ function prevSetW(name, idx) {
 function saveLastWeights(exName, sets) {
   const p = getPrefs();
   if (!p.lastWeights) p.lastWeights = {};
-  p.lastWeights[exName] = sets.map(s => s.w || null);
+  if (!p.lastReps)    p.lastReps    = {};
+  p.lastWeights[exName] = sets.map(s => s._pw || s.w || null);
+  p.lastReps[exName]    = sets.map(s => s._pr || s.r || null);
   putPrefs(p);
+}
+function prevSetR(name, idx) {
+  const p = getPrefs();
+  if (p.lastReps && p.lastReps[name] && p.lastReps[name][idx] != null)
+    return p.lastReps[name][idx];
+  return null;
 }
 
 // ════════════════════════════════════
@@ -760,9 +769,11 @@ function insertSlash(id) {
 
 function liveSave(ei, si, field, val) {
   if (!S.session) return;
-  const set = S.session.exercises[ei].sets[si];
+  const ex = S.session.exercises[ei];
+  const set = ex.sets[si];
   if (field === 'w') set._pw = val;
   else set._pr = val;
+  saveLastWeights(ex.name, ex.sets);
   saveCurrentSession();
 }
 
@@ -795,7 +806,13 @@ function savePendingInputs() {
 }
 
 function saveComment(ei, val) {
-  if (S.session && S.session.exercises[ei]) { S.session.exercises[ei].comment = val; saveCurrentSession(); }
+  if (!S.session || !S.session.exercises[ei]) return;
+  S.session.exercises[ei].comment = val;
+  const p = getPrefs();
+  if (!p.comments) p.comments = {};
+  p.comments[S.session.exercises[ei].name] = val;
+  putPrefs(p);
+  saveCurrentSession();
 }
 
 function saveMachine(ei, val) {
