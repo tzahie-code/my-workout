@@ -422,6 +422,9 @@ let S = { rid:null, session:null, expanded:null };
 // ════════════════════════════════════
 function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
 function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); }
+function saveCurrentSession() { if (S.session) localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid,session:S.session})); }
+function clearCurrentSession() { localStorage.removeItem('mwCurrent'); }
+function loadCurrentSession() { try { return JSON.parse(localStorage.getItem('mwCurrent')||'null'); } catch{ return null; } }
 
 // ════════════════════════════════════
 // SCREENS
@@ -742,11 +745,11 @@ function savePendingInputs() {
 }
 
 function saveComment(ei, val) {
-  if (S.session && S.session.exercises[ei]) S.session.exercises[ei].comment = val;
+  if (S.session && S.session.exercises[ei]) { S.session.exercises[ei].comment = val; saveCurrentSession(); }
 }
 
 function saveMachine(ei, val) {
-  if (S.session && S.session.exercises[ei]) S.session.exercises[ei].machine = val;
+  if (S.session && S.session.exercises[ei]) { S.session.exercises[ei].machine = val; saveCurrentSession(); }
 }
 
 function saveSetNote(ei, si, val) {
@@ -768,6 +771,7 @@ function toggleSet(ei, si) {
     setTimeout(finish, 700);
     return;
   }
+  saveCurrentSession();
   wkRender();
   setTimeout(()=>{
     const el = document.getElementById('ec'+ei);
@@ -833,6 +837,8 @@ function switchVariant(ei) {
 // FINISH
 // ════════════════════════════════════
 function finish() {
+  savePendingInputs();
+  clearCurrentSession();
   S.session.endTime = Date.now();
   const d = get(); d.sessions.push(S.session); put(d);
   const dur  = Math.round((S.session.endTime-S.session.startTime)/60000);
@@ -847,6 +853,8 @@ function finish() {
 }
 
 function confirmEnd() {
+  savePendingInputs();
+  saveCurrentSession();
   S.session=null; homeUpdate(); show('home');
 }
 
@@ -884,6 +892,15 @@ function toggleHist(i) { document.getElementById('hd'+i).classList.toggle('open'
 // INIT
 // ════════════════════════════════════
 homeUpdate();
+(function resumeIfNeeded() {
+  const saved = loadCurrentSession();
+  if (!saved) return;
+  S.rid = saved.rid;
+  S.session = saved.session;
+  S.expanded = null;
+  show('workout');
+  wkRender();
+})();
 </script>
 </body>
 </html>
