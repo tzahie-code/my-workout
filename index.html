@@ -250,7 +250,10 @@
         <div class="rc-meta" id="rc-meta-b"></div>
         <button class="rc-btn" style="background:var(--b)" onclick="startWorkout('B')">Start Routine B</button>
       </div>
-      <div class="h-link"><button onclick="showHistory()">📋 View History</button></div>
+      <div class="h-link">
+        <button onclick="showHistory()">📋 View History</button>
+        <button onclick="forceUpdate()" style="margin-left:12px;font-size:13px;color:#aaa">↻ Update App</button>
+      </div>
     </div>
   </div>
 
@@ -426,6 +429,9 @@ function show(id) {
 function goHome() {
   S.session = null;
   homeUpdate(); show('home');
+}
+function forceUpdate() {
+  window.location.href = window.location.pathname + '?v=' + Date.now();
 }
 function showHistory() { histRender(); show('history'); }
 
