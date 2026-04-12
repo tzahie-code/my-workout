@@ -656,11 +656,13 @@ function buildCard(ex, i) {
             <span class="sr-num">S${si+1}</span>
             <input class="sr-w${focCls}" id="iw${i}_${si}" type="text" inputmode="decimal"
               placeholder="kg" value="${defW}"
-              onfocus="this.setSelectionRange(this.value.length,this.value.length)">
+              onfocus="this.setSelectionRange(this.value.length,this.value.length)"
+              oninput="liveSave(${i},${si},'w',this.value)">
             <span class="sr-x">×</span>
             <input class="sr-r${focCls}" id="ir${i}_${si}" type="text" inputmode="numeric"
               placeholder="${def.r||'—'}" value="${defR}"
-              onfocus="this.setSelectionRange(this.value.length,this.value.length)">
+              onfocus="this.setSelectionRange(this.value.length,this.value.length)"
+              oninput="liveSave(${i},${si},'r',this.value)">
             <input class="sr-note-inp" id="in${i}_${si}"
               value="${(set.note||def.n||'').replace(/"/g,'&quot;')}"
               oninput="saveSetNote(${i},${si},this.value)">
@@ -724,12 +726,23 @@ function toggleCard(i) {
 }
 
 function prevSetW(name, idx) {
+  // First check saved weights in prefs (survives history deletion)
+  const p = getPrefs();
+  if (p.lastWeights && p.lastWeights[name] && p.lastWeights[name][idx] != null)
+    return p.lastWeights[name][idx];
+  // Fall back to history
   const d = get();
   const prev = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id)[0];
   if(!prev) return null;
   const ex = prev.exercises.find(e=>e.name===name);
   if(!ex||!ex.sets[idx]||!ex.sets[idx].done) return null;
   return ex.sets[idx].w;
+}
+function saveLastWeights(exName, sets) {
+  const p = getPrefs();
+  if (!p.lastWeights) p.lastWeights = {};
+  p.lastWeights[exName] = sets.map(s => s.w || null);
+  putPrefs(p);
 }
 
 // ════════════════════════════════════
@@ -743,6 +756,14 @@ function insertSlash(id) {
   el.value = val.slice(0, start) + '/' + val.slice(end);
   el.setSelectionRange(start + 1, start + 1);
   el.focus();
+}
+
+function liveSave(ei, si, field, val) {
+  if (!S.session) return;
+  const set = S.session.exercises[ei].sets[si];
+  if (field === 'w') set._pw = val;
+  else set._pr = val;
+  saveCurrentSession();
 }
 
 function copyWeightToAll(ei, si) {
@@ -793,6 +814,7 @@ function toggleSet(ei, si) {
     set.r = (set._pr !== undefined && set._pr !== '') ? set._pr : (set.r || null);
     delete set._pw; delete set._pr;
     set.done = true;
+    saveLastWeights(S.session.exercises[ei].name, S.session.exercises[ei].sets);
   } else {
     set.done = false;
   }
