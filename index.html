@@ -701,7 +701,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
-        <input class="ec-note-inp" id="cm${i}" type="text"
+        <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="note..."
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
           onclick="event.stopPropagation()"
@@ -844,6 +844,7 @@ function completeExercise(ei) {
       set.done = true;
     }
   });
+  saveLastWeights(ex.name, ex.sets);
   if (S.session.exercises.every(e=>e.sets.every(s=>s.done))) {
     setTimeout(finish, 700);
     return;
@@ -919,6 +920,7 @@ function completeAllAndFinish() {
         set.done = true;
       }
     });
+    saveLastWeights(ex.name, ex.sets);
   });
   finish();
 }
