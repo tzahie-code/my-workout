@@ -632,7 +632,7 @@ function buildCard(ex, i) {
   const tags = (ex.muscles||[]).map(m =>
     `<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`
   ).join('');
-  const muscleTags = (keyBadge || tags) ? `<div class="muscle-tags">${keyBadge}${tags}</div>` : '';
+  const muscleTags = tags ? `<div class="muscle-tags">${tags}</div>` : '';
 
   // ── Expanded section: all sets + comment ──
   let expandHtml = '';
@@ -696,9 +696,12 @@ function buildCard(ex, i) {
     <div class="ec-top" onclick="toggleCard(${i})">
       <div class="ec-svg-wrap">${imgHtml}${compBadge}</div>
       <div class="ec-info">
-        <input class="ec-name-inp" value="${activeName.replace(/"/g,'&quot;')}"
-          onclick="event.stopPropagation()"
-          oninput="saveExName('${S.rid}',${i},this.value)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input class="ec-name-inp" value="${activeName.replace(/"/g,'&quot;')}"
+            onclick="event.stopPropagation()"
+            oninput="saveExName('${S.rid}',${i},this.value)">
+          ${keyBadge}
+        </div>
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
