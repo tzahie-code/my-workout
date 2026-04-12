@@ -64,9 +64,15 @@
       box-shadow: 0 1px 0 var(--border); }
     .wk-bar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; }
     .wk-left .wk-title { font-size: 17px; font-weight: 700; }
-    .wk-end { background: none; border: 1px solid var(--border); color: var(--txt2);
+    .wk-back { background: none; border: 1px solid var(--border); color: var(--txt2);
       padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
-    .wk-end:active { border-color: var(--red); color: var(--red); }
+    .wk-back:active { opacity: .7; }
+    .wk-finish-all { border: none; color: white;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+    .wk-finish-all:active { opacity: .8; }
+    .hi-del { background: none; border: none; color: #c7c7cc; font-size: 16px;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+    .hi-del:active { color: var(--red); }
     .wk-prog { height: 3px; background: var(--border); }
     .wk-fill { height: 100%; border-radius: 2px; transition: width .4s; }
     .wk-body { padding: 12px 16px 40px; }
@@ -268,7 +274,8 @@
         <div class="wk-left">
           <div class="wk-title" id="wk-title"></div>
         </div>
-        <button class="wk-end" onclick="confirmEnd()">End Workout</button>
+        <button class="wk-back" onclick="confirmEnd()">← Back</button>
+        <button class="wk-finish-all" id="wk-finish-all-btn" onclick="completeAllAndFinish()">✓ Finish Workout</button>
       </div>
       <div class="wk-prog"><div class="wk-fill" id="wk-fill" style="width:0%"></div></div>
     </div>
@@ -569,6 +576,7 @@ function acHex() { return S.rid==='A' ? '#ff6b35' : '#3b82f6'; }
 function wkRender() {
   const rt = ROUTINES[S.rid];
   document.getElementById('wk-title').textContent = 'Routine '+S.rid;
+  document.getElementById('wk-finish-all-btn').style.background = ac();
   document.getElementById('wk-fill').style.background = ac();
   const total = rt.exercises.reduce((s,e)=>s+e.sets.length,0);
   const done  = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
@@ -857,6 +865,20 @@ function confirmEnd() {
   saveCurrentSession();
   S.session=null; homeUpdate(); show('home');
 }
+function completeAllAndFinish() {
+  savePendingInputs();
+  S.session.exercises.forEach(ex => {
+    ex.sets.forEach(set => {
+      if (!set.done) {
+        set.w = set._pw || set.w || null;
+        set.r = set._pr || set.r || null;
+        delete set._pw; delete set._pr;
+        set.done = true;
+      }
+    });
+  });
+  finish();
+}
 
 // ════════════════════════════════════
 // HISTORY
@@ -879,14 +901,26 @@ function histRender() {
         ${ex.comment ? `<div class="hi-comment">💬 ${ex.comment}</div>` : ''}
       </div>`;
     }).join('');
-    return `<div class="si" onclick="toggleHist(${i})">
-      <div class="si-top"><span class="si-r">Routine ${s.routine}</span><span class="si-dt">${date}</span></div>
-      <div class="si-m">${tot} sets · ${dur}</div>
+    return `<div class="si">
+      <div class="si-top" onclick="toggleHist(${i})">
+        <span class="si-r">Routine ${s.routine}</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="si-dt">${date}</span>
+          <button class="hi-del" onclick="event.stopPropagation();deleteSession(${s.id})">🗑</button>
+        </span>
+      </div>
+      <div class="si-m" onclick="toggleHist(${i})">${tot} sets · ${dur}</div>
       <div class="si-detail" id="hd${i}">${exH}</div>
     </div>`;
   }).join('');
 }
 function toggleHist(i) { document.getElementById('hd'+i).classList.toggle('open'); }
+function deleteSession(id) {
+  const d = get();
+  d.sessions = d.sessions.filter(s => s.id !== id);
+  put(d);
+  histRender();
+}
 
 // ════════════════════════════════════
 // INIT
