@@ -520,6 +520,7 @@ function homeUpdate() {
 // START
 // ════════════════════════════════════
 function startWorkout(rid) {
+  setDay(rid, DAYS[new Date().getDay()]);
   S.rid = rid; S.expanded = null;
   S.session = {
     id: Date.now(), routine: rid,
