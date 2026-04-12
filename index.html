@@ -563,7 +563,7 @@ function startWorkout(rid) {
     startTime: Date.now(), endTime: null,
     exercises: ROUTINES[rid].exercises.map(ex => ({
       name: ex.name,
-      machine: ex.machine || '',
+      machine: (getPrefs().machines && getPrefs().machines[ex.name]) || ex.machine || '',
       comment: '',
       variantIdx: ex.variants ? getVariantIdx(ex.name) : undefined,
       sets: ex.sets.map(def=>({w:null,r:null,done:false,note:def.n}))
@@ -799,7 +799,13 @@ function saveComment(ei, val) {
 }
 
 function saveMachine(ei, val) {
-  if (S.session && S.session.exercises[ei]) { S.session.exercises[ei].machine = val; saveCurrentSession(); }
+  if (!S.session || !S.session.exercises[ei]) return;
+  S.session.exercises[ei].machine = val;
+  const p = getPrefs();
+  if (!p.machines) p.machines = {};
+  p.machines[S.session.exercises[ei].name] = val;
+  putPrefs(p);
+  saveCurrentSession();
 }
 
 function saveSetNote(ei, si, val) {
