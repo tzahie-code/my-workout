@@ -446,6 +446,7 @@ function goHome() {
   homeUpdate(); show('home');
 }
 function forceUpdate() {
+  clearCurrentSession();
   if ('caches' in window) {
     caches.keys().then(names => names.forEach(n => caches.delete(n)));
   }
