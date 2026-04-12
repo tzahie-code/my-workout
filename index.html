@@ -550,7 +550,12 @@ function homeUpdate() {
 // START
 // ════════════════════════════════════
 function startWorkout(rid) {
-  setDay(rid, DAYS[new Date().getDay()]);
+  // Add today if not already selected (don't toggle off)
+  const _today = DAYS[new Date().getDay()];
+  const _p = getPrefs();
+  if (!_p[rid]) _p[rid] = {};
+  if (!Array.isArray(_p[rid].days)) _p[rid].days = [];
+  if (!_p[rid].days.includes(_today)) { _p[rid].days.push(_today); putPrefs(_p); }
   S.rid = rid; S.expanded = null;
   S.session = {
     id: Date.now(), routine: rid,
