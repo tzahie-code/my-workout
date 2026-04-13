@@ -749,12 +749,6 @@ function buildCard(ex, i) {
            onclick="undoExercise(${i})">↩ Undo — mark as not done</button>`
       : `<button class="complete-ex-btn" style="background:${color}"
            onclick="completeExercise(${i})">✓ Mark all sets done</button>`;
-    const REST_OPTS = ['30s','45s','60s','90s','2min','3min'];
-    const savedRest = getPrefs().rest && getPrefs().rest[ex.name] || '';
-    const restBtns = REST_OPTS.map(o =>
-      `<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}"
-        onclick="saveRest('${ex.name}','${o}',${i})">${o}</button>`
-    ).join('');
     expandHtml = `
       <div class="ec-expand open">
         ${compExBtn}
@@ -762,7 +756,6 @@ function buildCard(ex, i) {
           <button class="sr-slash" onclick="insertSlash('iw${i}_0')">/</button>
           <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">Copy first to all</button>
         </div>
-        <div class="rest-row"><span class="rest-lbl">Rest:</span>${restBtns}</div>
         <div class="set-list">${setRows}</div>
       </div>`;
   }
@@ -782,6 +775,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
+        ${(()=>{ const REST_OPTS=['2:00','1:30','1:10','0:50']; const savedRest=(getPrefs().rest&&getPrefs().rest[ex.name])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${ex.name}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="note..."
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
