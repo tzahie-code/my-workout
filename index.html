@@ -445,7 +445,7 @@ const ROUTINES = {
 // ════════════════════════════════════
 // STATE
 // ════════════════════════════════════
-let S = { rid:null, session:null, expanded:null };
+let S = { rid:null, session:null, expanded:null, viewing:false };
 
 // ════════════════════════════════════
 // STORAGE
@@ -486,12 +486,10 @@ function showHistory() { histRender(); show('history'); }
 function viewRoutine(rid) {
   const saved = loadCurrentSession();
   if (saved && saved.rid === rid) {
-    // Resume existing session
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
-    show('workout'); wkRender();
+    S.viewing = false;
   } else {
-    // Open full workout view without auto-selecting today
-    S.rid = rid; S.expanded = null;
+    S.rid = rid; S.expanded = null; S.viewing = true;
     S.session = {
       id: Date.now(), routine: rid,
       startTime: Date.now(), endTime: null,
@@ -503,8 +501,8 @@ function viewRoutine(rid) {
         sets: ex.sets.map(def=>({w:null,r:null,done:false,note:def.n}))
       }))
     };
-    show('workout'); wkRender();
   }
+  show('workout'); wkRender();
 }
 
 // ════════════════════════════════════
@@ -614,7 +612,7 @@ function startWorkout(rid) {
   if (!_p[rid]) _p[rid] = {};
   if (!Array.isArray(_p[rid].days)) _p[rid].days = [];
   if (!_p[rid].days.includes(_today)) { _p[rid].days.push(_today); putPrefs(_p); }
-  S.rid = rid; S.expanded = null;
+  S.rid = rid; S.expanded = null; S.viewing = false;
   S.session = {
     id: Date.now(), routine: rid,
     startTime: Date.now(), endTime: null,
@@ -640,6 +638,7 @@ function wkRender() {
   const rt = ROUTINES[S.rid];
   document.getElementById('wk-title').textContent = 'Routine '+S.rid;
   document.getElementById('wk-finish-all-btn').style.background = ac();
+  document.getElementById('wk-finish-all-btn').style.display = S.viewing ? 'none' : '';
   document.getElementById('wk-fill').style.background = ac();
   const total = rt.exercises.reduce((s,e)=>s+e.sets.length,0);
   const done  = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
@@ -988,9 +987,13 @@ function finish() {
 }
 
 function confirmEnd() {
-  savePendingInputs();
-  saveCurrentSession();
-  S.session=null; homeUpdate(); show('home');
+  if (S.viewing) {
+    S.session=null; S.viewing=false; homeUpdate(); show('home');
+  } else {
+    savePendingInputs();
+    saveCurrentSession();
+    S.session=null; homeUpdate(); show('home');
+  }
 }
 function completeAllAndFinish() {
   savePendingInputs();
