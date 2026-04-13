@@ -181,8 +181,14 @@
     /* Inline exercise note (next to headline) */
     .ec-note-inp { width: 100%; font-size: 11px; color: var(--txt2);
       background: transparent; border: none; border-bottom: 1px dashed transparent;
-      outline: none; padding: 1px 0; margin-top: 3px; font-family: inherit;
-      direction: rtl; text-align: right; }
+      outline: none; padding: 1px 0; margin-top: 2px; font-family: inherit;
+      direction: rtl; text-align: left; }
+    .rest-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .rest-lbl { font-size: 11px; font-weight: 700; color: var(--txt2); flex-shrink: 0; }
+    .rest-opt { font-size: 11px; font-weight: 700; background: #f0f0f5; color: var(--txt2);
+      border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+    .rest-opt.sel { color: white; border-color: transparent; }
+    .rest-opt:active { opacity: .7; }
     .ec-note-inp::placeholder { color: #c7c7cc; }
     .ec-note-inp:focus { border-bottom-color: var(--border); color: var(--txt); }
     .ec-note-inp:not(:placeholder-shown) { color: var(--txt2); }
@@ -554,6 +560,14 @@ function getVariantIdx(exName) {
   const p = getPrefs();
   return (p.variants && p.variants[exName] != null) ? p.variants[exName] : 0;
 }
+function saveRest(exName, val, ei) {
+  const p = getPrefs();
+  if (!p.rest) p.rest = {};
+  p.rest[exName] = val;
+  putPrefs(p);
+  S.expanded = ei;
+  wkRender();
+}
 function saveVariantIdx(exName, idx) {
   const p = getPrefs();
   if (!p.variants) p.variants = {};
@@ -735,6 +749,12 @@ function buildCard(ex, i) {
            onclick="undoExercise(${i})">↩ Undo — mark as not done</button>`
       : `<button class="complete-ex-btn" style="background:${color}"
            onclick="completeExercise(${i})">✓ Mark all sets done</button>`;
+    const REST_OPTS = ['30s','45s','60s','90s','2min','3min'];
+    const savedRest = getPrefs().rest && getPrefs().rest[ex.name] || '';
+    const restBtns = REST_OPTS.map(o =>
+      `<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}"
+        onclick="saveRest('${ex.name}','${o}',${i})">${o}</button>`
+    ).join('');
     expandHtml = `
       <div class="ec-expand open">
         ${compExBtn}
@@ -742,6 +762,7 @@ function buildCard(ex, i) {
           <button class="sr-slash" onclick="insertSlash('iw${i}_0')">/</button>
           <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">Copy first to all</button>
         </div>
+        <div class="rest-row"><span class="rest-lbl">Rest:</span>${restBtns}</div>
         <div class="set-list">${setRows}</div>
       </div>`;
   }
