@@ -286,7 +286,9 @@
         <button onclick="resetWeek()" style="margin-left:12px;font-size:13px;color:#aaa">↺ Reset Week</button>
         <button onclick="forceUpdate()" style="margin-left:12px;font-size:13px;color:#aaa">↻ Update App</button>
         <button onclick="showSyncCode()" style="margin-left:12px;font-size:13px;color:#aaa">🔑 Sync</button>
+        <button onclick="forceSyncNow()" style="margin-left:12px;font-size:13px;color:#aaa">☁️ Save to Cloud</button>
       </div>
+      <div id="sync-status" style="font-size:11px;color:#aaa;padding:4px 0 8px;text-align:center"></div>
     </div>
   </div>
 
@@ -421,18 +423,51 @@ async function initApp() {
     } else {
       // No remote data yet → push existing local data to Supabase
       const d = get(), p = getPrefs(), c = loadCurrentSession();
-      getSb().from('workout_store').upsert({
+      const { error } = await getSb().from('workout_store').upsert({
         user_id: getUserId(), sessions_data: d, prefs_data: p,
         current_session: c, updated_at: new Date().toISOString()
       });
+      if (!error) setSyncStatus(`✓ Data saved to cloud — ${d.sessions.length} workout${d.sessions.length!==1?'s':''}`, '#34c759');
+      else setSyncStatus('⚠ Cloud save failed', '#ff3b30');
+      setTimeout(() => setSyncStatus('', '#aaa'), 5000);
     }
-  } catch(e) { console.warn('Supabase init error:', e); }
+  } catch(e) {
+    console.warn('Supabase init error:', e);
+    setSyncStatus('⚠ Cloud unavailable (offline mode)', '#ff9500');
+    setTimeout(() => setSyncStatus('', '#aaa'), 4000);
+  }
 
   homeUpdate();
   const saved = loadCurrentSession();
   if (saved) {
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     show('workout'); wkRender();
+  }
+}
+
+function setSyncStatus(msg, color) {
+  const el = document.getElementById('sync-status');
+  if (el) { el.textContent = msg; el.style.color = color || '#aaa'; }
+}
+
+async function forceSyncNow() {
+  setSyncStatus('☁️ Saving to cloud...', '#3b82f6');
+  try {
+    const d = get(), p = getPrefs(), c = loadCurrentSession();
+    const { error } = await getSb().from('workout_store').upsert({
+      user_id: getUserId(),
+      sessions_data: d,
+      prefs_data: p,
+      current_session: c,
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    const count = d.sessions.length;
+    setSyncStatus(`✓ Saved to cloud — ${count} workout${count!==1?'s':''} · Code: ${getSyncCode()}`, '#34c759');
+    setTimeout(() => setSyncStatus('', '#aaa'), 5000);
+  } catch(e) {
+    setSyncStatus('⚠ Cloud save failed: ' + (e.message||e), '#ff3b30');
+    console.error('Force sync error:', e);
   }
 }
 
