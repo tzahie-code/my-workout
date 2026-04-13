@@ -282,6 +282,7 @@
       </div>
       <div class="h-link">
         <button onclick="showHistory()">📋 View History</button>
+        <button onclick="resetWeek()" style="margin-left:12px;font-size:13px;color:#aaa">↺ Reset Week</button>
         <button onclick="forceUpdate()" style="margin-left:12px;font-size:13px;color:#aaa">↻ Update App</button>
       </div>
     </div>
@@ -575,7 +576,24 @@ function saveVariantIdx(exName, idx) {
   putPrefs(p);
 }
 
+function checkMidnightReset() {
+  const today = new Date().toDateString();
+  const last  = localStorage.getItem('mwLastDate');
+  if (last !== today) {
+    const p = getPrefs();
+    ['A','B'].forEach(r => { if (p[r]) p[r].locker = ''; });
+    putPrefs(p);
+    localStorage.setItem('mwLastDate', today);
+  }
+}
+function resetWeek() {
+  const p = getPrefs();
+  ['A','B'].forEach(r => { if (p[r]) p[r].days = []; });
+  putPrefs(p);
+  homeUpdate();
+}
 function homeUpdate() {
+  checkMidnightReset();
   document.getElementById('home-date').textContent =
     new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const d = get();
