@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>My Workout</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -284,6 +285,7 @@
         <button onclick="showHistory()">📋 View History</button>
         <button onclick="resetWeek()" style="margin-left:12px;font-size:13px;color:#aaa">↺ Reset Week</button>
         <button onclick="forceUpdate()" style="margin-left:12px;font-size:13px;color:#aaa">↻ Update App</button>
+        <button onclick="showSyncCode()" style="margin-left:12px;font-size:13px;color:#aaa">🔑 Sync</button>
       </div>
     </div>
   </div>
@@ -333,6 +335,124 @@
 </div>
 
 <script>
+// ════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════
+const SUPABASE_URL = 'https://idatbejilvjxdaewxjoc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkYXRiZWppbHZqeGRhZXd4am9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNzQ1ODcsImV4cCI6MjA5MTY1MDU4N30.CSL3dls3QvBhSK5O2880jlvzsH0-JKAmvxj9ux2z20s';
+
+let _sbClient = null;
+function getSb() {
+  if (!_sbClient) _sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return _sbClient;
+}
+
+function getUserId() {
+  let id = localStorage.getItem('mwUserId');
+  if (!id) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    id = 'mw-' + code;
+    localStorage.setItem('mwUserId', id);
+  }
+  return id;
+}
+function getSyncCode() { return getUserId().replace('mw-', ''); }
+
+let _sbTimer = null;
+function sbSaveDebounced() {
+  clearTimeout(_sbTimer);
+  _sbTimer = setTimeout(() => {
+    getSb().from('workout_store').upsert({
+      user_id: getUserId(),
+      sessions_data: get(),
+      prefs_data: getPrefs(),
+      current_session: loadCurrentSession(),
+      updated_at: new Date().toISOString()
+    }).then(({ error }) => { if (error) console.warn('SB save error:', error); });
+  }, 1500);
+}
+
+function mergePrefs(remote, local) {
+  if (!local || !Object.keys(local).length) return remote || {};
+  if (!remote || !Object.keys(remote).length) return local;
+  const m = { ...remote };
+  Object.keys(local).forEach(k => {
+    if (local[k] && typeof local[k]==='object' && !Array.isArray(local[k]) &&
+        remote[k] && typeof remote[k]==='object' && !Array.isArray(remote[k])) {
+      m[k] = { ...remote[k], ...local[k] };
+    } else {
+      m[k] = local[k];
+    }
+  });
+  return m;
+}
+
+async function initApp() {
+  try {
+    const { data } = await getSb()
+      .from('workout_store')
+      .select('*')
+      .eq('user_id', getUserId())
+      .maybeSingle();
+
+    if (data) {
+      const localSessions = get();
+      const localPrefs    = getPrefs();
+      // Merge sessions: deduplicate by id, local wins
+      const all = [...(data.sessions_data?.sessions||[]), ...localSessions.sessions];
+      const byId = {};
+      all.forEach(s => { byId[s.id] = s; });
+      const merged = { sessions: Object.values(byId).sort((a,b)=>b.id-a.id) };
+      // Merge prefs: remote base, local overrides
+      const mergedPrefs = mergePrefs(data.prefs_data||{}, localPrefs);
+      // Current session: keep local if exists, else restore from Supabase
+      const localCurrent = loadCurrentSession();
+      const current = localCurrent || data.current_session || null;
+      localStorage.setItem('mwData3', JSON.stringify(merged));
+      localStorage.setItem('mwPrefs', JSON.stringify(mergedPrefs));
+      if (!localCurrent && current) localStorage.setItem('mwCurrent', JSON.stringify(current));
+      // Push merged back to Supabase (fire and forget)
+      getSb().from('workout_store').upsert({
+        user_id: getUserId(), sessions_data: merged, prefs_data: mergedPrefs,
+        current_session: current, updated_at: new Date().toISOString()
+      });
+    } else {
+      // No remote data yet → push existing local data to Supabase
+      const d = get(), p = getPrefs(), c = loadCurrentSession();
+      getSb().from('workout_store').upsert({
+        user_id: getUserId(), sessions_data: d, prefs_data: p,
+        current_session: c, updated_at: new Date().toISOString()
+      });
+    }
+  } catch(e) { console.warn('Supabase init error:', e); }
+
+  homeUpdate();
+  const saved = loadCurrentSession();
+  if (saved) {
+    S.rid = saved.rid; S.session = saved.session; S.expanded = null;
+    show('workout'); wkRender();
+  }
+}
+
+function showSyncCode() {
+  const code = getSyncCode();
+  const res = prompt(
+    'Your sync code: ' + code + '\n\n' +
+    'Write this down! Enter it on any other device to access your data.\n\n' +
+    'To link this device to another device, enter that device\'s 6-letter code below\n(leave empty to cancel):'
+  );
+  if (res === null || res.trim() === '') return;
+  const newCode = res.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (newCode.length !== 6) { alert('Sync code must be 6 characters'); return; }
+  if (newCode === code) { alert('That is already your sync code!'); return; }
+  if (confirm('Switch to sync code ' + newCode + '?\nThis device will load data from that sync code.')) {
+    localStorage.setItem('mwUserId', 'mw-' + newCode);
+    location.reload();
+  }
+}
+
 // ════════════════════════════════════
 // EXERCISE PHOTOS (free-exercise-db)
 // ════════════════════════════════════
@@ -458,9 +578,9 @@ let S = { rid:null, session:null, expanded:null, viewing:false };
 // STORAGE
 // ════════════════════════════════════
 function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
-function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); }
-function saveCurrentSession() { if (S.session) localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid,session:S.session})); }
-function clearCurrentSession() { localStorage.removeItem('mwCurrent'); }
+function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); sbSaveDebounced(); }
+function saveCurrentSession() { if (S.session) { localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid,session:S.session})); sbSaveDebounced(); } }
+function clearCurrentSession() { localStorage.removeItem('mwCurrent'); sbSaveDebounced(); }
 function loadCurrentSession() { try { return JSON.parse(localStorage.getItem('mwCurrent')||'null'); } catch{ return null; } }
 
 // ════════════════════════════════════
@@ -525,7 +645,7 @@ const DEFAULT_LOCKERS = { A: '102', B: '719' };
 function getPrefs() {
   try { return JSON.parse(localStorage.getItem('mwPrefs')) || {}; } catch(e) { return {}; }
 }
-function putPrefs(p) { localStorage.setItem('mwPrefs', JSON.stringify(p)); }
+function putPrefs(p) { localStorage.setItem('mwPrefs', JSON.stringify(p)); sbSaveDebounced(); }
 
 function getExName(origName) {
   const p = getPrefs();
@@ -1089,16 +1209,7 @@ function deleteSession(id) {
 // ════════════════════════════════════
 // INIT
 // ════════════════════════════════════
-homeUpdate();
-(function resumeIfNeeded() {
-  const saved = loadCurrentSession();
-  if (!saved) return;
-  S.rid = saved.rid;
-  S.session = saved.session;
-  S.expanded = null;
-  show('workout');
-  wkRender();
-})();
+initApp();
 </script>
 </body>
 </html>
