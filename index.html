@@ -637,6 +637,12 @@ function showProgress() { progressRender(); show('progress'); }
 // ════════════════════════════════════
 // PROGRESS
 // ════════════════════════════════════
+function isBW(w) { return w === '.' || w === 'BW' || w === 'bw'; }
+function displayWeight(w) {
+  if (!w && w !== 0) return w;
+  return isBW(String(w)) ? 'BW' : w;
+}
+
 function getExerciseProgress(exName) {
   const d = get();
   return d.sessions
@@ -644,15 +650,19 @@ function getExerciseProgress(exName) {
     .map(s => {
       const ex = s.exercises.find(e => e.name === exName);
       if (!ex) return null;
-      const weights = ex.sets.filter(set=>set.done && set.w)
+      // Separate BW sets from weighted sets
+      const doneSets = ex.sets.filter(set=>set.done && set.w);
+      const bwSets = doneSets.filter(set=>isBW(String(set.w)));
+      const weights = doneSets.filter(set=>!isBW(String(set.w)))
         .map(set=>parseFloat(set.w)).filter(w=>!isNaN(w) && w>0);
-      if (!weights.length) return null;
-      return { date: s.id, max: Math.max(...weights) };
+      const hasBW = bwSets.length > 0;
+      if (!weights.length && !hasBW) return null;
+      return { date: s.id, max: weights.length ? Math.max(...weights) : null, bw: hasBW };
     }).filter(Boolean);
 }
 
 function getLastUpscale(exName) {
-  const pts = getExerciseProgress(exName);
+  const pts = getExerciseProgress(exName).filter(p => p.max !== null); // weighted only
   let last = null;
   for (let i = 1; i < pts.length; i++) {
     if (pts[i].max > pts[i-1].max)
@@ -662,31 +672,34 @@ function getLastUpscale(exName) {
 }
 
 function drawMiniChart(pts, hexColor) {
-  if (pts.length < 2) return `<div class="prog-no-data">Not enough data yet — need at least 2 sessions</div>`;
+  const bwCount = pts.filter(p=>p.bw).length;
+  const wPts = pts.filter(p=>p.max !== null); // weighted sessions only
+  const bwNote = bwCount ? `<div style="font-size:10px;color:var(--txt2);margin-top:3px">🏋 ${bwCount} session${bwCount!==1?'s':''} with bodyweight (BW)</div>` : '';
+  if (wPts.length < 2) return `<div class="prog-no-data">${wPts.length < 1 ? 'No weighted sessions yet' : 'Need at least 2 weighted sessions for chart'}</div>${bwNote}`;
   const W = 300, H = 72;
-  const maxW = Math.max(...pts.map(p=>p.max));
-  const minW = Math.min(...pts.map(p=>p.max));
+  const maxW = Math.max(...wPts.map(p=>p.max));
+  const minW = Math.min(...wPts.map(p=>p.max));
   const range = maxW - minW || 1;
-  const coords = pts.map((p,i) => ({
-    x: 8 + (i/(pts.length-1)) * (W-16),
+  const coords = wPts.map((p,i) => ({
+    x: 8 + (i/(wPts.length-1)) * (W-16),
     y: H - 18 - ((p.max - minW)/range) * (H-30),
     ...p
   }));
   const poly = coords.map(c=>`${c.x},${c.y}`).join(' ');
-  const diff = pts[pts.length-1].max - pts[0].max;
+  const diff = wPts[wPts.length-1].max - wPts[0].max;
   const diffColor = diff > 0 ? '#34c759' : diff < 0 ? '#ff3b30' : '#636366';
   const diffStr = diff > 0 ? `+${diff}kg 📈` : diff < 0 ? `${diff}kg 📉` : 'no change';
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">
     <polyline points="${poly}" fill="none" stroke="${hexColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
     ${coords.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="3.5" fill="${hexColor}"/>`).join('')}
-    <text x="8" y="${H}" font-size="9" fill="#aaa">${new Date(pts[0].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
-    <text x="${W-8}" y="${H}" font-size="9" fill="#aaa" text-anchor="end">${new Date(pts[pts.length-1].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
+    <text x="8" y="${H}" font-size="9" fill="#aaa">${new Date(wPts[0].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
+    <text x="${W-8}" y="${H}" font-size="9" fill="#aaa" text-anchor="end">${new Date(wPts[wPts.length-1].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
   </svg>
   <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px">
     <span style="color:var(--txt2)">${minW}kg → ${maxW}kg</span>
     <span style="font-weight:700;color:${diffColor}">${diffStr}</span>
-    <span style="color:var(--txt2)">${pts.length} sessions</span>
-  </div>`;
+    <span style="color:var(--txt2)">${wPts.length} sessions</span>
+  </div>${bwNote}`;
 }
 
 function progressRender() {
@@ -993,7 +1006,7 @@ function buildCard(ex, i) {
               oninput="saveSetNote(${i},${si},this.value)">
             <button class="set-ck${ckCls}" onclick="toggleSet(${i},${si})">${ckIcon}</button>
           </div>
-          ${!set.done && prevW!==null ? `<div class="sr-prev">Last: <strong>${prevW} kg</strong></div>` : ''}
+          ${!set.done && prevW!==null ? `<div class="sr-prev">Last: <strong>${displayWeight(prevW)}${!isBW(String(prevW))?' kg':''}</strong></div>` : ''}
         </div>`;
     }).join('');
 
@@ -1298,7 +1311,7 @@ function histRender() {
       if(!ds.length) return '';
       return `<div class="hi-ex">
         <div class="hi-en he">${ex.name}</div>
-        <div class="hi-sets">${ds.map((x,j)=>`<span class="hi-pill">Set ${j+1}: ${x.w||'?'} × ${x.r||'?'}</span>`).join('')}</div>
+        <div class="hi-sets">${ds.map((x,j)=>`<span class="hi-pill">Set ${j+1}: ${displayWeight(x.w)||'?'} × ${x.r||'?'}</span>`).join('')}</div>
         ${ex.comment ? `<div class="hi-comment">💬 ${ex.comment}</div>` : ''}
       </div>`;
     }).join('');
