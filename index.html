@@ -197,6 +197,16 @@
     /* History comment */
     .hi-comment { font-size: 12px; color: var(--txt2); margin-top: 4px; font-style: italic; }
 
+    /* ── PROGRESS ── */
+    .prog-ex { background: var(--card); border-radius: var(--r); box-shadow: var(--sh);
+      padding: 14px 16px; margin-bottom: 12px; }
+    .prog-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+    .prog-stat { font-size: 11px; color: var(--txt2); margin-bottom: 8px; line-height: 1.6; }
+    .prog-no-data { font-size: 12px; color: var(--txt2); padding: 4px 0 2px; }
+    .prog-section-lbl { font-size: 13px; font-weight: 800; padding: 10px 0 6px; }
+    .upscale-badge { font-size: 10px; color: var(--green); font-weight: 700; margin-top: 2px; }
+    .home-best { font-size: 11px; color: var(--txt2); padding: 2px 0 6px; }
+
     /* Preview */
     .pv-ex { background: var(--card); border-radius: var(--r); box-shadow: var(--sh);
       padding: 12px 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
@@ -282,7 +292,8 @@
         <button class="rc-btn" id="rc-btn-b" style="background:var(--b)" onclick="startWorkout('B')">Start Routine B</button>
       </div>
       <div class="h-link">
-        <button onclick="showHistory()">📋 View History</button>
+        <button onclick="showHistory()">📋 History</button>
+        <button onclick="showProgress()" style="margin-left:12px">📈 Progress</button>
         <button onclick="resetWeek()" style="margin-left:12px;font-size:13px;color:#aaa">↺ Reset Week</button>
         <button onclick="forceUpdate()" style="margin-left:12px;font-size:13px;color:#aaa">↻ Update App</button>
         <button onclick="showSyncCode()" style="margin-left:12px;font-size:13px;color:#aaa">🔑 Sync</button>
@@ -321,6 +332,15 @@
       <button class="back-btn" onclick="goHome()">← Back</button>
     </div>
     <div class="hist-body" id="preview-body"></div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="screen-progress" class="screen">
+    <div class="hist-hd">
+      <h2>📈 Progress</h2>
+      <button class="back-btn" onclick="goHome()">← Back</button>
+    </div>
+    <div class="hist-body" id="progress-body"></div>
   </div>
 
   <!-- HISTORY -->
@@ -612,6 +632,89 @@ function forceUpdate() {
     .catch(() => location.reload());
 }
 function showHistory() { histRender(); show('history'); }
+function showProgress() { progressRender(); show('progress'); }
+
+// ════════════════════════════════════
+// PROGRESS
+// ════════════════════════════════════
+function getExerciseProgress(exName) {
+  const d = get();
+  return d.sessions
+    .sort((a,b) => a.id - b.id)
+    .map(s => {
+      const ex = s.exercises.find(e => e.name === exName);
+      if (!ex) return null;
+      const weights = ex.sets.filter(set=>set.done && set.w)
+        .map(set=>parseFloat(set.w)).filter(w=>!isNaN(w) && w>0);
+      if (!weights.length) return null;
+      return { date: s.id, max: Math.max(...weights) };
+    }).filter(Boolean);
+}
+
+function getLastUpscale(exName) {
+  const pts = getExerciseProgress(exName);
+  let last = null;
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].max > pts[i-1].max)
+      last = { date: pts[i].date, from: pts[i-1].max, to: pts[i].max };
+  }
+  return last;
+}
+
+function drawMiniChart(pts, hexColor) {
+  if (pts.length < 2) return `<div class="prog-no-data">Not enough data yet — need at least 2 sessions</div>`;
+  const W = 300, H = 72;
+  const maxW = Math.max(...pts.map(p=>p.max));
+  const minW = Math.min(...pts.map(p=>p.max));
+  const range = maxW - minW || 1;
+  const coords = pts.map((p,i) => ({
+    x: 8 + (i/(pts.length-1)) * (W-16),
+    y: H - 18 - ((p.max - minW)/range) * (H-30),
+    ...p
+  }));
+  const poly = coords.map(c=>`${c.x},${c.y}`).join(' ');
+  const diff = pts[pts.length-1].max - pts[0].max;
+  const diffColor = diff > 0 ? '#34c759' : diff < 0 ? '#ff3b30' : '#636366';
+  const diffStr = diff > 0 ? `+${diff}kg 📈` : diff < 0 ? `${diff}kg 📉` : 'no change';
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">
+    <polyline points="${poly}" fill="none" stroke="${hexColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${coords.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="3.5" fill="${hexColor}"/>`).join('')}
+    <text x="8" y="${H}" font-size="9" fill="#aaa">${new Date(pts[0].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
+    <text x="${W-8}" y="${H}" font-size="9" fill="#aaa" text-anchor="end">${new Date(pts[pts.length-1].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
+  </svg>
+  <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px">
+    <span style="color:var(--txt2)">${minW}kg → ${maxW}kg</span>
+    <span style="font-weight:700;color:${diffColor}">${diffStr}</span>
+    <span style="color:var(--txt2)">${pts.length} sessions</span>
+  </div>`;
+}
+
+function progressRender() {
+  const el = document.getElementById('progress-body');
+  const d = get();
+  if (!d.sessions.length) {
+    el.innerHTML = '<div class="no-hist">No workouts yet 💪<br>Start your first session!</div>';
+    return;
+  }
+  el.innerHTML = ['A','B'].map(rid => {
+    const hexColor = rid==='A' ? '#ff6b35' : '#3b82f6';
+    const color = rid==='A' ? 'var(--a)' : 'var(--b)';
+    const cards = ROUTINES[rid].exercises.map(ex => {
+      const pts = getExerciseProgress(ex.name);
+      const lastUp = getLastUpscale(ex.name);
+      const best = pts.length ? Math.max(...pts.map(p=>p.max)) : null;
+      const lastUpStr = lastUp
+        ? `· <span style="color:var(--green);font-weight:700">Last increase: ${new Date(lastUp.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (+${lastUp.to-lastUp.from}kg)</span>`
+        : '';
+      return `<div class="prog-ex">
+        <div class="prog-name">${ex.key?'🔥 ':''}${ex.name}</div>
+        <div class="prog-stat">Best: <strong>${best!=null?best+'kg':'—'}</strong> ${lastUpStr}</div>
+        ${drawMiniChart(pts, hexColor)}
+      </div>`;
+    }).join('');
+    return `<div class="prog-section-lbl" style="color:${color}">Routine ${rid}</div>${cards}`;
+  }).join('');
+}
 
 function viewRoutine(rid) {
   const saved = loadCurrentSession();
@@ -736,7 +839,17 @@ function homeUpdate() {
       return `<button class="day-btn${isSel?' sel':''}" ${style}
         onclick="setDay('${r}','${dy}')">${dy}</button>`;
     }).join('');
+    const keyBests = ROUTINES[r].exercises.filter(e=>e.key).map(e=>{
+      const pts = getExerciseProgress(e.name);
+      if (!pts.length) return null;
+      const best = Math.max(...pts.map(p=>p.max));
+      const up = getLastUpscale(e.name);
+      return `${e.name.split(' ')[0]} <strong>${best}kg</strong>${up?' ↑':'' }`;
+    }).filter(Boolean);
+    const bestHtml = keyBests.length
+      ? `<div class="home-best">🏆 ${keyBests.join(' &nbsp;·&nbsp; ')}</div>` : '';
     document.getElementById('rc-meta-'+r.toLowerCase()).innerHTML = `
+      ${bestHtml}
       <div class="rc-days">${dayBtns}</div>
       <div class="rc-locker">
         🔐 Locker
@@ -917,6 +1030,7 @@ function buildCard(ex, i) {
         ${mach}
         ${muscleTags}
         ${(()=>{ const REST_OPTS=['2:00','1:30','1:10','0:50']; const savedRest=(getPrefs().rest&&getPrefs().rest[ex.name])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${ex.name}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
+        ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="note..."
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
