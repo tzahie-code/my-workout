@@ -257,6 +257,30 @@
     .hi-en { font-size: 13px; font-weight: 600; color: var(--txt2); direction: rtl; text-align: right; margin-bottom: 4px; }
     .hi-sets { display: flex; flex-wrap: wrap; gap: 5px; }
     .hi-pill { background: var(--bg); border-radius: 6px; padding: 3px 10px; font-size: 12px; }
+
+    /* ── EXERCISE LIBRARY ── */
+    .lib-card { display:flex; align-items:center; gap:12px; background:var(--card);
+      border-radius:var(--r); box-shadow:var(--sh); padding:12px; margin-bottom:10px; cursor:pointer; }
+    .lib-card:active { opacity:.8; }
+    .lib-img { width:64px; height:64px; object-fit:cover; object-position:top center;
+      border-radius:10px; flex-shrink:0; background:#1a1a2e; }
+    .lib-img-ph { width:64px; height:64px; border-radius:10px; flex-shrink:0; background:#1a1a2e; }
+    .lib-info { flex:1; min-width:0; }
+    .lib-name { font-size:14px; font-weight:700; margin-bottom:3px; }
+    .lib-filters { display:flex; gap:6px; padding:10px 16px 10px; overflow-x:auto;
+      background:white; border-bottom:1px solid var(--border); -webkit-overflow-scrolling:touch; }
+    .lib-filters::-webkit-scrollbar { display:none; }
+    .lib-fbtn { font-size:11px; font-weight:700; background:#f0f0f5; color:var(--txt2);
+      border:1.5px solid var(--border); border-radius:20px; padding:5px 12px;
+      cursor:pointer; white-space:nowrap; flex-shrink:0; }
+    .lib-fbtn.sel { background:var(--txt); color:white; border-color:var(--txt); }
+    .lib-fbtn:active { opacity:.7; }
+    .lib-diagram { display:flex; justify-content:center; padding:16px 0 8px;
+      background:white; border-bottom:1px solid var(--border); }
+    .lib-modal-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+      z-index:200; align-items:flex-end; justify-content:center; }
+    .lib-modal-sheet { background:white; border-radius:20px 20px 0 0; width:100%;
+      max-width:480px; padding:20px; max-height:88vh; overflow-y:auto; }
   </style>
 </head>
 <body>
@@ -293,6 +317,7 @@
       </div>
       <div class="h-link">
         <button onclick="showHistory()">📋 History</button>
+        <button onclick="showLibrary()" style="margin-left:12px">💪 Exercises</button>
         <button onclick="showProgress()" style="margin-left:12px">📈 Progress</button>
         <button onclick="resetWeek()" style="margin-left:12px;font-size:13px;color:#aaa">↺ Reset Week</button>
         <button onclick="forceUpdate()" style="margin-left:12px;font-size:13px;color:#aaa">↻ Update App</button>
@@ -341,6 +366,20 @@
       <button class="back-btn" onclick="goHome()">← Back</button>
     </div>
     <div class="hist-body" id="progress-body"></div>
+  </div>
+
+  <!-- LIBRARY -->
+  <div id="screen-library" class="screen">
+    <div class="hist-hd">
+      <h2>💪 Exercises</h2>
+      <button class="back-btn" onclick="goHome()">← Back</button>
+    </div>
+    <div id="library-body"></div>
+    <div id="lib-modal" class="lib-modal-wrap" onclick="closeLibDetail(event)">
+      <div class="lib-modal-sheet" onclick="event.stopPropagation()">
+        <div id="lib-modal-content"></div>
+      </div>
+    </div>
   </div>
 
   <!-- HISTORY -->
@@ -525,6 +564,237 @@ const MUSCLE_LABELS = {
   'upper-back':'Upper Back', 'lower-back':'Lower Back', lat:'Lats',
   quad:'Quads', hamstring:'Hamstrings', glute:'Glutes', calf:'Calves'
 };
+
+// ════════════════════════════════════
+// EXERCISE LIBRARY
+// ════════════════════════════════════
+const MUSCLE_COLORS = {
+  chest:'#ff6b35', shoulder:'#3b82f6', bicep:'#8b5cf6',
+  tricep:'#ec4899', forearm:'#f59e0b', abs:'#10b981',
+  'upper-back':'#6366f1', lat:'#0891b2', 'lower-back':'#7c3aed',
+  quad:'#d97706', hamstring:'#dc2626', glute:'#db2777', calf:'#059669'
+};
+
+const EXERCISE_LIBRARY = [
+  // CHEST
+  { name:'Barbell Bench Press',        muscles:['chest','shoulder','tricep'],            img:'Barbell_Bench_Press_-_Medium_Grip' },
+  { name:'Incline Dumbbell Press',     muscles:['chest','shoulder','tricep'],            img:'Incline_Dumbbell_Press' },
+  { name:'Decline Dumbbell Press',     muscles:['chest','tricep'],                       img:'Decline_Dumbbell_Press' },
+  { name:'Pec Deck',                   muscles:['chest'],                                img:'Butterfly' },
+  { name:'Cable Crossover',            muscles:['chest'],                                img:'Cable_Crossover' },
+  { name:'Dumbbell Flyes',             muscles:['chest'],                                img:'Dumbbell_Flyes' },
+  { name:'Push-Ups',                   muscles:['chest','shoulder','tricep'],            img:'Pushups' },
+  { name:'Dips',                       muscles:['chest','tricep','shoulder'],            img:'Dips_-_Triceps_Version' },
+  // BACK
+  { name:'Wide Grip Lat Pulldown',     muscles:['lat','upper-back','bicep'],             img:'Wide-Grip_Lat_Pulldown' },
+  { name:'Pull-Ups',                   muscles:['lat','upper-back','bicep'],             img:'Pullups' },
+  { name:'Seated Cable Row',           muscles:['upper-back','lat','bicep'],             img:'Seated_Cable_Rows' },
+  { name:'Incline Dumbbell Row',       muscles:['upper-back','lat','bicep'],             img:'Dumbbell_Incline_Row' },
+  { name:'Face Pull',                  muscles:['upper-back','shoulder'],                img:'Face_Pull' },
+  { name:'Hyperextensions',            muscles:['lower-back','glute','hamstring'],       img:'Hyperextensions_Back_Extensions' },
+  { name:'Straight Arm Pulldown',      muscles:['lat'],                                  img:'Straight-Arm_Pulldown' },
+  { name:'Deadlift',                   muscles:['lower-back','glute','hamstring','quad'],img:'Barbell_Deadlift' },
+  { name:'Romanian Deadlift',          muscles:['hamstring','glute','lower-back'],       img:'Romanian_Deadlift' },
+  // SHOULDERS
+  { name:'Dumbbell Shoulder Press',    muscles:['shoulder','tricep'],                    img:'Dumbbell_Shoulder_Press' },
+  { name:'Barbell Overhead Press',     muscles:['shoulder','tricep'],                    img:'Barbell_Shoulder_Press' },
+  { name:'Lateral Raises',             muscles:['shoulder'],                             img:'Seated_Side_Lateral_Raise' },
+  { name:'Front Raises',               muscles:['shoulder'],                             img:'Front_Dumbbell_Raise' },
+  { name:'Rear Delt Fly',              muscles:['shoulder','upper-back'],                img:'Seated_Bent-Over_Rear_Delt_Raise' },
+  { name:'Arnold Press',               muscles:['shoulder','tricep'],                    img:'Arnold_Dumbbell_Press' },
+  { name:'Upright Row',                muscles:['shoulder','upper-back'],                img:'Upright_Barbell_Row' },
+  // BICEPS
+  { name:'Barbell Curl',               muscles:['bicep'],                                img:'Barbell_Curl' },
+  { name:'Dumbbell Curl',              muscles:['bicep'],                                img:'Dumbbell_Alternate_Bicep_Curl' },
+  { name:'Hammer Curl',                muscles:['bicep','forearm'],                      img:'Alternate_Hammer_Curl' },
+  { name:'Cable Curl',                 muscles:['bicep'],                                img:'Standing_Biceps_Cable_Curl' },
+  { name:'Preacher Curl',              muscles:['bicep'],                                img:'EZ-Bar_Preacher_Curl' },
+  { name:'Concentration Curl',         muscles:['bicep'],                                img:'Concentration_Curls' },
+  { name:'Incline Dumbbell Curl',      muscles:['bicep'],                                img:'Incline_Dumbbell_Curl' },
+  // TRICEPS
+  { name:'Triceps Pushdown',           muscles:['tricep'],                               img:'Triceps_Pushdown' },
+  { name:'Overhead Triceps Extension', muscles:['tricep'],                               img:'Cable_Rope_Overhead_Triceps_Extension' },
+  { name:'Skull Crushers',             muscles:['tricep'],                               img:'Lying_Triceps_Press' },
+  { name:'Close Grip Bench Press',     muscles:['tricep','chest'],                       img:'Close-Grip_Barbell_Bench_Press' },
+  { name:'Triceps Kickback',           muscles:['tricep'],                               img:'Triceps_Kickback' },
+  // FOREARMS
+  { name:'Wrist Curl',                 muscles:['forearm'],                              img:'Palms_Up_Barbell_Wrist_Curl_Over_A_Bench' },
+  { name:'Reverse Curl',               muscles:['forearm','bicep'],                      img:'Reverse_Barbell_Curl' },
+  // ABS
+  { name:'Cable Crunch',               muscles:['abs'],                                  img:'Cable_Crunch' },
+  { name:'Hanging Leg Raises',         muscles:['abs'],                                  img:'Hanging_Leg_Raise' },
+  { name:'Ab Wheel Rollout',           muscles:['abs'],                                  img:'Ab_Roller' },
+  { name:'Russian Twist',              muscles:['abs'],                                  img:'Russian_Twist' },
+  { name:'Decline Crunch',             muscles:['abs'],                                  img:'Decline_Crunch' },
+  { name:'Flat Bench Leg Raises',      muscles:['abs'],                                  img:'Flat_Bench_Lying_Leg_Raise' },
+  // QUADS / LEGS
+  { name:'Barbell Squat',              muscles:['quad','glute','hamstring'],             img:'Barbell_Squat' },
+  { name:'Leg Press',                  muscles:['quad','glute','hamstring'],             img:'Leg_Press' },
+  { name:'Leg Extension',              muscles:['quad'],                                 img:'Leg_Extensions' },
+  { name:'Bulgarian Split Squat',      muscles:['quad','glute','hamstring'],             img:'Split_Squats' },
+  { name:'Hack Squat',                 muscles:['quad','glute'],                         img:'Hack_Squat' },
+  { name:'Barbell Lunge',              muscles:['quad','glute','hamstring'],             img:'Barbell_Lunge' },
+  // HAMSTRINGS / GLUTES
+  { name:'Lying Leg Curl',             muscles:['hamstring'],                            img:'Lying_Leg_Curls' },
+  { name:'Stiff-Leg Deadlift',         muscles:['hamstring','lower-back'],               img:'Stiff-Legged_Deadlift' },
+  { name:'Good Morning',               muscles:['hamstring','lower-back','glute'],       img:'Good_Morning' },
+  { name:'Hip Thrust',                 muscles:['glute','hamstring'],                    img:'Barbell_Hip_Thrust' },
+  // CALVES
+  { name:'Standing Calf Raises',       muscles:['calf'],                                 img:'Standing_Calf_Raises' },
+  { name:'Seated Calf Raises',         muscles:['calf'],                                 img:'Seated_Calf_Raise' },
+  { name:'Leg Press Calf Raise',       muscles:['calf'],                                 img:'Leg_Press_Calf_Raise' },
+];
+
+let _libFilter = null;
+
+function _mHex(m) { return MUSCLE_COLORS[m] || '#aaa'; }
+function _mRgba(m, a) {
+  const c = _mHex(m);
+  const r = parseInt(c.slice(1,3),16), g = parseInt(c.slice(3,5),16), b = parseInt(c.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function buildBodySVG(view, highlightMuscles, size) {
+  const hl = highlightMuscles || [];
+  const isHL = m => hl.includes(m);
+  const fill = (m) => {
+    if (!hl.length) return _mRgba(m, 0.55);
+    return isHL(m) ? _mRgba(m, 0.85) : _mRgba(m, 0.15);
+  };
+  const clk = (m) => size==='large' ? `onclick="librarySetFilter('${m}')" style="cursor:pointer"` : '';
+  const bg = '#e8e8ed', str = '#d1d1d6';
+
+  const bodyOutline = `
+    <circle cx="100" cy="28" r="22" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="91" y="49" width="18" height="14" fill="${bg}"/>
+    <ellipse cx="57" cy="72" rx="23" ry="14" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <ellipse cx="143" cy="72" rx="23" ry="14" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <path d="M72,62 L128,62 L135,145 L65,145 Z" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <path d="M65,145 L135,145 L128,165 L72,165 Z" fill="${bg}"/>
+    <rect x="36" y="64" width="21" height="64" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="143" y="64" width="21" height="64" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="29" y="130" width="19" height="57" rx="9" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="152" y="130" width="19" height="57" rx="9" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <ellipse cx="39" cy="197" rx="10" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <ellipse cx="161" cy="197" rx="10" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="67" y="165" width="31" height="67" rx="13" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="102" y="165" width="31" height="67" rx="13" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="69" y="234" width="27" height="53" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <rect x="104" y="234" width="27" height="53" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <ellipse cx="84" cy="288" rx="15" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>
+    <ellipse cx="116" cy="288" rx="15" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>`;
+
+  let muscles = '';
+  if (view === 'front') {
+    muscles = `
+      <ellipse cx="86" cy="90" rx="19" ry="17" fill="${fill('chest')}" ${clk('chest')}/>
+      <ellipse cx="114" cy="90" rx="19" ry="17" fill="${fill('chest')}" ${clk('chest')}/>
+      <ellipse cx="54" cy="70" rx="19" ry="13" fill="${fill('shoulder')}" ${clk('shoulder')}/>
+      <ellipse cx="146" cy="70" rx="19" ry="13" fill="${fill('shoulder')}" ${clk('shoulder')}/>
+      <ellipse cx="43" cy="100" rx="11" ry="18" fill="${fill('bicep')}" ${clk('bicep')}/>
+      <ellipse cx="157" cy="100" rx="11" ry="18" fill="${fill('bicep')}" ${clk('bicep')}/>
+      <ellipse cx="37" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
+      <ellipse cx="163" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
+      <rect x="84" y="110" width="32" height="32" rx="6" fill="${fill('abs')}" ${clk('abs')}/>
+      <ellipse cx="82" cy="198" rx="15" ry="28" fill="${fill('quad')}" ${clk('quad')}/>
+      <ellipse cx="118" cy="198" rx="15" ry="28" fill="${fill('quad')}" ${clk('quad')}/>
+      <ellipse cx="82" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>
+      <ellipse cx="118" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>`;
+  } else {
+    muscles = `
+      <path d="M88,62 L112,62 L132,86 L68,86 Z" fill="${fill('upper-back')}" ${clk('upper-back')}/>
+      <path d="M68,86 L86,132 L100,138 L114,132 L132,86 L112,62 L88,62 Z" fill="${fill('lat')}" ${clk('lat')}/>
+      <rect x="82" y="122" width="36" height="24" rx="5" fill="${fill('lower-back')}" ${clk('lower-back')}/>
+      <ellipse cx="43" cy="100" rx="11" ry="18" fill="${fill('tricep')}" ${clk('tricep')}/>
+      <ellipse cx="157" cy="100" rx="11" ry="18" fill="${fill('tricep')}" ${clk('tricep')}/>
+      <ellipse cx="37" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
+      <ellipse cx="163" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
+      <ellipse cx="83" cy="163" rx="21" ry="19" fill="${fill('glute')}" ${clk('glute')}/>
+      <ellipse cx="117" cy="163" rx="21" ry="19" fill="${fill('glute')}" ${clk('glute')}/>
+      <ellipse cx="82" cy="198" rx="15" ry="28" fill="${fill('hamstring')}" ${clk('hamstring')}/>
+      <ellipse cx="118" cy="198" rx="15" ry="28" fill="${fill('hamstring')}" ${clk('hamstring')}/>
+      <ellipse cx="82" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>
+      <ellipse cx="118" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>`;
+  }
+
+  const w = size==='large' ? '170px' : '130px';
+  return `<svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" style="width:${w};height:auto">${bodyOutline}${muscles}</svg>`;
+}
+
+function showLibrary() {
+  _libFilter = null;
+  libraryRender();
+  show('library');
+}
+
+function librarySetFilter(muscle) {
+  _libFilter = muscle === _libFilter ? null : muscle;
+  libraryRender();
+}
+
+function libraryRender() {
+  const el = document.getElementById('library-body');
+  const filtered = _libFilter
+    ? EXERCISE_LIBRARY.filter(e => e.muscles.includes(_libFilter))
+    : EXERCISE_LIBRARY;
+
+  const filterBtns = [
+    `<button class="lib-fbtn${!_libFilter?' sel':''}" onclick="librarySetFilter(null)">All</button>`,
+    ...Object.entries(MUSCLE_LABELS).map(([k,v]) => {
+      const isSel = _libFilter === k;
+      const col = _mHex(k);
+      return `<button class="lib-fbtn${isSel?' sel':''}" onclick="librarySetFilter('${k}')"
+        style="${isSel?`background:${col};color:white;border-color:${col};`:''}">${v}</button>`;
+    })
+  ].join('');
+
+  const cards = filtered.map((ex, fi) => {
+    const idx = EXERCISE_LIBRARY.indexOf(ex);
+    const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+    const tags = ex.muscles.map(m=>`<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`).join('');
+    return `<div class="lib-card" onclick="showLibDetail(${idx})">
+      ${imgSrc ? `<img class="lib-img" src="${imgSrc}" loading="lazy" alt="" onerror="this.style.opacity='0'">` : '<div class="lib-img-ph"></div>'}
+      <div class="lib-info">
+        <div class="lib-name">${ex.name}</div>
+        <div class="muscle-tags" style="margin-top:4px">${tags}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="lib-diagram">${buildBodySVG('front', _libFilter?[_libFilter]:[], 'large')}</div>
+    <div class="lib-filters">${filterBtns}</div>
+    <div style="padding:12px 16px 40px">${cards || '<div class="no-hist">No exercises found</div>'}</div>`;
+}
+
+function showLibDetail(idx) {
+  const ex = EXERCISE_LIBRARY[idx];
+  const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+  const tags = ex.muscles.map(m=>`<span class="mtag" style="background:${_mRgba(m,0.15)};color:${_mHex(m)};font-weight:700">${MUSCLE_LABELS[m]||m}</span>`).join('');
+  document.getElementById('lib-modal-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="font-size:18px;font-weight:800;flex:1;padding-right:12px">${ex.name}</h3>
+      <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1">✕</button>
+    </div>
+    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:180px;object-fit:cover;object-position:top center;border-radius:12px;margin-bottom:12px;background:#1a1a2e" onerror="this.style.display='none'">` : ''}
+    <div class="muscle-tags" style="margin-bottom:16px">${tags}</div>
+    <div style="display:flex;gap:8px;justify-content:center;padding-bottom:8px">
+      <div style="text-align:center;flex:1">
+        <div style="font-size:10px;font-weight:800;color:var(--txt2);letter-spacing:.5px;margin-bottom:6px">FRONT</div>
+        ${buildBodySVG('front', ex.muscles, 'small')}
+      </div>
+      <div style="text-align:center;flex:1">
+        <div style="font-size:10px;font-weight:800;color:var(--txt2);letter-spacing:.5px;margin-bottom:6px">BACK</div>
+        ${buildBodySVG('back', ex.muscles, 'small')}
+      </div>
+    </div>`;
+  document.getElementById('lib-modal').style.display = 'flex';
+}
+
+function closeLibDetail(e) {
+  if (e && e.target !== document.getElementById('lib-modal')) return;
+  document.getElementById('lib-modal').style.display = 'none';
+}
 
 // ════════════════════════════════════
 // DATA
