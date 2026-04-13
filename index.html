@@ -484,27 +484,27 @@ function forceUpdate() {
 function showHistory() { histRender(); show('history'); }
 
 function viewRoutine(rid) {
-  const rt = ROUTINES[rid];
-  const color = rid === 'A' ? 'var(--a)' : 'var(--b)';
-  document.getElementById('preview-title').textContent = 'Routine ' + rid;
-  document.getElementById('preview-body').innerHTML =
-    rt.exercises.map(ex => {
-      const img = EX_IMGS[ex.name] || '';
-      const imgTag = img ? `<img class="pv-img" src="${img}" onerror="this.style.opacity=0">` : '';
-      const key = ex.key ? `<span class="mtag-key">🔥 Key</span>` : '';
-      const muscles = (ex.muscles||[]).map(m=>`<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`).join(' ');
-      const sets = ex.sets.length + ' sets · ' + ex.sets[0].r + ' reps';
-      return `<div class="pv-ex">
-        ${imgTag}
-        <div class="pv-info">
-          <div class="pv-name">${ex.name} ${key}</div>
-          <div class="pv-meta">${sets}</div>
-          <div class="muscle-tags" style="margin-top:4px">${muscles}</div>
-        </div>
-      </div>`;
-    }).join('') +
-    `<button class="pv-start" style="background:${color}" onclick="startWorkout('${rid}')">▶ Start Routine ${rid}</button>`;
-  show('preview');
+  const saved = loadCurrentSession();
+  if (saved && saved.rid === rid) {
+    // Resume existing session
+    S.rid = saved.rid; S.session = saved.session; S.expanded = null;
+    show('workout'); wkRender();
+  } else {
+    // Open full workout view without auto-selecting today
+    S.rid = rid; S.expanded = null;
+    S.session = {
+      id: Date.now(), routine: rid,
+      startTime: Date.now(), endTime: null,
+      exercises: ROUTINES[rid].exercises.map(ex => ({
+        name: ex.name,
+        machine: (getPrefs().machines && getPrefs().machines[ex.name]) || ex.machine || '',
+        comment: (getPrefs().comments && getPrefs().comments[ex.name]) || '',
+        variantIdx: ex.variants ? getVariantIdx(ex.name) : undefined,
+        sets: ex.sets.map(def=>({w:null,r:null,done:false,note:def.n}))
+      }))
+    };
+    show('workout'); wkRender();
+  }
 }
 
 // ════════════════════════════════════
