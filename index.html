@@ -935,7 +935,7 @@ function viewRoutine(rid) {
         machine: (getPrefs().machines && getPrefs().machines[ex.name]) || ex.machine || '',
         comment: (getPrefs().comments && getPrefs().comments[ex.name]) || '',
         variantIdx: ex.variants ? getVariantIdx(ex.name) : undefined,
-        sets: ex.sets.map(def=>({w:null,r:null,done:false,note:def.n}))
+        sets: ex.sets.map((def,si)=>({w:null,r:null,done:false,note:(getPrefs().setNotes&&getPrefs().setNotes[ex.name]&&getPrefs().setNotes[ex.name][si]!=null?getPrefs().setNotes[ex.name][si]:def.n)||''}))
       }))
     };
   }
@@ -1349,7 +1349,14 @@ function saveMachine(ei, val) {
 }
 
 function saveSetNote(ei, si, val) {
-  if (S.session && S.session.exercises[ei]) S.session.exercises[ei].sets[si].note = val;
+  if (!S.session || !S.session.exercises[ei]) return;
+  S.session.exercises[ei].sets[si].note = val;
+  const p = getPrefs();
+  if (!p.setNotes) p.setNotes = {};
+  const exName = S.session.exercises[ei].name;
+  if (!p.setNotes[exName]) p.setNotes[exName] = {};
+  p.setNotes[exName][si] = val;
+  putPrefs(p);
 }
 
 function toggleSet(ei, si) {
