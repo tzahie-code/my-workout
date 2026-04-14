@@ -1540,10 +1540,16 @@ function toggleSet(ei, si) {
     setTimeout(finish, 700);
     return;
   }
+  // Auto-close exercise when all its sets are done
+  if (justDone && S.session.exercises[ei].sets.every(s=>s.done) && S.expanded===ei) {
+    const next = S.session.exercises.findIndex((e,idx)=>idx>ei && !e.sets.every(s=>s.done));
+    S.expanded = next >= 0 ? next : null;
+  }
   saveCurrentSession();
   wkRender();
+  const scrollTo = S.expanded !== null ? S.expanded : ei;
   setTimeout(()=>{
-    const el = document.getElementById('ec'+ei);
+    const el = document.getElementById('ec'+scrollTo);
     if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
   },60);
   if (justDone && getSettings().restCountdown) {
