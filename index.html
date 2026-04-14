@@ -51,6 +51,7 @@
     .day-btn.sel { color: white; border-color: transparent; }
     /* Locker row */
     .rc-locker { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--txt2); }
+    .rc-last { margin-top: 6px; font-size: 12px; color: var(--txt2); }
     .locker-inp { font-size: 13px; font-weight: 700; color: var(--txt);
       background: transparent; border: none; border-bottom: 1.5px dashed var(--border);
       outline: none; width: 60px; padding: 1px 2px; }
@@ -1035,7 +1036,7 @@ function homeUpdate() {
     const color   = COLORS[r];
     const last    = d.sessions.filter(s=>s.routine===r).sort((a,b)=>b.id-a.id)[0];
     const lastTxt = last
-      ? `<span style="font-size:12px;color:var(--txt2)">📅 ${new Date(last.id).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`
+      ? `<div class="rc-last">Last session: ${new Date(last.id).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>`
       : '';
     const dayBtns = DAYS.map(dy => {
       const isSel = selDays.includes(dy);
@@ -1049,8 +1050,8 @@ function homeUpdate() {
         🔐 Locker
         <input class="locker-inp" value="${locker.replace(/"/g,'&quot;')}"
           oninput="setLocker('${r}',this.value)">
-        ${lastTxt}
-      </div>`;
+      </div>
+      ${lastTxt}`;
     // Resume button if session in progress for this routine
     const saved = loadCurrentSession();
     const btn = document.getElementById('rc-btn-'+r.toLowerCase());
