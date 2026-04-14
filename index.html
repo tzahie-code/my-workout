@@ -1200,6 +1200,7 @@ let _builderTab = 'A';
 let _builderPickRid = null;
 let _pickerFilter = null;
 let _builderTarget = 'draft'; // 'active' | 'draft'
+let _builderReorderMode = false;
 
 function _routinesToBuilderState(routines, name) {
   return {
@@ -1233,6 +1234,7 @@ function showBuilder(mode) {
     document.getElementById('builder-hd-title').textContent = 'New Program';
   }
   _builderTab = 'A';
+  _builderReorderMode = false;
   document.getElementById('builder-name-inp').value = _builderState.name;
   document.getElementById('btab-A').classList.add('active');
   document.getElementById('btab-B').classList.remove('active');
@@ -1244,39 +1246,66 @@ function builderBack() { show('programs'); programsRender(); }
 
 function builderSetTab(tab) {
   _builderTab = tab;
+  _builderReorderMode = false;
   document.getElementById('btab-A').classList.toggle('active', tab === 'A');
   document.getElementById('btab-B').classList.toggle('active', tab === 'B');
+  builderRenderTab();
+}
+
+function builderToggleReorder() {
+  _builderReorderMode = !_builderReorderMode;
   builderRenderTab();
 }
 
 function builderRenderTab() {
   const rid = _builderTab;
   const exs = _builderState[rid].exercises;
-  const rows = exs.map((ex, idx) => {
-    const imgSrc = _exImgSrc(ex.img);
-    const muscles = (ex.muscles||[]).map(m => MUSCLE_LABELS[m]||m).join(', ');
-    return `<div class="builder-ex-row" data-idx="${idx}">
-      <span class="drag-handle"
-        ontouchstart="builderDragStart(event,'${rid}',${idx})"
-        onmousedown="builderDragStart(event,'${rid}',${idx})">⠿</span>
-      ${imgSrc ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : '<div class="builder-ex-img"></div>'}
-      <div class="builder-ex-text">
-        <div class="builder-ex-name">${escHtml(ex.name)}</div>
-        <div class="builder-ex-muscles">${escHtml(muscles)}</div>
-      </div>
-      <div class="builder-sets-ctrl">
-        <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},-1)">−</button>
-        <span class="builder-sets-num">${ex.setCount||3}</span>
-        <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},1)">+</button>
-        <span style="font-size:10px;color:var(--txt2);margin-left:2px">sets</span>
-      </div>
-      <button class="builder-key-btn${ex.key?' active':''}" title="Key exercise" onclick="builderToggleKey('${rid}',${idx})">${ex.key?'🔥':'🔥'}</button>
-      <button class="builder-del-btn" onclick="builderDelEx('${rid}',${idx})">✕</button>
-    </div>`;
-  }).join('');
+
+  let rows;
+  if (_builderReorderMode) {
+    // Simplified drag-only rows — no images, no controls
+    rows = exs.map((ex, idx) => `
+      <div class="builder-ex-row" data-idx="${idx}" style="padding:14px 12px">
+        <span class="drag-handle"
+          ontouchstart="builderDragStart(event,'${rid}',${idx})"
+          onmousedown="builderDragStart(event,'${rid}',${idx})">⠿</span>
+        <span style="flex:1;font-size:15px;font-weight:700">${escHtml(ex.name)}</span>
+        <span style="font-size:12px;color:var(--txt2)">${ex.setCount||3} sets${ex.key?' 🔥':''}</span>
+      </div>`).join('');
+  } else {
+    rows = exs.map((ex, idx) => {
+      const imgSrc = _exImgSrc(ex.img);
+      const muscles = (ex.muscles||[]).map(m => MUSCLE_LABELS[m]||m).join(', ');
+      return `<div class="builder-ex-row" data-idx="${idx}">
+        ${imgSrc ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : '<div class="builder-ex-img"></div>'}
+        <div class="builder-ex-text">
+          <div class="builder-ex-name">${escHtml(ex.name)}</div>
+          <div class="builder-ex-muscles">${escHtml(muscles)}</div>
+        </div>
+        <div class="builder-sets-ctrl">
+          <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},-1)">−</button>
+          <span class="builder-sets-num">${ex.setCount||3}</span>
+          <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},1)">+</button>
+          <span style="font-size:10px;color:var(--txt2);margin-left:2px">sets</span>
+        </div>
+        <button class="builder-key-btn${ex.key?' active':''}" title="Key exercise" onclick="builderToggleKey('${rid}',${idx})">🔥</button>
+        <button class="builder-del-btn" onclick="builderDelEx('${rid}',${idx})">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  const reorderBtn = exs.length > 1
+    ? `<button onclick="builderToggleReorder()" style="
+        display:block;width:100%;padding:10px;margin-bottom:12px;
+        border:1.5px solid var(--border);border-radius:10px;background:${_builderReorderMode?'var(--b)':'white'};
+        color:${_builderReorderMode?'white':'var(--txt2)'};font-size:13px;font-weight:700;cursor:pointer">
+        ${_builderReorderMode ? '✓ Done Reordering' : '↕ Reorder Exercises'}
+      </button>` : '';
+
   document.getElementById('builder-body').innerHTML = `<div class="builder-body">
+    ${reorderBtn}
     ${rows || '<div class="no-hist" style="padding:24px 0">No exercises — add some below</div>'}
-    <button class="builder-add-btn" onclick="openBuilderPicker('${rid}')">+ Add Exercise</button>
+    ${_builderReorderMode ? '' : `<button class="builder-add-btn" onclick="openBuilderPicker('${rid}')">+ Add Exercise</button>`}
   </div>`;
 }
 
