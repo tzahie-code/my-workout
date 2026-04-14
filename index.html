@@ -317,6 +317,73 @@
       font-size:14px; font-weight:700; padding:10px 28px; border-radius:12px;
       cursor:pointer; }
     .rest-ov-skip:active { opacity:.7; }
+
+/* ── PROGRAMS / BUILDER ── */
+.prog-item { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
+  padding:14px 16px; margin-bottom:10px; display:flex; align-items:center;
+  justify-content:space-between; gap:12px; }
+.prog-item-info { flex:1; min-width:0; }
+.prog-item-name { font-size:16px; font-weight:700; }
+.prog-item-date { font-size:12px; color:var(--txt2); margin-top:2px; }
+.prog-actions { display:flex; gap:6px; flex-shrink:0; }
+.prog-btn { font-size:12px; font-weight:700; border:none; border-radius:8px;
+  padding:6px 12px; cursor:pointer; white-space:nowrap; }
+.prog-btn:active { opacity:.7; }
+.builder-name-row { background:var(--card); padding:14px 16px; border-bottom:1px solid var(--border); }
+.builder-name-inp { font-size:20px; font-weight:800; width:100%; border:none; outline:none;
+  background:transparent; color:var(--txt); border-bottom:2px solid var(--border); padding:4px 0; }
+.builder-name-inp:focus { border-bottom-color:var(--txt2); }
+.builder-tabs { display:flex; background:white; border-bottom:1px solid var(--border); }
+.builder-tab { flex:1; padding:12px; text-align:center; font-size:15px; font-weight:700;
+  color:var(--txt2); cursor:pointer; border-bottom:3px solid transparent; }
+.builder-tab.active { color:var(--txt); border-bottom-color:var(--txt); }
+.builder-body { padding:12px 16px 100px; }
+.builder-ex-row { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
+  padding:11px 12px; margin-bottom:10px; display:flex; align-items:center; gap:10px; }
+.builder-ex-img { width:44px; height:44px; border-radius:8px; object-fit:cover;
+  object-position:top center; flex-shrink:0; background:#1a1a2e; }
+.builder-ex-text { flex:1; min-width:0; }
+.builder-ex-name { font-size:14px; font-weight:700; }
+.builder-ex-muscles { font-size:11px; color:var(--txt2); margin-top:2px; }
+.builder-sets-ctrl { display:flex; align-items:center; gap:5px; flex-shrink:0; }
+.builder-sets-btn { width:26px; height:26px; border-radius:7px; border:1.5px solid var(--border);
+  background:white; font-size:15px; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; line-height:1; }
+.builder-sets-btn:active { opacity:.7; }
+.builder-sets-num { font-size:13px; font-weight:800; width:18px; text-align:center; }
+.builder-del-btn { background:none; border:none; color:#c7c7cc; font-size:18px;
+  cursor:pointer; padding:4px 6px; flex-shrink:0; line-height:1; }
+.builder-del-btn:active { color:var(--red); }
+.builder-add-btn { display:block; width:100%; padding:14px; border:2px dashed var(--border);
+  border-radius:var(--r); background:transparent; font-size:15px; font-weight:700;
+  color:var(--txt2); cursor:pointer; }
+.builder-add-btn:active { background:var(--bg); }
+.builder-save-btn { position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+  width:calc(100% - 32px); max-width:448px; padding:15px; border:none; border-radius:14px;
+  background:var(--green); color:white; font-size:16px; font-weight:700; cursor:pointer;
+  box-shadow:0 4px 16px rgba(52,199,89,.4); z-index:10; }
+.builder-save-btn:active { opacity:.85; }
+.picker-wrap { display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,.6); }
+.picker-wrap.active { display:flex; align-items:flex-end; justify-content:center; }
+.picker-sheet { background:var(--bg); border-radius:20px 20px 0 0; width:100%; max-width:480px;
+  max-height:85vh; overflow-y:auto; }
+.picker-hd { background:white; padding:14px 16px; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+  position:sticky; top:0; z-index:10; border-radius:20px 20px 0 0; }
+.picker-hd h3 { font-size:18px; font-weight:800; }
+.picker-close { background:none; border:none; font-size:24px; color:var(--txt2); cursor:pointer; line-height:1; }
+.picker-filters { display:flex; gap:6px; padding:8px 12px; overflow-x:auto;
+  background:white; border-bottom:1px solid var(--border); -webkit-overflow-scrolling:touch; }
+.picker-filters::-webkit-scrollbar { display:none; }
+.picker-card { display:flex; align-items:center; gap:10px; background:var(--card);
+  border-radius:12px; padding:10px 12px; margin:8px 12px 0; cursor:pointer; }
+.picker-card:active { opacity:.8; }
+.picker-img { width:44px; height:44px; border-radius:8px; object-fit:cover;
+  object-position:top center; flex-shrink:0; background:#1a1a2e; }
+.picker-img-ph { width:44px; height:44px; border-radius:8px; flex-shrink:0; background:#1a1a2e; }
+.picker-card-name { font-size:14px; font-weight:700; }
+.picker-card-muscles { font-size:11px; color:var(--txt2); margin-top:2px; }
+.picker-spacer { height:20px; }
   </style>
 </head>
 <body>
@@ -333,8 +400,8 @@
         <div class="rc-top" onclick="viewRoutine('A')">
           <div class="rc-badge" style="background:var(--a)">A</div>
           <div class="rc-info">
-            <h2>Routine A</h2>
-            <div class="s2">Legs, Back &amp; Abs · 10 exercises</div>
+            <h2 id="rc-name-a">Routine A</h2>
+            <div class="s2" id="rc-desc-a">Legs, Back &amp; Abs · 10 exercises</div>
           </div>
         </div>
         <div class="rc-meta" id="rc-meta-a"></div>
@@ -344,8 +411,8 @@
         <div class="rc-top" onclick="viewRoutine('B')">
           <div class="rc-badge" style="background:var(--b)">B</div>
           <div class="rc-info">
-            <h2>Routine B</h2>
-            <div class="s2">Chest, Shoulders &amp; Arms · 9 exercises</div>
+            <h2 id="rc-name-b">Routine B</h2>
+            <div class="s2" id="rc-desc-b">Chest, Shoulders &amp; Arms · 9 exercises</div>
           </div>
         </div>
         <div class="rc-meta" id="rc-meta-b"></div>
@@ -445,6 +512,12 @@
         </div>
       </div>
       <div class="settings-section">
+        <div class="settings-title">Workout Programs</div>
+        <div class="settings-row">
+          <button class="settings-btn" onclick="showPrograms()">📦 Manage Programs</button>
+        </div>
+      </div>
+      <div class="settings-section">
         <div class="settings-title">Account &amp; Data</div>
         <div class="settings-row">
           <button class="settings-btn" onclick="showSyncCode()">🔑 Sync / Change device</button>
@@ -456,6 +529,46 @@
     </div>
   </div>
 
+  <!-- PROGRAMS -->
+  <div id="screen-programs" class="screen">
+    <div class="hist-hd">
+      <h2>📦 Programs</h2>
+      <button class="back-btn" onclick="goHome()">← Back</button>
+    </div>
+    <div class="hist-body" id="programs-body"></div>
+  </div>
+
+  <!-- BUILDER -->
+  <div id="screen-builder" class="screen">
+    <div class="hist-hd">
+      <h2 id="builder-hd-title">Program</h2>
+      <button class="back-btn" onclick="builderBack()">← Back</button>
+    </div>
+    <div class="builder-name-row">
+      <input class="builder-name-inp" id="builder-name-inp" placeholder="Program name"
+        oninput="_builderState.name=this.value">
+    </div>
+    <div class="builder-tabs">
+      <div class="builder-tab active" id="btab-A" onclick="builderSetTab('A')">Routine A</div>
+      <div class="builder-tab" id="btab-B" onclick="builderSetTab('B')">Routine B</div>
+    </div>
+    <div id="builder-body"></div>
+    <button class="builder-save-btn" onclick="saveBuilder()">Save Program</button>
+  </div>
+
+</div>
+
+<!-- BUILDER PICKER -->
+<div id="picker-wrap" class="picker-wrap" onclick="closeBuilderPicker(event)">
+  <div class="picker-sheet" onclick="event.stopPropagation()">
+    <div class="picker-hd">
+      <h3>Add Exercise</h3>
+      <button class="picker-close" onclick="closeBuilderPicker()">✕</button>
+    </div>
+    <div class="picker-filters" id="picker-filters"></div>
+    <div id="picker-list"></div>
+    <div class="picker-spacer"></div>
+  </div>
 </div>
 
 <!-- REST COUNTDOWN OVERLAY -->
@@ -523,6 +636,7 @@ function mergePrefs(remote, local) {
 }
 
 async function initApp() {
+  loadProgram();
   try {
     const { data } = await getSb()
       .from('workout_store')
@@ -797,8 +911,8 @@ function closeLibDetail(e) {
 // ════════════════════════════════════
 // DATA
 // ════════════════════════════════════
-const ROUTINES = {
-  A: { id:'A', locker:'102', exercises: [
+let ROUTINES = {
+  A: { id:'A', label:'Legs, Back & Abs', locker:'102', exercises: [
     { name:'Leg Press', key:true, machine:'', muscles:['quad','glute','hamstring'],
       sets:[{n:'כבד – אנרגיה מלאה',w:'',r:'8-10'},{n:'עבודה כבדה',w:'',r:'8-10'},
             {n:'עבודה כבדה',w:'',r:'8-10'},{n:'עבודה עד כשל',w:'',r:'8-10'}] },
@@ -829,7 +943,7 @@ const ROUTINES = {
       sets:[{n:'עבודה עד 1 לפני כשל',w:'',r:'10-15'},{n:'עבודה עד כשל',w:'',r:'10-15'},
             {n:'עבודה עד כשל',w:'',r:'10-15'}] },
   ]},
-  B: { id:'B', locker:'719', exercises: [
+  B: { id:'B', label:'Chest, Shoulders & Arms', locker:'719', exercises: [
     { name:'Smith Bench Press', key:true, machine:'', muscles:['chest','shoulder','tricep'],
       sets:[{n:'כבד – אנרגיה מלאה',w:'',r:'6-8'},{n:'עבודה כבדה',w:'',r:'6-8'},
             {n:'עבודה כבדה',w:'',r:'6-8'},{n:'עבודה עד כשל',w:'',r:'6-8'}] },
@@ -900,6 +1014,247 @@ function forceUpdate() {
     .catch(() => location.reload());
 }
 function showHistory() { histRender(); show('history'); }
+
+// ════════════════════════════════════
+// PROGRAMS & ARCHIVES
+// ════════════════════════════════════
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function getProgramData() { try { return JSON.parse(localStorage.getItem('mwProgram')||'null'); } catch{ return null; } }
+function putProgramData(p) { localStorage.setItem('mwProgram', JSON.stringify(p)); sbSaveDebounced(); }
+function getArchives() { try { return JSON.parse(localStorage.getItem('mwArchives')||'[]'); } catch{ return []; } }
+function putArchives(a) { localStorage.setItem('mwArchives', JSON.stringify(a)); sbSaveDebounced(); }
+function getCurrentProgramName() { const p = getProgramData(); return p ? p.name : 'My Workout'; }
+function loadProgram() {
+  const prog = getProgramData();
+  if (prog && prog.routines && prog.routines.A && prog.routines.B) ROUTINES = prog.routines;
+}
+
+function showPrograms() { programsRender(); show('programs'); }
+
+function programsRender() {
+  const archives = getArchives();
+  const el = document.getElementById('programs-body');
+  const progName = getCurrentProgramName();
+  el.innerHTML = `
+    <div class="prog-item">
+      <div class="prog-item-info">
+        <div class="prog-item-name">${escHtml(progName)}</div>
+        <div class="prog-item-date">A: ${ROUTINES.A.exercises.length} exercises &nbsp;·&nbsp; B: ${ROUTINES.B.exercises.length} exercises</div>
+      </div>
+      <div class="prog-actions">
+        <button class="prog-btn" style="background:var(--bg);color:var(--txt)" onclick="showBuilder(false)">Edit</button>
+        <button class="prog-btn" style="background:var(--green);color:white" onclick="archiveCurrentProgram()">Archive</button>
+      </div>
+    </div>
+    <button class="rc-btn" style="background:var(--b);display:block;width:calc(100% - 0px);margin:0 0 16px;border-radius:12px;padding:14px;font-size:15px;font-weight:700;color:white;border:none;cursor:pointer" onclick="showBuilder(true)">+ Create New Program</button>
+    ${archives.length ? `
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Archived</div>
+      ${archives.map(a => `
+        <div class="prog-item">
+          <div class="prog-item-info">
+            <div class="prog-item-name">${escHtml(a.name)}</div>
+            <div class="prog-item-date">Saved ${new Date(a.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+          </div>
+          <div class="prog-actions">
+            <button class="prog-btn" style="background:var(--b);color:white" onclick="restoreProgram(${a.id})">Restore</button>
+            <button class="prog-btn" style="background:#ff3b30;color:white" onclick="deleteArchive(${a.id})">Delete</button>
+          </div>
+        </div>
+      `).join('')}
+    ` : '<div class="no-hist" style="padding:30px 0">No archived programs yet</div>'}
+  `;
+}
+
+function archiveCurrentProgram() {
+  const name = prompt('Archive name:', getCurrentProgramName());
+  if (name === null) return;
+  const archives = getArchives();
+  archives.unshift({ id: Date.now(), name: name.trim() || 'My Workout', savedAt: Date.now(), routines: JSON.parse(JSON.stringify(ROUTINES)) });
+  putArchives(archives);
+  programsRender();
+}
+
+function restoreProgram(id) {
+  const archives = getArchives();
+  const a = archives.find(x => x.id === id);
+  if (!a) return;
+  if (!confirm('Restore "' + a.name + '"?\nThis will replace your current active program.')) return;
+  putProgramData({ name: a.name, routines: a.routines });
+  ROUTINES = a.routines;
+  homeUpdate();
+  programsRender();
+}
+
+function deleteArchive(id) {
+  if (!confirm('Delete this archived program?')) return;
+  putArchives(getArchives().filter(a => a.id !== id));
+  programsRender();
+}
+
+// ════════════════════════════════════
+// PROGRAM BUILDER
+// ════════════════════════════════════
+let _builderState = null;
+let _builderTab = 'A';
+let _builderPickRid = null;
+let _pickerFilter = null;
+
+function showBuilder(isNew) {
+  if (!isNew) {
+    // Edit current program
+    _builderState = {
+      name: getCurrentProgramName(),
+      A: { label: ROUTINES.A.label || 'Routine A', exercises: ROUTINES.A.exercises.map(ex => {
+        const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
+        return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
+      })},
+      B: { label: ROUTINES.B.label || 'Routine B', exercises: ROUTINES.B.exercises.map(ex => {
+        const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
+        return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
+      })}
+    };
+    document.getElementById('builder-hd-title').textContent = 'Edit Program';
+  } else {
+    _builderState = { name: 'New Program', A: { label: 'Routine A', exercises: [] }, B: { label: 'Routine B', exercises: [] } };
+    document.getElementById('builder-hd-title').textContent = 'New Program';
+  }
+  _builderTab = 'A';
+  document.getElementById('builder-name-inp').value = _builderState.name;
+  document.getElementById('btab-A').classList.add('active');
+  document.getElementById('btab-B').classList.remove('active');
+  builderRenderTab();
+  show('builder');
+}
+
+function builderBack() { show('programs'); programsRender(); }
+
+function builderSetTab(tab) {
+  _builderTab = tab;
+  document.getElementById('btab-A').classList.toggle('active', tab === 'A');
+  document.getElementById('btab-B').classList.toggle('active', tab === 'B');
+  builderRenderTab();
+}
+
+function builderRenderTab() {
+  const rid = _builderTab;
+  const exs = _builderState[rid].exercises;
+  const rows = exs.map((ex, idx) => {
+    const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+    const muscles = (ex.muscles||[]).map(m => MUSCLE_LABELS[m]||m).join(', ');
+    return `<div class="builder-ex-row">
+      ${imgSrc ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : '<div class="builder-ex-img"></div>'}
+      <div class="builder-ex-text">
+        <div class="builder-ex-name">${escHtml(ex.name)}</div>
+        <div class="builder-ex-muscles">${escHtml(muscles)}</div>
+      </div>
+      <div class="builder-sets-ctrl">
+        <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},-1)">−</button>
+        <span class="builder-sets-num">${ex.setCount||3}</span>
+        <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},1)">+</button>
+        <span style="font-size:10px;color:var(--txt2);margin-left:2px">sets</span>
+      </div>
+      <button class="builder-del-btn" onclick="builderDelEx('${rid}',${idx})">✕</button>
+    </div>`;
+  }).join('');
+  document.getElementById('builder-body').innerHTML = `<div class="builder-body">
+    ${rows || '<div class="no-hist" style="padding:24px 0">No exercises — add some below</div>'}
+    <button class="builder-add-btn" onclick="openBuilderPicker('${rid}')">+ Add Exercise</button>
+  </div>`;
+}
+
+function builderAdjSets(rid, idx, delta) {
+  const ex = _builderState[rid].exercises[idx];
+  ex.setCount = Math.max(1, Math.min(8, (ex.setCount||3) + delta));
+  builderRenderTab();
+}
+
+function builderDelEx(rid, idx) {
+  _builderState[rid].exercises.splice(idx, 1);
+  builderRenderTab();
+}
+
+function openBuilderPicker(rid) {
+  _builderPickRid = rid;
+  _pickerFilter = null;
+  pickerRender();
+  document.getElementById('picker-wrap').classList.add('active');
+}
+
+function closeBuilderPicker(e) {
+  if (e && e.target !== document.getElementById('picker-wrap')) return;
+  document.getElementById('picker-wrap').classList.remove('active');
+  _builderPickRid = null;
+}
+
+function pickerRender() {
+  const filtered = _pickerFilter ? EXERCISE_LIBRARY.filter(e => e.muscles.includes(_pickerFilter)) : EXERCISE_LIBRARY;
+  // Filters
+  const filterHtml = [
+    `<button class="lib-fbtn${!_pickerFilter?' sel':''}" onclick="pickerSetFilter(null)">All</button>`,
+    ...Object.entries(MUSCLE_LABELS).map(([k,v]) => {
+      const sel = _pickerFilter === k;
+      const col = _mHex(k);
+      return `<button class="lib-fbtn${sel?' sel':''}" style="${sel?`background:${col};color:white;border-color:${col};`:''}" onclick="pickerSetFilter('${k}')">${v}</button>`;
+    })
+  ].join('');
+  document.getElementById('picker-filters').innerHTML = filterHtml;
+  // List
+  const listHtml = filtered.map(ex => {
+    const idx = EXERCISE_LIBRARY.indexOf(ex);
+    const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+    const muscles = ex.muscles.map(m => MUSCLE_LABELS[m]||m).join(', ');
+    return `<div class="picker-card" onclick="builderPickEx(${idx})">
+      ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
+      <div>
+        <div class="picker-card-name">${escHtml(ex.name)}</div>
+        <div class="picker-card-muscles">${escHtml(muscles)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('picker-list').innerHTML = listHtml;
+}
+
+function pickerSetFilter(f) {
+  _pickerFilter = f;
+  pickerRender();
+}
+
+function builderPickEx(libIdx) {
+  if (!_builderPickRid) return;
+  const ex = EXERCISE_LIBRARY[libIdx];
+  const rid = _builderPickRid;
+  if (_builderState[rid].exercises.some(e => e.name === ex.name)) {
+    alert(ex.name + ' is already in Routine ' + rid);
+    return;
+  }
+  _builderState[rid].exercises.push({ name: ex.name, muscles: ex.muscles||[], img: ex.img||'', key: false, machine: '', setCount: 3 });
+  document.getElementById('picker-wrap').classList.remove('active');
+  _builderPickRid = null;
+  builderRenderTab();
+}
+
+function saveBuilder() {
+  const name = (_builderState.name||'').trim() || 'My Program';
+  const routines = {
+    A: { id:'A', label: _builderState.A.label||'Routine A', locker: ROUTINES.A.locker||'',
+      exercises: _builderState.A.exercises.map(ex => ({
+        name: ex.name, key: ex.key||false, machine: ex.machine||'', muscles: ex.muscles||[],
+        img: ex.img||'', variants: ex.variants,
+        sets: Array.from({length: ex.setCount||3}, () => ({n:'',w:'',r:''}))
+      }))},
+    B: { id:'B', label: _builderState.B.label||'Routine B', locker: ROUTINES.B.locker||'',
+      exercises: _builderState.B.exercises.map(ex => ({
+        name: ex.name, key: ex.key||false, machine: ex.machine||'', muscles: ex.muscles||[],
+        img: ex.img||'', variants: ex.variants,
+        sets: Array.from({length: ex.setCount||3}, () => ({n:'',w:'',r:''}))
+      }))}
+  };
+  putProgramData({ name, routines });
+  ROUTINES = routines;
+  homeUpdate();
+  show('programs');
+  programsRender();
+}
 
 // ════════════════════════════════════
 // SETTINGS
@@ -1187,6 +1542,13 @@ function resetWeek() {
 }
 function homeUpdate() {
   checkMidnightReset();
+  // Update routine card names from active ROUTINES
+  if(document.getElementById('rc-name-a')) {
+    document.getElementById('rc-name-a').textContent = 'Routine A';
+    document.getElementById('rc-desc-a').textContent = (ROUTINES.A.label||'') + ' · ' + ROUTINES.A.exercises.length + ' exercises';
+    document.getElementById('rc-name-b').textContent = 'Routine B';
+    document.getElementById('rc-desc-b').textContent = (ROUTINES.B.label||'') + ' · ' + ROUTINES.B.exercises.length + ' exercises';
+  }
   document.getElementById('home-date').textContent =
     new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const d = get();
