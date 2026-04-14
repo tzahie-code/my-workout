@@ -281,6 +281,42 @@
       z-index:200; align-items:flex-end; justify-content:center; }
     .lib-modal-sheet { background:white; border-radius:20px 20px 0 0; width:100%;
       max-width:480px; padding:20px; max-height:88vh; overflow-y:auto; }
+
+    /* ── SETTINGS ── */
+    .settings-section { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
+      margin-bottom:16px; overflow:hidden; }
+    .settings-title { font-size:11px; font-weight:700; color:var(--txt2); text-transform:uppercase;
+      letter-spacing:.6px; padding:14px 16px 6px; }
+    .settings-row { display:flex; align-items:center; justify-content:space-between;
+      padding:12px 16px; border-top:1px solid var(--border); gap:12px; }
+    .settings-lbl { font-size:15px; color:var(--txt); }
+    .settings-btn { background:none; border:none; color:var(--txt); font-size:15px;
+      cursor:pointer; padding:0; text-align:left; }
+    .settings-btn:active { opacity:.6; }
+    .toggle-btn { min-width:52px; padding:6px 12px; border-radius:20px; border:none;
+      font-size:13px; font-weight:700; cursor:pointer;
+      background:#e5e5ea; color:var(--txt2); transition:all .2s; }
+    .toggle-btn.on { background:var(--green); color:white; }
+    .rest-opts-inputs { display:flex; gap:6px; flex-wrap:wrap; }
+    .rest-opt-inp { width:52px; text-align:center; font-size:13px; font-weight:700;
+      border:1.5px solid var(--border); border-radius:8px; padding:5px 4px;
+      background:white; color:var(--txt); outline:none; }
+    .rest-opt-inp:focus { border-color:var(--txt2); }
+
+    /* ── REST COUNTDOWN OVERLAY ── */
+    .rest-overlay { display:none; position:fixed; inset:0; z-index:300;
+      background:rgba(0,0,0,.75); align-items:center; justify-content:center; }
+    .rest-overlay.active { display:flex; }
+    .rest-ov-box { background:white; border-radius:24px; padding:36px 48px;
+      text-align:center; box-shadow:0 8px 40px rgba(0,0,0,.25); }
+    .rest-ov-lbl { font-size:13px; font-weight:700; color:var(--txt2);
+      text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
+    .rest-ov-time { font-size:64px; font-weight:800; color:var(--txt);
+      letter-spacing:-2px; line-height:1; margin-bottom:24px; }
+    .rest-ov-skip { border:none; background:var(--bg); color:var(--txt2);
+      font-size:14px; font-weight:700; padding:10px 28px; border-radius:12px;
+      cursor:pointer; }
+    .rest-ov-skip:active { opacity:.7; }
   </style>
 </head>
 <body>
@@ -320,8 +356,7 @@
         <button onclick="showLibrary()" style="margin-left:12px">💪 Exercises</button>
         <button onclick="showProgress()" style="margin-left:12px">📈 Progress</button>
         <button onclick="resetWeek()" style="margin-left:12px;font-size:13px;color:#aaa">↺ Reset Week</button>
-        <button onclick="forceUpdate()" style="margin-left:12px;font-size:13px;color:#aaa">↻ Update App</button>
-        <button onclick="showSyncCode()" style="margin-left:12px;font-size:13px;color:#aaa">🔑 Sync</button>
+        <button onclick="showSettings()" style="margin-left:12px;font-size:13px;color:#aaa">⚙️ Settings</button>
       </div>
     </div>
   </div>
@@ -391,6 +426,45 @@
     <div class="hist-body" id="hist-body"></div>
   </div>
 
+  <!-- SETTINGS -->
+  <div id="screen-settings" class="screen">
+    <div class="hist-hd">
+      <h2>⚙️ Settings</h2>
+      <button class="back-btn" onclick="goHome()">← Back</button>
+    </div>
+    <div class="hist-body">
+      <div class="settings-section">
+        <div class="settings-title">Rest Timer</div>
+        <div class="settings-row">
+          <span class="settings-lbl">Count down after each set</span>
+          <button class="toggle-btn" id="rest-countdown-toggle" onclick="toggleRestCountdown()">OFF</button>
+        </div>
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <span class="settings-lbl">Timer options</span>
+          <div class="rest-opts-inputs" id="rest-opts-inputs"></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title">Account &amp; Data</div>
+        <div class="settings-row">
+          <button class="settings-btn" onclick="showSyncCode()">🔑 Sync / Change device</button>
+        </div>
+        <div class="settings-row">
+          <button class="settings-btn" onclick="forceUpdate()">↻ Update App</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- REST COUNTDOWN OVERLAY -->
+<div id="rest-overlay" class="rest-overlay">
+  <div class="rest-ov-box">
+    <div class="rest-ov-lbl">Rest</div>
+    <div class="rest-ov-time" id="rest-ov-time">1:30</div>
+    <button class="rest-ov-skip" onclick="skipRestTimer()">Skip →</button>
+  </div>
 </div>
 
 <script>
@@ -826,6 +900,94 @@ function forceUpdate() {
     .catch(() => location.reload());
 }
 function showHistory() { histRender(); show('history'); }
+
+// ════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════
+function getSettings() { return getPrefs().settings || {}; }
+function putSettings(s) { const p = getPrefs(); p.settings = s; putPrefs(p); }
+
+function getRestOpts() {
+  const s = getSettings();
+  return (s.restOpts && s.restOpts.length === 4) ? s.restOpts : ['0:50','1:10','1:30','2:00'];
+}
+
+function showSettings() {
+  const s = getSettings();
+  const toggle = document.getElementById('rest-countdown-toggle');
+  if (toggle) {
+    toggle.textContent = s.restCountdown ? 'ON' : 'OFF';
+    toggle.classList.toggle('on', !!s.restCountdown);
+  }
+  const opts = getRestOpts();
+  const container = document.getElementById('rest-opts-inputs');
+  if (container) {
+    container.innerHTML = opts.map((o, i) =>
+      `<input class="rest-opt-inp" value="${o}"
+        onchange="saveRestOpt(${i},this.value)"
+        onblur="saveRestOpt(${i},this.value)">`
+    ).join('');
+  }
+  show('settings');
+}
+
+function toggleRestCountdown() {
+  const s = getSettings();
+  s.restCountdown = !s.restCountdown;
+  putSettings(s);
+  showSettings();
+}
+
+function saveRestOpt(idx, val) {
+  val = val.trim();
+  if (!val) return;
+  const s = getSettings();
+  const opts = [...getRestOpts()];
+  opts[idx] = val;
+  s.restOpts = opts;
+  putSettings(s);
+}
+
+// ════════════════════════════════════
+// REST COUNTDOWN TIMER
+// ════════════════════════════════════
+let _restTimer = null;
+let _restSecs  = 0;
+
+function parseRestSecs(str) {
+  const parts = String(str).split(':');
+  if (parts.length === 2) return Math.max(1, parseInt(parts[0]) * 60 + parseInt(parts[1]));
+  return Math.max(1, parseInt(str) || 90);
+}
+
+function fmtRestSecs(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+function startRestTimer(secs) {
+  if (_restTimer) clearInterval(_restTimer);
+  _restSecs = secs;
+  const overlay = document.getElementById('rest-overlay');
+  const display = document.getElementById('rest-ov-time');
+  overlay.classList.add('active');
+  display.textContent = fmtRestSecs(_restSecs);
+  _restTimer = setInterval(() => {
+    _restSecs--;
+    display.textContent = fmtRestSecs(_restSecs);
+    if (_restSecs <= 0) { stopRestTimer(true); }
+  }, 1000);
+}
+
+function stopRestTimer(vibrate) {
+  if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
+  const overlay = document.getElementById('rest-overlay');
+  if (overlay) overlay.classList.remove('active');
+  if (vibrate && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+function skipRestTimer() { stopRestTimer(false); }
 function showProgress() { progressRender(); show('progress'); }
 
 // ════════════════════════════════════
@@ -1224,7 +1386,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
-        ${(()=>{ const REST_OPTS=['0:50','1:10','1:30','2:00']; const savedRest=(getPrefs().rest&&getPrefs().rest[ex.name])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${ex.name}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
+        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[ex.name])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${ex.name}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
         ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="note..."
@@ -1363,11 +1525,13 @@ function saveSetNote(ei, si, val) {
 function toggleSet(ei, si) {
   savePendingInputs();
   const set = S.session.exercises[ei].sets[si];
+  let justDone = false;
   if (!set.done) {
     set.w = (set._pw !== undefined && set._pw !== '') ? set._pw : (set.w || null);
     set.r = (set._pr !== undefined && set._pr !== '') ? set._pr : (set.r || null);
     delete set._pw; delete set._pr;
     set.done = true;
+    justDone = true;
     saveLastWeights(S.session.exercises[ei].name, S.session.exercises[ei].sets);
   } else {
     set.done = false;
@@ -1382,6 +1546,10 @@ function toggleSet(ei, si) {
     const el = document.getElementById('ec'+ei);
     if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
   },60);
+  if (justDone && getSettings().restCountdown) {
+    const restVal = (getPrefs().rest || {})[S.session.exercises[ei].name];
+    if (restVal) startRestTimer(parseRestSecs(restVal));
+  }
 }
 
 function completeExercise(ei) {
