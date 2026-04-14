@@ -1452,6 +1452,11 @@ function finish() {
 
 function confirmEnd() {
   if (S.viewing) {
+    savePendingInputs();
+    if (S.session) {
+      S.session.exercises.forEach(ex => saveLastWeights(ex.name, ex.sets));
+    }
+    clearCurrentSession();
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
     savePendingInputs();
