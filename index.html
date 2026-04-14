@@ -239,7 +239,8 @@
 
     /* ── HISTORY ── */
     .hist-hd { background: white; padding: 16px; border-bottom: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center; }
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 10; }
     .hist-hd h2 { font-size: 24px; font-weight: 800; }
     .back-btn { background: none; border: 1px solid var(--border); color: var(--txt2);
       padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
@@ -550,7 +551,7 @@ const EX_IMGS = {
 function getExerciseImg(name) {
   const src = EX_IMGS[name] || '';
   if (!src) return '';
-  return `<img src="${src}" loading="lazy" alt="" onerror="this.style.opacity='0'">`;
+  return `<img src="${src}" loading="lazy" alt="" onerror="this.outerHTML='<div class=\'lib-img-ph\'></div>'">`;
 }
 
 // ════════════════════════════════════
@@ -577,7 +578,7 @@ const EXERCISE_LIBRARY = [
   // CHEST
   { name:'Barbell Bench Press',        muscles:['chest','shoulder','tricep'],            img:'Barbell_Bench_Press_-_Medium_Grip' },
   { name:'Incline Dumbbell Press',     muscles:['chest','shoulder','tricep'],            img:'Incline_Dumbbell_Press' },
-  { name:'Decline Dumbbell Press',     muscles:['chest','tricep'],                       img:'Decline_Dumbbell_Press' },
+  { name:'Decline Dumbbell Press',     muscles:['chest','tricep'],                       img:'Decline_Dumbbell_Bench_Press' },
   { name:'Pec Deck',                   muscles:['chest'],                                img:'Butterfly' },
   { name:'Cable Crossover',            muscles:['chest'],                                img:'Cable_Crossover' },
   { name:'Dumbbell Flyes',             muscles:['chest'],                                img:'Dumbbell_Flyes' },
@@ -606,7 +607,7 @@ const EXERCISE_LIBRARY = [
   { name:'Dumbbell Curl',              muscles:['bicep'],                                img:'Dumbbell_Alternate_Bicep_Curl' },
   { name:'Hammer Curl',                muscles:['bicep','forearm'],                      img:'Alternate_Hammer_Curl' },
   { name:'Cable Curl',                 muscles:['bicep'],                                img:'Standing_Biceps_Cable_Curl' },
-  { name:'Preacher Curl',              muscles:['bicep'],                                img:'EZ-Bar_Preacher_Curl' },
+  { name:'Preacher Curl',              muscles:['bicep'],                                img:'Preacher_Curl' },
   { name:'Concentration Curl',         muscles:['bicep'],                                img:'Concentration_Curls' },
   { name:'Incline Dumbbell Curl',      muscles:['bicep'],                                img:'Incline_Dumbbell_Curl' },
   // TRICEPS
@@ -614,9 +615,9 @@ const EXERCISE_LIBRARY = [
   { name:'Overhead Triceps Extension', muscles:['tricep'],                               img:'Cable_Rope_Overhead_Triceps_Extension' },
   { name:'Skull Crushers',             muscles:['tricep'],                               img:'Lying_Triceps_Press' },
   { name:'Close Grip Bench Press',     muscles:['tricep','chest'],                       img:'Close-Grip_Barbell_Bench_Press' },
-  { name:'Triceps Kickback',           muscles:['tricep'],                               img:'Triceps_Kickback' },
+  { name:'Triceps Kickback',           muscles:['tricep'],                               img:'Tricep_Dumbbell_Kickback' },
   // FOREARMS
-  { name:'Wrist Curl',                 muscles:['forearm'],                              img:'Palms_Up_Barbell_Wrist_Curl_Over_A_Bench' },
+  { name:'Wrist Curl',                 muscles:['forearm'],                              img:null },
   { name:'Reverse Curl',               muscles:['forearm','bicep'],                      img:'Reverse_Barbell_Curl' },
   // ABS
   { name:'Cable Crunch',               muscles:['abs'],                                  img:'Cable_Crunch' },
@@ -634,13 +635,13 @@ const EXERCISE_LIBRARY = [
   { name:'Barbell Lunge',              muscles:['quad','glute','hamstring'],             img:'Barbell_Lunge' },
   // HAMSTRINGS / GLUTES
   { name:'Lying Leg Curl',             muscles:['hamstring'],                            img:'Lying_Leg_Curls' },
-  { name:'Stiff-Leg Deadlift',         muscles:['hamstring','lower-back'],               img:'Stiff-Legged_Deadlift' },
+  { name:'Stiff-Leg Deadlift',         muscles:['hamstring','lower-back'],               img:'Romanian_Deadlift' },
   { name:'Good Morning',               muscles:['hamstring','lower-back','glute'],       img:'Good_Morning' },
   { name:'Hip Thrust',                 muscles:['glute','hamstring'],                    img:'Barbell_Hip_Thrust' },
   // CALVES
   { name:'Standing Calf Raises',       muscles:['calf'],                                 img:'Standing_Calf_Raises' },
   { name:'Seated Calf Raises',         muscles:['calf'],                                 img:'Seated_Calf_Raise' },
-  { name:'Leg Press Calf Raise',       muscles:['calf'],                                 img:'Leg_Press_Calf_Raise' },
+  { name:'Leg Press Calf Raise',       muscles:['calf'],                                 img:'Calf_Press_On_The_Leg_Press_Machine' },
 ];
 
 let _libFilter = null;
@@ -685,7 +686,7 @@ function libraryRender() {
     const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
     const tags = ex.muscles.map(m=>`<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`).join('');
     return `<div class="lib-card" onclick="showLibDetail(${idx})">
-      ${imgSrc ? `<img class="lib-img" src="${imgSrc}" loading="lazy" alt="" onerror="this.style.opacity='0'">` : '<div class="lib-img-ph"></div>'}
+      ${imgSrc ? `<img class="lib-img" src="${imgSrc}" loading="lazy" alt="" onerror="this.outerHTML='<div class=\'lib-img-ph\'></div>'">` : '<div class="lib-img-ph"></div>'}
       <div class="lib-info">
         <div class="lib-name">${ex.name}</div>
         <div class="muscle-tags" style="margin-top:4px">${tags}</div>
@@ -1042,17 +1043,7 @@ function homeUpdate() {
       return `<button class="day-btn${isSel?' sel':''}" ${style}
         onclick="setDay('${r}','${dy}')">${dy}</button>`;
     }).join('');
-    const keyBests = ROUTINES[r].exercises.filter(e=>e.key).map(e=>{
-      const pts = getExerciseProgress(e.name);
-      if (!pts.length) return null;
-      const best = Math.max(...pts.map(p=>p.max));
-      const up = getLastUpscale(e.name);
-      return `${e.name.split(' ')[0]} <strong>${best}kg</strong>${up?' ↑':'' }`;
-    }).filter(Boolean);
-    const bestHtml = keyBests.length
-      ? `<div class="home-best">🏆 ${keyBests.join(' &nbsp;·&nbsp; ')}</div>` : '';
     document.getElementById('rc-meta-'+r.toLowerCase()).innerHTML = `
-      ${bestHtml}
       <div class="rc-days">${dayBtns}</div>
       <div class="rc-locker">
         🔐 Locker
