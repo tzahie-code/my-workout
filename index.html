@@ -354,6 +354,14 @@
 .builder-del-btn { background:none; border:none; color:#c7c7cc; font-size:18px;
   cursor:pointer; padding:4px 6px; flex-shrink:0; line-height:1; }
 .builder-del-btn:active { color:var(--red); }
+.builder-move-btn { width:22px; height:22px; border-radius:5px; border:1px solid var(--border);
+  background:white; font-size:11px; cursor:pointer; display:flex; align-items:center;
+  justify-content:center; line-height:1; padding:0; }
+.builder-move-btn:disabled { opacity:.25; cursor:default; }
+.builder-move-btn:not(:disabled):active { background:var(--bg); }
+.builder-key-btn { background:none; border:none; font-size:17px; cursor:pointer;
+  padding:2px 4px; flex-shrink:0; line-height:1; opacity:.4; }
+.builder-key-btn.active { opacity:1; }
 .builder-add-btn { display:block; width:100%; padding:14px; border:2px dashed var(--border);
   border-radius:var(--r); background:transparent; font-size:15px; font-weight:700;
   color:var(--txt2); cursor:pointer; }
@@ -1211,11 +1219,16 @@ function builderRenderTab() {
   const rows = exs.map((ex, idx) => {
     const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
     const muscles = (ex.muscles||[]).map(m => MUSCLE_LABELS[m]||m).join(', ');
+    const isFirst = idx === 0, isLast = idx === exs.length - 1;
     return `<div class="builder-ex-row">
       ${imgSrc ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : '<div class="builder-ex-img"></div>'}
       <div class="builder-ex-text">
         <div class="builder-ex-name">${escHtml(ex.name)}</div>
         <div class="builder-ex-muscles">${escHtml(muscles)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
+        <button class="builder-move-btn" onclick="builderMoveEx('${rid}',${idx},-1)" ${isFirst?'disabled':''}>↑</button>
+        <button class="builder-move-btn" onclick="builderMoveEx('${rid}',${idx},1)" ${isLast?'disabled':''}>↓</button>
       </div>
       <div class="builder-sets-ctrl">
         <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},-1)">−</button>
@@ -1223,6 +1236,7 @@ function builderRenderTab() {
         <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},1)">+</button>
         <span style="font-size:10px;color:var(--txt2);margin-left:2px">sets</span>
       </div>
+      <button class="builder-key-btn${ex.key?' active':''}" title="Key exercise" onclick="builderToggleKey('${rid}',${idx})">${ex.key?'⭐':'☆'}</button>
       <button class="builder-del-btn" onclick="builderDelEx('${rid}',${idx})">✕</button>
     </div>`;
   }).join('');
@@ -1243,11 +1257,27 @@ function builderDelEx(rid, idx) {
   builderRenderTab();
 }
 
+function builderMoveEx(rid, idx, dir) {
+  const exs = _builderState[rid].exercises;
+  const to = idx + dir;
+  if (to < 0 || to >= exs.length) return;
+  [exs[idx], exs[to]] = [exs[to], exs[idx]];
+  builderRenderTab();
+}
+
+function builderToggleKey(rid, idx) {
+  _builderState[rid].exercises[idx].key = !_builderState[rid].exercises[idx].key;
+  builderRenderTab();
+}
+
 function openBuilderPicker(rid) {
   _builderPickRid = rid;
   _pickerFilter = null;
   pickerRender();
   document.getElementById('picker-wrap').classList.add('active');
+  // Always start at top
+  const sheet = document.querySelector('.picker-sheet');
+  if (sheet) sheet.scrollTop = 0;
 }
 
 function closeBuilderPicker(e) {
