@@ -720,6 +720,10 @@ function showSyncCode() {
 // EXERCISE PHOTOS (free-exercise-db)
 // ════════════════════════════════════
 const _EX_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
+function _exImgSrc(img) {
+  if (!img) return '';
+  return img.startsWith('http') ? img : `${_EX_BASE}${img}/0.jpg`;
+}
 const EX_IMGS = {
   // Workout A — Legs + Back + Abs
   'Leg Press':                        _EX_BASE + 'Leg_Press/0.jpg',
@@ -819,7 +823,7 @@ const EXERCISE_LIBRARY = [
   { name:'Close Grip Bench Press',     muscles:['tricep','chest'],                       img:'Close-Grip_Barbell_Bench_Press' },
   { name:'Triceps Kickback',           muscles:['tricep'],                               img:'Tricep_Dumbbell_Kickback' },
   // FOREARMS
-  { name:'Wrist Curl',                 muscles:['forearm'],                              img:null },
+  { name:'Wrist Curl',                 muscles:['forearm'],                              img:'https://wger.de/media/exercise-images/51/f1730f56-7aca-4566-8338-3e42b1bee6e1.webp' },
   { name:'Reverse Curl',               muscles:['forearm','bicep'],                      img:'Reverse_Barbell_Curl' },
   // ABS
   { name:'Cable Crunch',               muscles:['abs'],                                  img:'Cable_Crunch' },
@@ -885,7 +889,7 @@ function libraryRender() {
 
   const cards = filtered.map((ex, fi) => {
     const idx = EXERCISE_LIBRARY.indexOf(ex);
-    const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+    const imgSrc = _exImgSrc(ex.img);
     const tags = ex.muscles.map(m=>`<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`).join('');
     return `<div class="lib-card" onclick="showLibDetail(${idx})">
       ${imgSrc ? `<img class="lib-img" src="${imgSrc}" loading="lazy" alt="" onerror="this.outerHTML='<div class=\'lib-img-ph\'></div>'">` : '<div class="lib-img-ph"></div>'}
@@ -903,7 +907,7 @@ function libraryRender() {
 
 function showLibDetail(idx) {
   const ex = EXERCISE_LIBRARY[idx];
-  const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+  const imgSrc = _exImgSrc(ex.img);
   const tags = ex.muscles.map(m=>`<span class="mtag" style="background:${_mRgba(m,0.15)};color:${_mHex(m)};font-weight:700">${MUSCLE_LABELS[m]||m}</span>`).join('');
   document.getElementById('lib-modal-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -1243,7 +1247,7 @@ function builderRenderTab() {
   const rid = _builderTab;
   const exs = _builderState[rid].exercises;
   const rows = exs.map((ex, idx) => {
-    const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+    const imgSrc = _exImgSrc(ex.img);
     const muscles = (ex.muscles||[]).map(m => MUSCLE_LABELS[m]||m).join(', ');
     const isFirst = idx === 0, isLast = idx === exs.length - 1;
     return `<div class="builder-ex-row">
@@ -1326,7 +1330,7 @@ function pickerRender() {
   // List
   const listHtml = filtered.map(ex => {
     const idx = EXERCISE_LIBRARY.indexOf(ex);
-    const imgSrc = ex.img ? `${_EX_BASE}${ex.img}/0.jpg` : '';
+    const imgSrc = _exImgSrc(ex.img);
     const muscles = ex.muscles.map(m => MUSCLE_LABELS[m]||m).join(', ');
     return `<div class="picker-card" onclick="builderPickEx(${idx})">
       ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
