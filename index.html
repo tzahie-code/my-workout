@@ -1700,9 +1700,34 @@ function toggleHist(i) { document.getElementById('hd'+i).classList.toggle('open'
 function deleteSession(id) {
   if (!confirm('Delete this workout? This cannot be undone.')) return;
   const d = get();
+  const sess = d.sessions.find(s => s.id === id);
   d.sessions = d.sessions.filter(s => s.id !== id);
   put(d);
+  // If deleted session was in the current week, unmark that day on the home screen
+  if (sess) {
+    const sessDate = new Date(sess.id);
+    const weekStart = new Date();
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // back to Sunday
+    if (sessDate >= weekStart) {
+      const dayName = DAYS[sessDate.getDay()];
+      const rid = sess.routine;
+      const stillHasDay = d.sessions.some(x => {
+        if (x.routine !== rid) return false;
+        const xd = new Date(x.id);
+        return xd >= weekStart && DAYS[xd.getDay()] === dayName;
+      });
+      if (!stillHasDay) {
+        const p = getPrefs();
+        if (p[rid] && Array.isArray(p[rid].days)) {
+          p[rid].days = p[rid].days.filter(dy => dy !== dayName);
+          putPrefs(p);
+        }
+      }
+    }
+  }
   histRender();
+  homeUpdate();
 }
 
 // ════════════════════════════════════
