@@ -1023,6 +1023,9 @@ function getProgramData() { try { return JSON.parse(localStorage.getItem('mwProg
 function putProgramData(p) { localStorage.setItem('mwProgram', JSON.stringify(p)); sbSaveDebounced(); }
 function getArchives() { try { return JSON.parse(localStorage.getItem('mwArchives')||'[]'); } catch{ return []; } }
 function putArchives(a) { localStorage.setItem('mwArchives', JSON.stringify(a)); sbSaveDebounced(); }
+function getDraft() { try { return JSON.parse(localStorage.getItem('mwDraft')||'null'); } catch{ return null; } }
+function putDraft(p) { localStorage.setItem('mwDraft', JSON.stringify(p)); }
+function clearDraft() { localStorage.removeItem('mwDraft'); }
 function getCurrentProgramName() { const p = getProgramData(); return p ? p.name : 'My Workout'; }
 function loadProgram() {
   const prog = getProgramData();
@@ -1033,52 +1036,106 @@ function showPrograms() { programsRender(); show('programs'); }
 
 function programsRender() {
   const archives = getArchives();
+  const draft = getDraft();
   const el = document.getElementById('programs-body');
   const progName = getCurrentProgramName();
-  el.innerHTML = `
-    <div class="prog-item">
+
+  // ── Active program ──
+  const activeHtml = `
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Active Program</div>
+    <div class="prog-item" style="margin-bottom:4px">
       <div class="prog-item-info">
         <div class="prog-item-name">${escHtml(progName)}</div>
         <div class="prog-item-date">A: ${ROUTINES.A.exercises.length} exercises &nbsp;·&nbsp; B: ${ROUTINES.B.exercises.length} exercises</div>
       </div>
       <div class="prog-actions">
-        <button class="prog-btn" style="background:var(--bg);color:var(--txt)" onclick="showBuilder(false)">Edit</button>
-        <button class="prog-btn" style="background:var(--green);color:white" onclick="archiveCurrentProgram()">Archive</button>
+        <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border)" onclick="showBuilder('active')">Edit</button>
+        <button class="prog-btn" style="background:var(--bg);color:var(--txt2);border:1px solid var(--border)" onclick="snapshotActive()">Snapshot</button>
       </div>
-    </div>
-    <button class="rc-btn" style="background:var(--b);display:block;width:calc(100% - 0px);margin:0 0 16px;border-radius:12px;padding:14px;font-size:15px;font-weight:700;color:white;border:none;cursor:pointer" onclick="showBuilder(true)">+ Create New Program</button>
-    ${archives.length ? `
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Archived</div>
-      ${archives.map(a => `
-        <div class="prog-item">
-          <div class="prog-item-info">
-            <div class="prog-item-name">${escHtml(a.name)}</div>
-            <div class="prog-item-date">Saved ${new Date(a.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
-          </div>
-          <div class="prog-actions">
-            <button class="prog-btn" style="background:var(--b);color:white" onclick="restoreProgram(${a.id})">Restore</button>
-            <button class="prog-btn" style="background:#ff3b30;color:white" onclick="deleteArchive(${a.id})">Delete</button>
-          </div>
+    </div>`;
+
+  // ── Draft ──
+  const draftHtml = draft ? `
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">Draft (building)</div>
+    <div class="prog-item" style="border:2px solid var(--b)">
+      <div class="prog-item-info">
+        <div class="prog-item-name">${escHtml(draft.name)}</div>
+        <div class="prog-item-date">A: ${draft.routines.A.exercises.length} exercises &nbsp;·&nbsp; B: ${draft.routines.B.exercises.length} exercises</div>
+      </div>
+      <div class="prog-actions" style="flex-direction:column;gap:5px">
+        <button class="prog-btn" style="background:var(--green);color:white;width:100%" onclick="makeDraftActive()">✓ Make Active</button>
+        <div style="display:flex;gap:5px">
+          <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border);flex:1" onclick="showBuilder('draft')">Edit</button>
+          <button class="prog-btn" style="background:#ff3b30;color:white" onclick="discardDraft()">Discard</button>
         </div>
-      `).join('')}
-    ` : '<div class="no-hist" style="padding:30px 0">No archived programs yet</div>'}
-  `;
+      </div>
+    </div>` : `
+    <div style="margin-top:16px">
+      <button class="builder-add-btn" onclick="showBuilder('new')">+ Build New Program</button>
+    </div>`;
+
+  // ── Archived ──
+  const archHtml = archives.length ? `
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">Archived</div>
+    ${archives.map(a => `
+      <div class="prog-item">
+        <div class="prog-item-info">
+          <div class="prog-item-name">${escHtml(a.name)}</div>
+          <div class="prog-item-date">Saved ${new Date(a.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+        </div>
+        <div class="prog-actions">
+          <button class="prog-btn" style="background:var(--b);color:white" onclick="restoreProgram(${a.id})">Restore</button>
+          <button class="prog-btn" style="background:var(--bg);color:#ff3b30;border:1px solid var(--border)" onclick="deleteArchive(${a.id})">Delete</button>
+        </div>
+      </div>
+    `).join('')}` : '';
+
+  el.innerHTML = activeHtml + draftHtml + archHtml;
 }
 
-function archiveCurrentProgram() {
-  const name = prompt('Archive name:', getCurrentProgramName());
+// Save a manual snapshot of the active program (no replacement)
+function snapshotActive() {
+  const name = prompt('Snapshot name:', getCurrentProgramName());
   if (name === null) return;
   const archives = getArchives();
-  archives.unshift({ id: Date.now(), name: name.trim() || 'My Workout', savedAt: Date.now(), routines: JSON.parse(JSON.stringify(ROUTINES)) });
+  archives.unshift({ id: Date.now(), name: name.trim() || getCurrentProgramName(), savedAt: Date.now(), routines: JSON.parse(JSON.stringify(ROUTINES)) });
   putArchives(archives);
   programsRender();
 }
 
+// Promote draft → active, auto-archive current active
+function makeDraftActive() {
+  const draft = getDraft();
+  if (!draft) return;
+  if (!confirm('Make "' + draft.name + '" the active program?\nYour current program will be archived automatically.')) return;
+  // Auto-archive current
+  const archives = getArchives();
+  archives.unshift({ id: Date.now(), name: getCurrentProgramName(), savedAt: Date.now(), routines: JSON.parse(JSON.stringify(ROUTINES)) });
+  putArchives(archives);
+  // Promote draft
+  putProgramData({ name: draft.name, routines: draft.routines });
+  ROUTINES = draft.routines;
+  clearDraft();
+  homeUpdate();
+  programsRender();
+}
+
+function discardDraft() {
+  if (!confirm('Discard draft program?')) return;
+  clearDraft();
+  programsRender();
+}
+
+// Restore an archived program as active (auto-archives current)
 function restoreProgram(id) {
   const archives = getArchives();
   const a = archives.find(x => x.id === id);
   if (!a) return;
-  if (!confirm('Restore "' + a.name + '"?\nThis will replace your current active program.')) return;
+  if (!confirm('Restore "' + a.name + '"?\nYour current program will be archived automatically.')) return;
+  // Auto-archive current
+  const newArchives = getArchives().filter(x => x.id !== id);
+  newArchives.unshift({ id: Date.now(), name: getCurrentProgramName(), savedAt: Date.now(), routines: JSON.parse(JSON.stringify(ROUTINES)) });
+  putArchives(newArchives);
   putProgramData({ name: a.name, routines: a.routines });
   ROUTINES = a.routines;
   homeUpdate();
@@ -1098,23 +1155,36 @@ let _builderState = null;
 let _builderTab = 'A';
 let _builderPickRid = null;
 let _pickerFilter = null;
+let _builderTarget = 'draft'; // 'active' | 'draft'
 
-function showBuilder(isNew) {
-  if (!isNew) {
-    // Edit current program
-    _builderState = {
-      name: getCurrentProgramName(),
-      A: { label: ROUTINES.A.label || 'Routine A', exercises: ROUTINES.A.exercises.map(ex => {
-        const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
-        return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
-      })},
-      B: { label: ROUTINES.B.label || 'Routine B', exercises: ROUTINES.B.exercises.map(ex => {
-        const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
-        return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
-      })}
-    };
-    document.getElementById('builder-hd-title').textContent = 'Edit Program';
-  } else {
+function _routinesToBuilderState(routines, name) {
+  return {
+    name,
+    A: { label: routines.A.label||'Routine A', exercises: routines.A.exercises.map(ex => {
+      const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
+      return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
+    })},
+    B: { label: routines.B.label||'Routine B', exercises: routines.B.exercises.map(ex => {
+      const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
+      return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
+    })}
+  };
+}
+
+function showBuilder(mode) {
+  // mode: 'active' = edit active, 'draft' = edit draft, 'new' = create new draft
+  if (mode === 'active') {
+    _builderTarget = 'active';
+    _builderState = _routinesToBuilderState(ROUTINES, getCurrentProgramName());
+    document.getElementById('builder-hd-title').textContent = 'Edit Active Program';
+  } else if (mode === 'draft') {
+    const draft = getDraft();
+    _builderTarget = 'draft';
+    _builderState = draft ? _routinesToBuilderState(draft.routines, draft.name)
+      : { name: 'New Program', A: { label: 'Routine A', exercises: [] }, B: { label: 'Routine B', exercises: [] } };
+    document.getElementById('builder-hd-title').textContent = 'Edit Draft';
+  } else { // 'new'
+    _builderTarget = 'draft';
     _builderState = { name: 'New Program', A: { label: 'Routine A', exercises: [] }, B: { label: 'Routine B', exercises: [] } };
     document.getElementById('builder-hd-title').textContent = 'New Program';
   }
@@ -1249,9 +1319,13 @@ function saveBuilder() {
         sets: Array.from({length: ex.setCount||3}, () => ({n:'',w:'',r:''}))
       }))}
   };
-  putProgramData({ name, routines });
-  ROUTINES = routines;
-  homeUpdate();
+  if (_builderTarget === 'active') {
+    putProgramData({ name, routines });
+    ROUTINES = routines;
+    homeUpdate();
+  } else {
+    putDraft({ name, routines });
+  }
   show('programs');
   programsRender();
 }
