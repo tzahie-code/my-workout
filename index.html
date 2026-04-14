@@ -358,11 +358,11 @@
 .builder-del-btn { background:none; border:none; color:#c7c7cc; font-size:18px;
   cursor:pointer; padding:4px 6px; flex-shrink:0; line-height:1; }
 .builder-del-btn:active { color:var(--red); }
-.builder-move-btn { width:22px; height:22px; border-radius:5px; border:1px solid var(--border);
-  background:white; font-size:11px; cursor:pointer; display:flex; align-items:center;
-  justify-content:center; line-height:1; padding:0; }
-.builder-move-btn:disabled { opacity:.25; cursor:default; }
-.builder-move-btn:not(:disabled):active { background:var(--bg); }
+.drag-handle { font-size:18px; color:#c7c7cc; padding:4px 6px; flex-shrink:0;
+  touch-action:none; user-select:none; cursor:grab; line-height:1; }
+.drag-handle:active { cursor:grabbing; color:var(--txt2); }
+.builder-ex-row.dragging { opacity:0.35; }
+.builder-ex-row.drag-over { outline:2px solid var(--b); border-radius:var(--r); }
 .builder-key-btn { background:none; border:none; font-size:17px; cursor:pointer;
   padding:2px 4px; flex-shrink:0; line-height:1; opacity:.4; }
 .builder-key-btn.active { opacity:1; }
@@ -647,6 +647,12 @@ function mergePrefs(remote, local) {
   });
   return m;
 }
+
+// Builder drag listeners (set up once, fire only when _dragState is active)
+window.addEventListener('touchmove', e => builderDragMove(e), { passive: false });
+window.addEventListener('touchend',  () => builderDragEnd());
+window.addEventListener('mousemove', e => builderDragMove(e));
+window.addEventListener('mouseup',   () => builderDragEnd());
 
 async function initApp() {
   loadProgram();
@@ -1249,16 +1255,14 @@ function builderRenderTab() {
   const rows = exs.map((ex, idx) => {
     const imgSrc = _exImgSrc(ex.img);
     const muscles = (ex.muscles||[]).map(m => MUSCLE_LABELS[m]||m).join(', ');
-    const isFirst = idx === 0, isLast = idx === exs.length - 1;
-    return `<div class="builder-ex-row">
+    return `<div class="builder-ex-row" data-idx="${idx}">
+      <span class="drag-handle"
+        ontouchstart="builderDragStart(event,'${rid}',${idx})"
+        onmousedown="builderDragStart(event,'${rid}',${idx})">⠿</span>
       ${imgSrc ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : '<div class="builder-ex-img"></div>'}
       <div class="builder-ex-text">
         <div class="builder-ex-name">${escHtml(ex.name)}</div>
         <div class="builder-ex-muscles">${escHtml(muscles)}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
-        <button class="builder-move-btn" onclick="builderMoveEx('${rid}',${idx},-1)" ${isFirst?'disabled':''}>↑</button>
-        <button class="builder-move-btn" onclick="builderMoveEx('${rid}',${idx},1)" ${isLast?'disabled':''}>↓</button>
       </div>
       <div class="builder-sets-ctrl">
         <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},-1)">−</button>
@@ -1287,12 +1291,41 @@ function builderDelEx(rid, idx) {
   builderRenderTab();
 }
 
-function builderMoveEx(rid, idx, dir) {
-  const exs = _builderState[rid].exercises;
-  const to = idx + dir;
-  if (to < 0 || to >= exs.length) return;
-  [exs[idx], exs[to]] = [exs[to], exs[idx]];
-  builderRenderTab();
+let _dragState = null;
+
+function builderDragStart(e, rid, idx) {
+  e.preventDefault();
+  const row = e.currentTarget.closest('.builder-ex-row');
+  if (row) row.classList.add('dragging');
+  _dragState = { rid, fromIdx: idx, toIdx: idx };
+}
+
+function builderDragMove(e) {
+  if (!_dragState) return;
+  e.preventDefault();
+  const touch = e.touches ? e.touches[0] : e;
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (!el) return;
+  const row = el.closest('.builder-ex-row');
+  if (!row) return;
+  const rows = [...document.querySelectorAll('#builder-body .builder-ex-row')];
+  const toIdx = rows.indexOf(row);
+  if (toIdx < 0 || toIdx === _dragState.toIdx) return;
+  _dragState.toIdx = toIdx;
+  rows.forEach((r, i) => r.classList.toggle('drag-over', i === toIdx && i !== _dragState.fromIdx));
+}
+
+function builderDragEnd() {
+  if (!_dragState) return;
+  const { rid, fromIdx, toIdx } = _dragState;
+  _dragState = null;
+  document.querySelectorAll('.builder-ex-row').forEach(r => r.classList.remove('dragging', 'drag-over'));
+  if (fromIdx !== toIdx) {
+    const exs = _builderState[rid].exercises;
+    const [item] = exs.splice(fromIdx, 1);
+    exs.splice(toIdx, 0, item);
+    builderRenderTab();
+  }
 }
 
 function builderToggleKey(rid, idx) {
