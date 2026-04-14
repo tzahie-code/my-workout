@@ -275,8 +275,6 @@
       cursor:pointer; white-space:nowrap; flex-shrink:0; }
     .lib-fbtn.sel { background:var(--txt); color:white; border-color:var(--txt); }
     .lib-fbtn:active { opacity:.7; }
-    .lib-diagram { display:flex; justify-content:center; padding:16px 0 8px;
-      background:white; border-bottom:1px solid var(--border); }
     .lib-modal-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
       z-index:200; align-items:flex-end; justify-content:center; }
     .lib-modal-sheet { background:white; border-radius:20px 20px 0 0; width:100%;
@@ -654,72 +652,6 @@ function _mRgba(m, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-function buildBodySVG(view, highlightMuscles, size) {
-  const hl = highlightMuscles || [];
-  const isHL = m => hl.includes(m);
-  const fill = (m) => {
-    if (!hl.length) return _mRgba(m, 0.55);
-    return isHL(m) ? _mRgba(m, 0.85) : _mRgba(m, 0.15);
-  };
-  const clk = (m) => size==='large' ? `onclick="librarySetFilter('${m}')" style="cursor:pointer"` : '';
-  const bg = '#e8e8ed', str = '#d1d1d6';
-
-  const bodyOutline = `
-    <circle cx="100" cy="28" r="22" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="91" y="49" width="18" height="14" fill="${bg}"/>
-    <ellipse cx="57" cy="72" rx="23" ry="14" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <ellipse cx="143" cy="72" rx="23" ry="14" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <path d="M72,62 L128,62 L135,145 L65,145 Z" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <path d="M65,145 L135,145 L128,165 L72,165 Z" fill="${bg}"/>
-    <rect x="36" y="64" width="21" height="64" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="143" y="64" width="21" height="64" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="29" y="130" width="19" height="57" rx="9" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="152" y="130" width="19" height="57" rx="9" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <ellipse cx="39" cy="197" rx="10" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <ellipse cx="161" cy="197" rx="10" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="67" y="165" width="31" height="67" rx="13" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="102" y="165" width="31" height="67" rx="13" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="69" y="234" width="27" height="53" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <rect x="104" y="234" width="27" height="53" rx="10" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <ellipse cx="84" cy="288" rx="15" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>
-    <ellipse cx="116" cy="288" rx="15" ry="7" fill="${bg}" stroke="${str}" stroke-width="1"/>`;
-
-  let muscles = '';
-  if (view === 'front') {
-    muscles = `
-      <ellipse cx="86" cy="90" rx="19" ry="17" fill="${fill('chest')}" ${clk('chest')}/>
-      <ellipse cx="114" cy="90" rx="19" ry="17" fill="${fill('chest')}" ${clk('chest')}/>
-      <ellipse cx="54" cy="70" rx="19" ry="13" fill="${fill('shoulder')}" ${clk('shoulder')}/>
-      <ellipse cx="146" cy="70" rx="19" ry="13" fill="${fill('shoulder')}" ${clk('shoulder')}/>
-      <ellipse cx="43" cy="100" rx="11" ry="18" fill="${fill('bicep')}" ${clk('bicep')}/>
-      <ellipse cx="157" cy="100" rx="11" ry="18" fill="${fill('bicep')}" ${clk('bicep')}/>
-      <ellipse cx="37" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
-      <ellipse cx="163" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
-      <rect x="84" y="110" width="32" height="32" rx="6" fill="${fill('abs')}" ${clk('abs')}/>
-      <ellipse cx="82" cy="198" rx="15" ry="28" fill="${fill('quad')}" ${clk('quad')}/>
-      <ellipse cx="118" cy="198" rx="15" ry="28" fill="${fill('quad')}" ${clk('quad')}/>
-      <ellipse cx="82" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>
-      <ellipse cx="118" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>`;
-  } else {
-    muscles = `
-      <path d="M88,62 L112,62 L132,86 L68,86 Z" fill="${fill('upper-back')}" ${clk('upper-back')}/>
-      <path d="M68,86 L86,132 L100,138 L114,132 L132,86 L112,62 L88,62 Z" fill="${fill('lat')}" ${clk('lat')}/>
-      <rect x="82" y="122" width="36" height="24" rx="5" fill="${fill('lower-back')}" ${clk('lower-back')}/>
-      <ellipse cx="43" cy="100" rx="11" ry="18" fill="${fill('tricep')}" ${clk('tricep')}/>
-      <ellipse cx="157" cy="100" rx="11" ry="18" fill="${fill('tricep')}" ${clk('tricep')}/>
-      <ellipse cx="37" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
-      <ellipse cx="163" cy="156" rx="10" ry="22" fill="${fill('forearm')}" ${clk('forearm')}/>
-      <ellipse cx="83" cy="163" rx="21" ry="19" fill="${fill('glute')}" ${clk('glute')}/>
-      <ellipse cx="117" cy="163" rx="21" ry="19" fill="${fill('glute')}" ${clk('glute')}/>
-      <ellipse cx="82" cy="198" rx="15" ry="28" fill="${fill('hamstring')}" ${clk('hamstring')}/>
-      <ellipse cx="118" cy="198" rx="15" ry="28" fill="${fill('hamstring')}" ${clk('hamstring')}/>
-      <ellipse cx="82" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>
-      <ellipse cx="118" cy="258" rx="13" ry="23" fill="${fill('calf')}" ${clk('calf')}/>`;
-  }
-
-  const w = size==='large' ? '170px' : '130px';
-  return `<svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" style="width:${w};height:auto">${bodyOutline}${muscles}</svg>`;
-}
 
 function showLibrary() {
   _libFilter = null;
@@ -762,7 +694,6 @@ function libraryRender() {
   }).join('');
 
   el.innerHTML = `
-    <div class="lib-diagram">${buildBodySVG('front', _libFilter?[_libFilter]:[], 'large')}</div>
     <div class="lib-filters">${filterBtns}</div>
     <div style="padding:12px 16px 40px">${cards || '<div class="no-hist">No exercises found</div>'}</div>`;
 }
@@ -778,16 +709,7 @@ function showLibDetail(idx) {
     </div>
     ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:180px;object-fit:cover;object-position:top center;border-radius:12px;margin-bottom:12px;background:#1a1a2e" onerror="this.style.display='none'">` : ''}
     <div class="muscle-tags" style="margin-bottom:16px">${tags}</div>
-    <div style="display:flex;gap:8px;justify-content:center;padding-bottom:8px">
-      <div style="text-align:center;flex:1">
-        <div style="font-size:10px;font-weight:800;color:var(--txt2);letter-spacing:.5px;margin-bottom:6px">FRONT</div>
-        ${buildBodySVG('front', ex.muscles, 'small')}
-      </div>
-      <div style="text-align:center;flex:1">
-        <div style="font-size:10px;font-weight:800;color:var(--txt2);letter-spacing:.5px;margin-bottom:6px">BACK</div>
-        ${buildBodySVG('back', ex.muscles, 'small')}
-      </div>
-    </div>`;
+    `;
   document.getElementById('lib-modal').style.display = 'flex';
 }
 
