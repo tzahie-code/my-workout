@@ -324,6 +324,10 @@
   justify-content:space-between; gap:12px; }
 .prog-item-info { flex:1; min-width:0; }
 .prog-item-name { font-size:16px; font-weight:700; }
+.prog-name-inp { font-size:16px; font-weight:700; background:transparent; border:none;
+  border-bottom:1.5px dashed var(--border); outline:none; color:var(--txt);
+  width:100%; padding:1px 0; }
+.prog-name-inp:focus { border-bottom-color:var(--txt2); }
 .prog-item-date { font-size:12px; color:var(--txt2); margin-top:2px; }
 .prog-actions { display:flex; gap:6px; flex-shrink:0; }
 .prog-btn { font-size:12px; font-weight:700; border:none; border-radius:8px;
@@ -553,7 +557,8 @@
       <button class="back-btn" onclick="builderBack()">← Back</button>
     </div>
     <div class="builder-name-row">
-      <input class="builder-name-inp" id="builder-name-inp" placeholder="Program name"
+      <div style="font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Program Name</div>
+      <input class="builder-name-inp" id="builder-name-inp" placeholder="e.g. Strength Block 1"
         oninput="_builderState.name=this.value">
     </div>
     <div class="builder-tabs">
@@ -1053,8 +1058,10 @@ function programsRender() {
     <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Active Program</div>
     <div class="prog-item" style="margin-bottom:4px">
       <div class="prog-item-info">
-        <div class="prog-item-name">${escHtml(progName)}</div>
-        <div class="prog-item-date">A: ${ROUTINES.A.exercises.length} exercises &nbsp;·&nbsp; B: ${ROUTINES.B.exercises.length} exercises</div>
+        <input class="prog-name-inp" value="${escHtml(progName)}" placeholder="Program name"
+          onblur="renameActiveProgram(this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()">
+        <div class="prog-item-date" style="margin-top:4px">A: ${ROUTINES.A.exercises.length} exercises &nbsp;·&nbsp; B: ${ROUTINES.B.exercises.length} exercises</div>
       </div>
       <div class="prog-actions">
         <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border)" onclick="showBuilder('active')">Edit</button>
@@ -1067,8 +1074,10 @@ function programsRender() {
     <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">Draft (building)</div>
     <div class="prog-item" style="border:2px solid var(--b)">
       <div class="prog-item-info">
-        <div class="prog-item-name">${escHtml(draft.name)}</div>
-        <div class="prog-item-date">A: ${draft.routines.A.exercises.length} exercises &nbsp;·&nbsp; B: ${draft.routines.B.exercises.length} exercises</div>
+        <input class="prog-name-inp" value="${escHtml(draft.name)}" placeholder="Program name"
+          onblur="renameDraft(this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()">
+        <div class="prog-item-date" style="margin-top:4px">A: ${draft.routines.A.exercises.length} exercises &nbsp;·&nbsp; B: ${draft.routines.B.exercises.length} exercises</div>
       </div>
       <div class="prog-actions" style="flex-direction:column;gap:5px">
         <button class="prog-btn" style="background:var(--green);color:white;width:100%" onclick="makeDraftActive()">✓ Make Active</button>
@@ -1154,6 +1163,23 @@ function deleteArchive(id) {
   if (!confirm('Delete this archived program?')) return;
   putArchives(getArchives().filter(a => a.id !== id));
   programsRender();
+}
+
+function renameActiveProgram(val) {
+  val = (val||'').trim();
+  if (!val) return;
+  const p = getProgramData() || { routines: ROUTINES };
+  p.name = val;
+  putProgramData(p);
+}
+
+function renameDraft(val) {
+  val = (val||'').trim();
+  if (!val) return;
+  const draft = getDraft();
+  if (!draft) return;
+  draft.name = val;
+  putDraft(draft);
 }
 
 // ════════════════════════════════════
