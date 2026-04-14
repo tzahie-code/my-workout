@@ -1069,7 +1069,7 @@ function programsRender() {
       </div>
       <div class="prog-actions">
         <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border)" onclick="showBuilder('active')">Edit</button>
-        <button class="prog-btn" style="background:var(--bg);color:var(--txt2);border:1px solid var(--border)" onclick="snapshotActive()">Save Copy</button>
+        <button class="prog-btn" style="background:var(--bg);color:var(--txt2);border:1px solid var(--border)" onclick="copyActiveToDraft()">Copy to Draft</button>
       </div>
     </div>`;
 
@@ -1114,13 +1114,13 @@ function programsRender() {
   el.innerHTML = activeHtml + draftHtml + archHtml;
 }
 
-// Save a manual snapshot of the active program (no replacement)
-function snapshotActive() {
-  const name = prompt('Snapshot name:', getCurrentProgramName());
-  if (name === null) return;
-  const archives = getArchives();
-  archives.unshift({ id: Date.now(), name: name.trim() || getCurrentProgramName(), savedAt: Date.now(), routines: JSON.parse(JSON.stringify(ROUTINES)) });
-  putArchives(archives);
+// Copy active program into the draft so it can be edited
+function copyActiveToDraft() {
+  if (getDraft()) {
+    if (!confirm('You already have a draft. Replace it with a copy of the active program?')) return;
+  }
+  const name = getCurrentProgramName() + ' (copy)';
+  putDraft({ name, routines: JSON.parse(JSON.stringify(ROUTINES)) });
   programsRender();
 }
 
