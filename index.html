@@ -449,7 +449,7 @@
     </div>
     <div class="home-body">
       <div class="rc">
-        <div class="rc-top" onclick="startWorkout('A')">
+        <div class="rc-top" onclick="viewRoutine('A')">
           <div class="rc-badge" style="background:var(--a)">A</div>
           <div class="rc-info">
             <h2 id="rc-name-a">Routine A</h2>
@@ -460,7 +460,7 @@
         <button class="rc-btn" id="rc-btn-a" style="background:var(--a)" onclick="startWorkout('A')">Start Routine A</button>
       </div>
       <div class="rc">
-        <div class="rc-top" onclick="startWorkout('B')">
+        <div class="rc-top" onclick="viewRoutine('B')">
           <div class="rc-badge" style="background:var(--b)">B</div>
           <div class="rc-info">
             <h2 id="rc-name-b">Routine B</h2>
@@ -488,7 +488,7 @@
           <div class="wk-title" id="wk-title"></div>
           <div class="wk-saved" id="wk-saved">✓ Saved</div>
         </div>
-        <button class="wk-back" onclick="confirmEnd()">← Back</button>
+        <button class="wk-back" id="wk-back-btn" onclick="confirmEnd()">← Back</button>
         <button class="wk-finish-all" id="wk-finish-all-btn" onclick="completeAllAndFinish()">✓ Finish Workout</button>
       </div>
       <div class="wk-prog"><div class="wk-fill" id="wk-fill" style="width:0%"></div></div>
@@ -1089,9 +1089,12 @@ function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"ses
 function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); sbSaveDebounced(); }
 function saveCurrentSession() {
   if (!S.session) return;
-  localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid, session:S.session}));
-  sbSaveDebounced();
-  // Flash "✓ Saved" indicator
+  if (!S.viewing) {
+    // Real workout — persist to mwCurrent
+    localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid, session:S.session}));
+    sbSaveDebounced();
+  }
+  // Flash "✓ Saved" indicator in both real and edit mode
   const el = document.getElementById('wk-saved');
   if (el) {
     el.classList.add('show');
@@ -2149,13 +2152,15 @@ function acHex() { return S.rid==='A' ? '#ff6b35' : '#3b82f6'; }
 
 function wkRender() {
   const rt = ROUTINES[S.rid];
-  document.getElementById('wk-title').textContent = 'Routine '+S.rid;
+  document.getElementById('wk-title').textContent = S.viewing ? '✏️ Edit Routine '+S.rid : 'Routine '+S.rid;
+  const backBtn = document.getElementById('wk-back-btn');
+  if (backBtn) backBtn.textContent = S.viewing ? '✓ Done' : '← Back';
   document.getElementById('wk-finish-all-btn').style.background = ac();
   document.getElementById('wk-finish-all-btn').style.display = S.viewing ? 'none' : '';
   document.getElementById('wk-fill').style.background = ac();
   const total = rt.exercises.reduce((s,e)=>s+e.sets.length,0);
   const done  = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
-  document.getElementById('wk-fill').style.width = (total?done/total*100:0)+'%';
+  document.getElementById('wk-fill').style.width = S.viewing ? '0%' : (total?done/total*100:0)+'%';
   document.getElementById('wk-body').innerHTML =
     rt.exercises.map((ex,i) => buildCard(ex,i)).join('');
 }
@@ -2236,18 +2241,18 @@ function buildCard(ex, i) {
             <input class="sr-note-inp" id="in${i}_${si}"
               value="${(set.note||def.n||'').replace(/"/g,'&quot;')}"
               oninput="saveSetNote(${i},${si},this.value)">
-            <button class="set-ck${ckCls}" onclick="toggleSet(${i},${si})">${ckIcon}</button>
+            ${S.viewing ? '' : `<button class="set-ck${ckCls}" onclick="toggleSet(${i},${si})">${ckIcon}</button>`}
           </div>
           ${!set.done && prevW!==null ? `<div class="sr-prev">Last: <strong>${displayWeight(prevW)}${!isBW(String(prevW))?' kg':''}</strong></div>` : ''}
         </div>`;
     }).join('');
 
     const allExDone = ses.sets.every(s=>s.done);
-    const compExBtn = allExDone
+    const compExBtn = S.viewing ? '' : (allExDone
       ? `<button class="complete-ex-btn" style="background:#636366"
            onclick="undoExercise(${i})">↩ Undo — mark as not done</button>`
       : `<button class="complete-ex-btn" style="background:${color}"
-           onclick="completeExercise(${i})">✓ Mark all sets done</button>`;
+           onclick="completeExercise(${i})">✓ Mark all sets done</button>`);
     expandHtml = `
       <div class="ec-expand open">
         ${compExBtn}
@@ -2283,8 +2288,7 @@ function buildCard(ex, i) {
           oninput="saveComment(${i},this.value)">
         <div class="ec-row">${dots}</div>
       </div>
-      <button class="ec-quick-ck${qkCls}"
-        onclick="event.stopPropagation();quickToggleExercise(${i})">${qkIcon}</button>
+      ${S.viewing ? '' : `<button class="ec-quick-ck${qkCls}" onclick="event.stopPropagation();quickToggleExercise(${i})">${qkIcon}</button>`}
     </div>
     ${expandHtml}
   </div>`;
@@ -2442,7 +2446,7 @@ function toggleSet(ei, si) {
   } else {
     set.done = false;
   }
-  if (S.session.exercises.every(e=>e.sets.every(s=>s.done))) {
+  if (!S.viewing && S.session.exercises.every(e=>e.sets.every(s=>s.done))) {
     setTimeout(finish, 700);
     return;
   }
@@ -2479,7 +2483,7 @@ function completeExercise(ei) {
     }
   });
   saveLastWeights(activeExName(ei), ex.sets);
-  if (S.session.exercises.every(e=>e.sets.every(s=>s.done))) {
+  if (!S.viewing && S.session.exercises.every(e=>e.sets.every(s=>s.done))) {
     setTimeout(finish, 700);
     return;
   }
@@ -2553,9 +2557,12 @@ function finish() {
 
 function confirmEnd() {
   if (S.viewing) {
-    // Viewing/preview mode — read-only, never touch saved data.
-    // Do NOT call saveLastWeights (would overwrite real weights with nulls).
-    // Do NOT call clearCurrentSession (would delete another routine's real session).
+    // Edit mode — flush all pending DOM values to prefs then discard the temp session.
+    // Do NOT write to history or mwCurrent.
+    savePendingInputs();
+    S.session.exercises.forEach((ex, ei) => {
+      saveLastWeights(activeExName(ei), ex.sets);
+    });
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
     savePendingInputs();
