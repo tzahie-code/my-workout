@@ -205,6 +205,29 @@
     .prog-stat { font-size: 11px; color: var(--txt2); margin-bottom: 8px; line-height: 1.6; }
     .prog-no-data { font-size: 12px; color: var(--txt2); padding: 4px 0 2px; }
     .prog-section-lbl { font-size: 13px; font-weight: 800; padding: 10px 0 6px; }
+    .prog-edit-toggle { font-size:11px; font-weight:700; background:none; border:1px solid var(--border);
+      border-radius:6px; color:var(--txt2); padding:3px 9px; cursor:pointer; margin-top:8px; }
+    .prog-edit-toggle:active { opacity:.7; }
+    .prog-edit-panel { display:none; margin-top:10px; background:var(--bg);
+      border-radius:10px; padding:10px 12px; }
+    .prog-edit-panel.open { display:block; }
+    .prog-hist-row { display:flex; align-items:center; gap:8px; padding:7px 0;
+      border-bottom:1px solid var(--border); }
+    .prog-hist-row:last-child { border-bottom:none; }
+    .prog-hist-row.excl { opacity:.4; }
+    .prog-hist-date { font-size:12px; color:var(--txt2); flex:1; min-width:0; }
+    .prog-hist-orig { font-size:10px; color:#aaa; }
+    .prog-hist-w { width:58px; font-size:13px; font-weight:700; text-align:center;
+      border:1.5px solid var(--border); border-radius:8px; padding:5px 4px;
+      background:white; -moz-appearance:textfield; }
+    .prog-hist-w::-webkit-inner-spin-button { -webkit-appearance:none; }
+    .prog-hist-w:focus { border-color:var(--b); outline:none; }
+    .prog-hist-reset { font-size:14px; background:none; border:none; cursor:pointer;
+      color:var(--txt2); padding:2px 4px; }
+    .prog-hist-excl { font-size:11px; font-weight:700; background:none;
+      border:1.5px solid var(--border); border-radius:6px; color:var(--txt2);
+      padding:4px 7px; cursor:pointer; white-space:nowrap; }
+    .prog-hist-excl.excl { background:var(--red); color:white; border-color:var(--red); }
     .upscale-badge { font-size: 10px; color: var(--green); font-weight: 700; margin-top: 2px; }
     .home-best { font-size: 11px; color: var(--txt2); padding: 2px 0 6px; }
 
@@ -1665,7 +1688,49 @@ function stopRestTimer(vibrate) {
 }
 
 function skipRestTimer() { stopRestTimer(false); }
-function showProgress() { progressRender(); show('progress'); }
+function showProgress() { _openProgEdits.clear(); progressRender(); show('progress'); }
+
+function toggleProgEdit(rid, ei) {
+  const key = `${rid}-${ei}`;
+  if (_openProgEdits.has(key)) _openProgEdits.delete(key);
+  else _openProgEdits.add(key);
+  progressRender();
+  setTimeout(() => {
+    const el = document.getElementById(`prog-card-${rid}-${ei}`);
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 60);
+}
+
+function _applyProgOverride(rid, ei, sessId, mutFn) {
+  const exName = ROUTINES[rid].exercises[ei].name;
+  const all    = getProgressOverrides();
+  if (!all[exName])         all[exName]         = {};
+  if (!all[exName][sessId]) all[exName][sessId] = {};
+  mutFn(all[exName][sessId]);
+  // Prune empty objects
+  if (!Object.keys(all[exName][sessId]).length) delete all[exName][sessId];
+  if (!Object.keys(all[exName]).length)         delete all[exName];
+  putProgressOverrides(all);
+  progressRender();
+}
+
+function saveProgWeight(rid, ei, sessId, val) {
+  const num = parseFloat(val);
+  _applyProgOverride(rid, ei, sessId, ov => {
+    if (isNaN(num) || val === '') delete ov.w;
+    else ov.w = num;
+  });
+}
+
+function resetProgWeight(rid, ei, sessId) {
+  _applyProgOverride(rid, ei, sessId, ov => { delete ov.w; });
+}
+
+function toggleProgExcl(rid, ei, sessId) {
+  _applyProgOverride(rid, ei, sessId, ov => {
+    if (ov.excl) delete ov.excl; else ov.excl = true;
+  });
+}
 
 // ════════════════════════════════════
 // PROGRESS
@@ -1676,23 +1741,52 @@ function displayWeight(w) {
   return isBW(String(w)) ? 'BW' : w;
 }
 
+// ── Progress overrides storage ──────────────────────────────────────
+// { [exName]: { [sessId]: { w?: number, excl?: true } } }
+function getProgressOverrides() {
+  try { return JSON.parse(localStorage.getItem('mwProgOverrides') || '{}'); } catch { return {}; }
+}
+function putProgressOverrides(o) {
+  localStorage.setItem('mwProgOverrides', JSON.stringify(o));
+  sbSaveDebounced();
+}
+
+// Compute raw data for one exercise session (no override applied yet)
+function _rawPoint(s, exName) {
+  const ex = s.exercises.find(e => e.name === exName);
+  if (!ex) return null;
+  const doneSets = ex.sets.filter(set => set.done && set.w);
+  const bwSets   = doneSets.filter(set => isBW(String(set.w)));
+  const weights  = doneSets.filter(set => !isBW(String(set.w)))
+    .map(set => parseFloat(set.w)).filter(w => !isNaN(w) && w > 0);
+  const hasBW = bwSets.length > 0;
+  if (!weights.length && !hasBW) return null;
+  return { sessId: s.id, computedMax: weights.length ? Math.max(...weights) : 0, bw: hasBW && !weights.length };
+}
+
+// All raw data points including excluded ones — used for the edit panel
+function getAllProgressRawPoints(exName) {
+  const d   = get();
+  const ovs = (getProgressOverrides()[exName]) || {};
+  return d.sessions.sort((a,b) => a.id - b.id).map(s => {
+    const raw = _rawPoint(s, exName);
+    if (!raw) return null;
+    const ov = ovs[s.id] || {};
+    return { ...raw, max: ov.w != null ? ov.w : raw.computedMax, excl: !!ov.excl, overridden: ov.w != null };
+  }).filter(Boolean);
+}
+
 function getExerciseProgress(exName) {
-  const d = get();
-  return d.sessions
-    .sort((a,b) => a.id - b.id)
-    .map(s => {
-      const ex = s.exercises.find(e => e.name === exName);
-      if (!ex) return null;
-      // Separate BW sets from weighted sets
-      const doneSets = ex.sets.filter(set=>set.done && set.w);
-      const bwSets = doneSets.filter(set=>isBW(String(set.w)));
-      const weights = doneSets.filter(set=>!isBW(String(set.w)))
-        .map(set=>parseFloat(set.w)).filter(w=>!isNaN(w) && w>0);
-      const hasBW = bwSets.length > 0;
-      if (!weights.length && !hasBW) return null;
-      // BW = 0 added weight — baseline for progress comparison
-      return { date: s.id, max: weights.length ? Math.max(...weights) : 0, bw: hasBW && !weights.length };
-    }).filter(Boolean);
+  const d   = get();
+  const ovs = (getProgressOverrides()[exName]) || {};
+  return d.sessions.sort((a,b) => a.id - b.id).map(s => {
+    const raw = _rawPoint(s, exName);
+    if (!raw) return null;
+    const ov = ovs[s.id] || {};
+    if (ov.excl) return null;                               // excluded
+    const max = ov.w != null ? ov.w : raw.computedMax;     // use override weight if set
+    return { date: s.id, max, bw: raw.bw };
+  }).filter(Boolean);
 }
 
 function getLastUpscale(exName) {
@@ -1733,6 +1827,8 @@ function drawMiniChart(pts, hexColor) {
   </div>`;
 }
 
+let _openProgEdits = new Set(); // tracks which exercise edit panels are open
+
 function progressRender() {
   const el = document.getElementById('progress-body');
   const d = get();
@@ -1743,17 +1839,44 @@ function progressRender() {
   el.innerHTML = ['A','B'].map(rid => {
     const hexColor = rid==='A' ? '#ff6b35' : '#3b82f6';
     const color = rid==='A' ? 'var(--a)' : 'var(--b)';
-    const cards = ROUTINES[rid].exercises.map(ex => {
-      const pts = getExerciseProgress(ex.name);
+    const cards = ROUTINES[rid].exercises.map((ex, ei) => {
+      const pts    = getExerciseProgress(ex.name);
       const lastUp = getLastUpscale(ex.name);
-      const best = pts.length ? Math.max(...pts.map(p=>p.max)) : null;
+      const best   = pts.length ? Math.max(...pts.map(p=>p.max)) : null;
       const lastUpStr = lastUp
         ? `· <span style="color:var(--green);font-weight:700">Last increase: ${new Date(lastUp.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (+${lastUp.to-lastUp.from}kg)</span>`
         : '';
-      return `<div class="prog-ex">
+      const editKey  = `${rid}-${ei}`;
+      const isOpen   = _openProgEdits.has(editKey);
+      const allPts   = getAllProgressRawPoints(ex.name);
+      const editPanel = allPts.length ? `
+        <button class="prog-edit-toggle" onclick="toggleProgEdit('${rid}',${ei})">
+          ${isOpen ? '▲ Close' : '✏️ Edit history'}
+        </button>
+        <div class="prog-edit-panel${isOpen?' open':''}">
+          <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">
+            Edit a weight or tap <strong>Exclude</strong> to hide a session from the chart.
+          </div>
+          ${allPts.map(pt => {
+            const dateStr = new Date(pt.sessId).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+            const origNote = pt.overridden ? `<span class="prog-hist-orig">orig: ${pt.computedMax}kg</span>` : '';
+            return `<div class="prog-hist-row${pt.excl?' excl':''}">
+              <span class="prog-hist-date">${dateStr}${origNote?'<br>'+origNote:''}</span>
+              <input class="prog-hist-w" type="number" step="0.5" value="${pt.max}"
+                ${pt.excl?'disabled':''} onchange="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)"
+                onblur="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)">
+              ${pt.overridden ? `<button class="prog-hist-reset" title="Reset to original" onclick="resetProgWeight('${rid}',${ei},${pt.sessId})">↩</button>` : '<span style="width:24px"></span>'}
+              <button class="prog-hist-excl${pt.excl?' excl':''}" onclick="toggleProgExcl('${rid}',${ei},${pt.sessId})">
+                ${pt.excl ? 'Excluded' : 'Exclude'}
+              </button>
+            </div>`;
+          }).join('')}
+        </div>` : '';
+      return `<div class="prog-ex" id="prog-card-${rid}-${ei}">
         <div class="prog-name">${ex.key?'🔥 ':''}${ex.name}</div>
         <div class="prog-stat">Best: <strong>${best!=null?best+'kg':'—'}</strong> ${lastUpStr}</div>
         ${drawMiniChart(pts, hexColor)}
+        ${editPanel}
       </div>`;
     }).join('');
     return `<div class="prog-section-lbl" style="color:${color}">Routine ${rid}</div>${cards}`;
