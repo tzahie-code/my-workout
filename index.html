@@ -358,6 +358,13 @@
 .builder-del-btn { background:none; border:none; color:#c7c7cc; font-size:18px;
   cursor:pointer; padding:4px 6px; flex-shrink:0; line-height:1; }
 .builder-del-btn:active { color:var(--red); }
+.builder-sub-btn { background:none; border:none; color:#c7c7cc; font-size:17px;
+  cursor:pointer; padding:4px 6px; flex-shrink:0; line-height:1; }
+.builder-sub-btn:active { color:var(--b); }
+/* Picker substitute banner */
+.picker-sub-banner { background:#e8f0fe; color:#1a56db; font-size:13px; font-weight:600;
+  padding:8px 16px; display:none; }
+.picker-sub-banner.active { display:block; }
 .drag-handle { font-size:18px; color:#c7c7cc; padding:4px 6px; flex-shrink:0;
   touch-action:none; user-select:none; cursor:grab; line-height:1; }
 .drag-handle:active { cursor:grabbing; color:var(--txt2); }
@@ -575,9 +582,10 @@
 <div id="picker-wrap" class="picker-wrap" onclick="closeBuilderPicker(event)">
   <div class="picker-sheet" onclick="event.stopPropagation()">
     <div class="picker-hd">
-      <h3>Add Exercise</h3>
+      <h3 id="picker-title">Add Exercise</h3>
       <button class="picker-close" onclick="closeBuilderPicker()">✕</button>
     </div>
+    <div id="picker-sub-banner" class="picker-sub-banner"></div>
     <div class="picker-filters" id="picker-filters"></div>
     <div id="picker-list"></div>
     <div class="picker-spacer"></div>
@@ -1289,6 +1297,7 @@ function builderRenderTab() {
           <span style="font-size:10px;color:var(--txt2);margin-left:2px">sets</span>
         </div>
         <button class="builder-key-btn${ex.key?' active':''}" title="Key exercise" onclick="builderToggleKey('${rid}',${idx})">🔥</button>
+        <button class="builder-sub-btn" title="Find substitute" onclick="openSubstitutePicker('${rid}',${idx})">⇄</button>
         <button class="builder-del-btn" onclick="builderDelEx('${rid}',${idx})">✕</button>
       </div>`;
     }).join('');
@@ -1362,11 +1371,34 @@ function builderToggleKey(rid, idx) {
   builderRenderTab();
 }
 
+// _builderSubstIdx: index of exercise being substituted (null = add mode)
+let _builderSubstIdx = null;
+
 function openBuilderPicker(rid) {
   _builderPickRid = rid;
+  _builderSubstIdx = null;
+  document.getElementById('picker-title').textContent = 'Add Exercise';
+  const banner = document.getElementById('picker-sub-banner');
+  banner.textContent = ''; banner.classList.remove('active');
   pickerRender();
   document.getElementById('picker-wrap').classList.add('active');
-  // Always start at top
+  const sheet = document.querySelector('.picker-sheet');
+  if (sheet) sheet.scrollTop = 0;
+}
+
+function openSubstitutePicker(rid, idx) {
+  _builderPickRid = rid;
+  _builderSubstIdx = idx;
+  const exName = _builderState[rid].exercises[idx].name;
+  const exMuscles = _builderState[rid].exercises[idx].muscles || [];
+  // Pre-filter to the exercise's primary muscle
+  _pickerFilter = exMuscles[0] || null;
+  document.getElementById('picker-title').textContent = 'Find Substitute';
+  const banner = document.getElementById('picker-sub-banner');
+  banner.textContent = '⇄ Replacing: ' + exName;
+  banner.classList.add('active');
+  pickerRender();
+  document.getElementById('picker-wrap').classList.add('active');
   const sheet = document.querySelector('.picker-sheet');
   if (sheet) sheet.scrollTop = 0;
 }
@@ -1375,6 +1407,7 @@ function closeBuilderPicker(e) {
   if (e && e.target !== document.getElementById('picker-wrap')) return;
   document.getElementById('picker-wrap').classList.remove('active');
   _builderPickRid = null;
+  _builderSubstIdx = null;
 }
 
 function pickerRender() {
@@ -1390,14 +1423,18 @@ function pickerRender() {
   ].join('');
   document.getElementById('picker-filters').innerHTML = filterHtml;
   // List
+  const rid = _builderPickRid;
+  const substName = (_builderSubstIdx !== null && rid) ? _builderState[rid].exercises[_builderSubstIdx].name : null;
   const listHtml = filtered.map(ex => {
     const idx = EXERCISE_LIBRARY.indexOf(ex);
     const imgSrc = _exImgSrc(ex.img);
     const muscles = ex.muscles.map(m => MUSCLE_LABELS[m]||m).join(', ');
-    return `<div class="picker-card" onclick="builderPickEx(${idx})">
+    // In substitute mode, dim the current exercise so user knows to pick a different one
+    const isCurrent = substName && ex.name === substName;
+    return `<div class="picker-card${isCurrent?' picker-card-dim':''}" onclick="builderPickEx(${idx})" style="${isCurrent?'opacity:.35;pointer-events:none':''}">
       ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
       <div>
-        <div class="picker-card-name">${escHtml(ex.name)}</div>
+        <div class="picker-card-name">${escHtml(ex.name)}${isCurrent?' <span style="font-size:11px;color:var(--txt2)">(current)</span>':''}</div>
         <div class="picker-card-muscles">${escHtml(muscles)}</div>
       </div>
     </div>`;
@@ -1414,6 +1451,21 @@ function builderPickEx(libIdx) {
   if (!_builderPickRid) return;
   const ex = EXERCISE_LIBRARY[libIdx];
   const rid = _builderPickRid;
+
+  if (_builderSubstIdx !== null) {
+    // Substitute mode — replace the exercise at _builderSubstIdx
+    const old = _builderState[rid].exercises[_builderSubstIdx];
+    _builderState[rid].exercises[_builderSubstIdx] = {
+      name: ex.name, muscles: ex.muscles||[], img: ex.img||'',
+      key: old.key||false, machine: '', setCount: old.setCount||3
+    };
+    document.getElementById('picker-wrap').classList.remove('active');
+    _builderPickRid = null; _builderSubstIdx = null;
+    builderRenderTab();
+    return;
+  }
+
+  // Add mode
   if (_builderState[rid].exercises.some(e => e.name === ex.name)) {
     alert(ex.name + ' is already in Routine ' + rid);
     return;
