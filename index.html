@@ -2093,12 +2093,21 @@ function homeUpdate() {
 // START
 // ════════════════════════════════════
 function startWorkout(rid) {
-  // If a saved session exists for this routine, resume it
   const saved = loadCurrentSession();
+  // Resume same routine
   if (saved && saved.rid === rid) {
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     S.viewing = false;
     show('workout'); wkRender();
+    return;
+  }
+  // Block starting a different routine while one is already in progress
+  if (saved && saved.rid !== rid) {
+    alert(
+      'Routine ' + saved.rid + ' is already in progress.\n\n' +
+      'Go back into Routine ' + saved.rid + ' and finish it (or use ← Back to save it) before starting Routine ' + rid + '.\n\n' +
+      'Starting a new routine while one is active would overwrite your current session.'
+    );
     return;
   }
   // Add today if not already selected (don't toggle off)
