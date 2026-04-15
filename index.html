@@ -2039,7 +2039,11 @@ function checkMidnightReset() {
 }
 function resetWeek() {
   const p = getPrefs();
-  ['A','B'].forEach(r => { if (p[r]) p[r].days = []; });
+  ['A','B'].forEach(r => {
+    if (!p[r]) p[r] = {};
+    p[r].days   = [];
+    p[r].locker = '';
+  });
   putPrefs(p);
   homeUpdate();
 }
