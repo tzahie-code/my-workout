@@ -1720,14 +1720,7 @@ function saveVariantIdx(exName, idx) {
 }
 
 function checkMidnightReset() {
-  const today = new Date().toDateString();
-  const last  = localStorage.getItem('mwLastDate');
-  if (last !== today) {
-    const p = getPrefs();
-    ['A','B'].forEach(r => { if (p[r]) p[r].locker = ''; });
-    putPrefs(p);
-    localStorage.setItem('mwLastDate', today);
-  }
+  // Locker is now persistent — no auto-clear on new day
 }
 function resetWeek() {
   const p = getPrefs();
@@ -1768,7 +1761,7 @@ function homeUpdate() {
       <div class="rc-locker">
         🔐 Locker
         <input class="locker-inp" value="${locker.replace(/"/g,'&quot;')}"
-          oninput="setLocker('${r}',this.value)">
+          oninput="setLocker('${r}',this.value)" onfocus="this.select()">
         ${lastTxt}
       </div>`;
     // Resume button if session in progress for this routine
@@ -1788,6 +1781,14 @@ function homeUpdate() {
 // START
 // ════════════════════════════════════
 function startWorkout(rid) {
+  // If a saved session exists for this routine, resume it
+  const saved = loadCurrentSession();
+  if (saved && saved.rid === rid) {
+    S.rid = saved.rid; S.session = saved.session; S.expanded = null;
+    S.viewing = false;
+    show('workout'); wkRender();
+    return;
+  }
   // Add today if not already selected (don't toggle off)
   const _today = DAYS[new Date().getDay()];
   const _p = getPrefs();
@@ -2248,12 +2249,25 @@ function histRender() {
           <button class="hi-del" onclick="event.stopPropagation();deleteSession(${s.id})">🗑</button>
         </span>
       </div>
-      <div class="si-m" onclick="toggleHist(${i})">${tot} sets · ${dur}</div>
+      <div class="si-m">${tot} sets · <span id="dur-${s.id}" onclick="event.stopPropagation();editDuration(${s.id})" style="cursor:pointer;border-bottom:1px dashed var(--border)" title="Tap to edit duration">${dur}</span></div>
       <div class="si-detail" id="hd${i}">${exH}</div>
     </div>`;
   }).join('');
 }
 function toggleHist(i) { document.getElementById('hd'+i).classList.toggle('open'); }
+function editDuration(id) {
+  const d = get();
+  const sess = d.sessions.find(s => s.id === id);
+  if (!sess) return;
+  const currentMins = sess.endTime ? Math.round((sess.endTime - sess.id) / 60000) : '';
+  const input = prompt('Workout duration (minutes):', currentMins);
+  if (input === null) return;
+  const mins = parseInt(input);
+  if (isNaN(mins) || mins <= 0 || mins > 600) { alert('Please enter a valid number of minutes (1–600).'); return; }
+  sess.endTime = sess.id + mins * 60000;
+  put(d);
+  histRender();
+}
 function deleteSession(id) {
   if (!confirm('Delete this workout? This cannot be undone.')) return;
   const d = get();
