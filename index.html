@@ -532,6 +532,10 @@
           <span class="settings-lbl">Count down after each set</span>
           <button class="toggle-btn" id="rest-countdown-toggle" onclick="toggleRestCountdown()">OFF</button>
         </div>
+        <div class="settings-row">
+          <span class="settings-lbl">Play alarm when timer ends</span>
+          <button class="toggle-btn" id="rest-alarm-toggle" onclick="toggleRestAlarm()">OFF</button>
+        </div>
         <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
           <span class="settings-lbl">Timer options</span>
           <div class="rest-opts-inputs" id="rest-opts-inputs"></div>
@@ -1555,6 +1559,11 @@ function showSettings() {
     toggle.textContent = s.restCountdown ? 'ON' : 'OFF';
     toggle.classList.toggle('on', !!s.restCountdown);
   }
+  const alarmToggle = document.getElementById('rest-alarm-toggle');
+  if (alarmToggle) {
+    alarmToggle.textContent = s.restAlarm ? 'ON' : 'OFF';
+    alarmToggle.classList.toggle('on', !!s.restAlarm);
+  }
   const opts = getRestOpts();
   const container = document.getElementById('rest-opts-inputs');
   if (container) {
@@ -1572,6 +1581,35 @@ function toggleRestCountdown() {
   s.restCountdown = !s.restCountdown;
   putSettings(s);
   showSettings();
+}
+
+function toggleRestAlarm() {
+  const s = getSettings();
+  s.restAlarm = !s.restAlarm;
+  putSettings(s);
+  if (s.restAlarm) playAlarmBeep(); // preview the sound when turning ON
+  showSettings();
+}
+
+function playAlarmBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = (freq, startOffset, dur) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.45, ctx.currentTime + startOffset);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + dur);
+      osc.start(ctx.currentTime + startOffset);
+      osc.stop(ctx.currentTime + startOffset + dur + 0.05);
+    };
+    beep(880,  0.00, 0.15);   // short beep
+    beep(880,  0.22, 0.15);   // short beep
+    beep(1100, 0.44, 0.35);   // longer higher beep
+  } catch(e) { /* AudioContext not available */ }
 }
 
 function saveRestOpt(idx, val) {
@@ -1620,7 +1658,10 @@ function stopRestTimer(vibrate) {
   if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
-  if (vibrate && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  if (vibrate) {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    if (getSettings().restAlarm) playAlarmBeep();
+  }
 }
 
 function skipRestTimer() { stopRestTimer(false); }
