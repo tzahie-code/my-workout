@@ -67,6 +67,8 @@
       box-shadow: 0 1px 0 var(--border); }
     .wk-bar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; }
     .wk-left .wk-title { font-size: 17px; font-weight: 700; }
+    .wk-saved { font-size: 10px; color: var(--green); font-weight: 600; margin-top: 1px; opacity: 0; transition: opacity .4s; }
+    .wk-saved.show { opacity: 1; }
     .wk-back { background: none; border: 1px solid var(--border); color: var(--txt2);
       padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
     .wk-back:active { opacity: .7; }
@@ -484,6 +486,7 @@
       <div class="wk-bar">
         <div class="wk-left">
           <div class="wk-title" id="wk-title"></div>
+          <div class="wk-saved" id="wk-saved">✓ Saved</div>
         </div>
         <button class="wk-back" onclick="confirmEnd()">← Back</button>
         <button class="wk-finish-all" id="wk-finish-all-btn" onclick="completeAllAndFinish()">✓ Finish Workout</button>
@@ -1084,7 +1087,26 @@ let S = { rid:null, session:null, expanded:null, viewing:false };
 // ════════════════════════════════════
 function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
 function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); sbSaveDebounced(); }
-function saveCurrentSession() { if (S.session) { localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid,session:S.session})); sbSaveDebounced(); } }
+function saveCurrentSession() {
+  if (!S.session) return;
+  localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid, session:S.session}));
+  sbSaveDebounced();
+  // Flash "✓ Saved" indicator
+  const el = document.getElementById('wk-saved');
+  if (el) {
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+}
+
+// Auto-save current session every 20 seconds while a workout is active
+setInterval(() => {
+  if (S.session && !S.viewing) {
+    savePendingInputs();
+    saveCurrentSession();
+  }
+}, 20000);
 function clearCurrentSession() { localStorage.removeItem('mwCurrent'); sbSaveDebounced(); }
 function loadCurrentSession() { try { return JSON.parse(localStorage.getItem('mwCurrent')||'null'); } catch{ return null; } }
 
@@ -2178,11 +2200,11 @@ function buildCard(ex, i) {
     const focCls = isB ? ' fb' : '';
     const setRows = ex.sets.map((def, si) => {
       const set  = ses.sets[si];
-      const prevW = prevSetW(activeName, si);
+      const prevW = prevSetW(activeName, si, ex.name);
       const defW = set._pw !== undefined ? set._pw
                  : set.done ? (set.w||'')
                  : (prevW!==null ? prevW : (def.w||''));
-      const prevR = prevSetR(activeName, si);
+      const prevR = prevSetR(activeName, si, ex.name);
       const defR = set._pr !== undefined ? set._pr
                  : set.done ? (set.r||'')
                  : (prevR !== null ? prevR : (def.r||''));
@@ -2269,16 +2291,20 @@ function toggleCard(i) {
   },60);
 }
 
-function prevSetW(name, idx) {
-  // First check saved weights in prefs (survives history deletion)
+function prevSetW(name, idx, baseName) {
+  // 'name' = active variant name (or exercise name if no variants)
+  // 'baseName' = base exercise name (same as name for non-variant exercises)
   const p = getPrefs();
   if (p.lastWeights && p.lastWeights[name] && p.lastWeights[name][idx] != null)
     return p.lastWeights[name][idx];
-  // Fall back to history
+  // Backward compat: also check base name (for variant exercises whose data was saved pre-variant-memory change)
+  if (baseName && baseName !== name && p.lastWeights && p.lastWeights[baseName] && p.lastWeights[baseName][idx] != null)
+    return p.lastWeights[baseName][idx];
+  // Fall back to session history — search by variant name OR base name
   const d = get();
   const prev = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id)[0];
   if(!prev) return null;
-  const ex = prev.exercises.find(e=>e.name===name);
+  const ex = prev.exercises.find(e => e.name===name || (baseName && e.name===baseName));
   if(!ex||!ex.sets[idx]||!ex.sets[idx].done) return null;
   return ex.sets[idx].w;
 }
@@ -2290,10 +2316,12 @@ function saveLastWeights(exName, sets) {
   p.lastReps[exName]    = sets.map(s => s._pr || s.r || null);
   putPrefs(p);
 }
-function prevSetR(name, idx) {
+function prevSetR(name, idx, baseName) {
   const p = getPrefs();
   if (p.lastReps && p.lastReps[name] && p.lastReps[name][idx] != null)
     return p.lastReps[name][idx];
+  if (baseName && baseName !== name && p.lastReps && p.lastReps[baseName] && p.lastReps[baseName][idx] != null)
+    return p.lastReps[baseName][idx];
   return null;
 }
 
@@ -2516,11 +2544,9 @@ function finish() {
 
 function confirmEnd() {
   if (S.viewing) {
-    savePendingInputs();
-    if (S.session) {
-      S.session.exercises.forEach((ex, ei) => saveLastWeights(activeExName(ei), ex.sets));
-    }
-    clearCurrentSession();
+    // Viewing/preview mode — read-only, never touch saved data.
+    // Do NOT call saveLastWeights (would overwrite real weights with nulls).
+    // Do NOT call clearCurrentSession (would delete another routine's real session).
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
     savePendingInputs();
