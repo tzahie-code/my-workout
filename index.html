@@ -1729,13 +1729,22 @@ function viewRoutine(rid) {
     S.session = {
       id: Date.now(), routine: rid,
       startTime: Date.now(), endTime: null,
-      exercises: ROUTINES[rid].exercises.map(ex => ({
-        name: ex.name,
-        machine: (getPrefs().machines && getPrefs().machines[ex.name]) || ex.machine || '',
-        comment: (getPrefs().comments && getPrefs().comments[ex.name]) || '',
-        variantIdx: ex.variants ? getVariantIdx(ex.name) : undefined,
-        sets: ex.sets.map((def,si)=>({w:null,r:null,done:false,note:(getPrefs().setNotes&&getPrefs().setNotes[ex.name]&&getPrefs().setNotes[ex.name][si]!=null?getPrefs().setNotes[ex.name][si]:def.n)||''}))
-      }))
+      exercises: ROUTINES[rid].exercises.map(ex => {
+        const vIdx  = ex.variants ? getVariantIdx(ex.name) : undefined;
+        const aName = ex.variants ? ex.variants[vIdx||0] : ex.name;
+        const p     = getPrefs();
+        return {
+          name: ex.name,
+          machine:    (p.machines && p.machines[aName])  || ex.machine || '',
+          comment:    (p.comments && p.comments[aName])  || '',
+          variantIdx: vIdx,
+          sets: ex.sets.map((def,si) => ({
+            w:null, r:null, done:false,
+            note: (p.setNotes && p.setNotes[aName] && p.setNotes[aName][si] != null)
+                    ? p.setNotes[aName][si] : (def.n||'')
+          }))
+        };
+      })
     };
   }
   show('workout'); wkRender();
@@ -1885,13 +1894,22 @@ function startWorkout(rid) {
   S.session = {
     id: Date.now(), routine: rid,
     startTime: Date.now(), endTime: null,
-    exercises: ROUTINES[rid].exercises.map(ex => ({
-      name: ex.name,
-      machine: (getPrefs().machines && getPrefs().machines[ex.name]) || ex.machine || '',
-      comment: (getPrefs().comments && getPrefs().comments[ex.name]) || '',
-      variantIdx: ex.variants ? getVariantIdx(ex.name) : undefined,
-      sets: ex.sets.map(def=>({w:null,r:null,done:false,note:def.n}))
-    }))
+    exercises: ROUTINES[rid].exercises.map(ex => {
+      const vIdx    = ex.variants ? getVariantIdx(ex.name) : undefined;
+      const aName   = ex.variants ? ex.variants[vIdx||0] : ex.name;
+      const p       = getPrefs();
+      return {
+        name: ex.name,
+        machine:    (p.machines  && p.machines[aName])  || ex.machine || '',
+        comment:    (p.comments  && p.comments[aName])  || '',
+        variantIdx: vIdx,
+        sets: ex.sets.map((def,si) => ({
+          w:null, r:null, done:false,
+          note: (p.setNotes && p.setNotes[aName] && p.setNotes[aName][si] != null)
+                  ? p.setNotes[aName][si] : (def.n||'')
+        }))
+      };
+    })
   };
   show('workout');
   wkRender();
@@ -1965,11 +1983,11 @@ function buildCard(ex, i) {
     const focCls = isB ? ' fb' : '';
     const setRows = ex.sets.map((def, si) => {
       const set  = ses.sets[si];
-      const prevW = prevSetW(ex.name, si);
+      const prevW = prevSetW(activeName, si);
       const defW = set._pw !== undefined ? set._pw
                  : set.done ? (set.w||'')
                  : (prevW!==null ? prevW : (def.w||''));
-      const prevR = prevSetR(ex.name, si);
+      const prevR = prevSetR(activeName, si);
       const defR = set._pr !== undefined ? set._pr
                  : set.done ? (set.r||'')
                  : (prevR !== null ? prevR : (def.r||''));
@@ -2030,7 +2048,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
-        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[ex.name])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${ex.name}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
+        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
         ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="note..."
@@ -2084,6 +2102,18 @@ function prevSetR(name, idx) {
   return null;
 }
 
+// Returns the currently-active name for exercise ei — variant name if
+// variants exist, otherwise the exercise's own name.
+// Used as the key for ALL per-exercise memory (weights, reps, machine,
+// comment, rest, set-notes) so each variant has its own memory.
+function activeExName(ei) {
+  if (!S.session) return '';
+  const ses = S.session.exercises[ei];
+  const ex  = ROUTINES[S.rid].exercises[ei];
+  if (!ex.variants) return ex.name;
+  return ex.variants[ses.variantIdx || 0];
+}
+
 // ════════════════════════════════════
 // SET TOGGLE + SAVE HELPERS
 // ════════════════════════════════════
@@ -2103,7 +2133,7 @@ function liveSave(ei, si, field, val) {
   const set = ex.sets[si];
   if (field === 'w') set._pw = val;
   else set._pr = val;
-  saveLastWeights(ex.name, ex.sets);
+  saveLastWeights(activeExName(ei), ex.sets);
   saveCurrentSession();
 }
 
@@ -2140,7 +2170,7 @@ function saveComment(ei, val) {
   S.session.exercises[ei].comment = val;
   const p = getPrefs();
   if (!p.comments) p.comments = {};
-  p.comments[S.session.exercises[ei].name] = val;
+  p.comments[activeExName(ei)] = val;
   putPrefs(p);
   saveCurrentSession();
 }
@@ -2150,7 +2180,7 @@ function saveMachine(ei, val) {
   S.session.exercises[ei].machine = val;
   const p = getPrefs();
   if (!p.machines) p.machines = {};
-  p.machines[S.session.exercises[ei].name] = val;
+  p.machines[activeExName(ei)] = val;
   putPrefs(p);
   saveCurrentSession();
 }
@@ -2160,9 +2190,9 @@ function saveSetNote(ei, si, val) {
   S.session.exercises[ei].sets[si].note = val;
   const p = getPrefs();
   if (!p.setNotes) p.setNotes = {};
-  const exName = S.session.exercises[ei].name;
-  if (!p.setNotes[exName]) p.setNotes[exName] = {};
-  p.setNotes[exName][si] = val;
+  const key = activeExName(ei);
+  if (!p.setNotes[key]) p.setNotes[key] = {};
+  p.setNotes[key][si] = val;
   putPrefs(p);
 }
 
@@ -2176,7 +2206,7 @@ function toggleSet(ei, si) {
     delete set._pw; delete set._pr;
     set.done = true;
     justDone = true;
-    saveLastWeights(S.session.exercises[ei].name, S.session.exercises[ei].sets);
+    saveLastWeights(activeExName(ei), S.session.exercises[ei].sets);
   } else {
     set.done = false;
   }
@@ -2197,7 +2227,7 @@ function toggleSet(ei, si) {
     if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
   },60);
   if (justDone && getSettings().restCountdown) {
-    const restVal = (getPrefs().rest || {})[S.session.exercises[ei].name];
+    const restVal = (getPrefs().rest || {})[activeExName(ei)];
     if (restVal) startRestTimer(parseRestSecs(restVal));
   }
 }
@@ -2216,7 +2246,7 @@ function completeExercise(ei) {
       set.done = true;
     }
   });
-  saveLastWeights(ex.name, ex.sets);
+  saveLastWeights(activeExName(ei), ex.sets);
   if (S.session.exercises.every(e=>e.sets.every(s=>s.done))) {
     setTimeout(finish, 700);
     return;
@@ -2254,6 +2284,19 @@ function switchVariant(ei) {
   const ses = S.session.exercises[ei];
   ses.variantIdx = (ses.variantIdx || 0) === 0 ? 1 : 0;
   saveVariantIdx(ex.name, ses.variantIdx);
+  // Load the new variant's saved machine, comment, and set-notes
+  const newName = ex.variants[ses.variantIdx];
+  const p = getPrefs();
+  ses.machine = (p.machines && p.machines[newName]) || '';
+  ses.comment = (p.comments && p.comments[newName]) || '';
+  ses.sets.forEach((set, si) => {
+    if (!set.done) {
+      // Clear pending typed values so the new variant's last weights show
+      delete set._pw; delete set._pr;
+      set.note = (p.setNotes && p.setNotes[newName] && p.setNotes[newName][si] != null)
+                   ? p.setNotes[newName][si] : '';
+    }
+  });
   wkRender();
 }
 
@@ -2280,7 +2323,7 @@ function confirmEnd() {
   if (S.viewing) {
     savePendingInputs();
     if (S.session) {
-      S.session.exercises.forEach(ex => saveLastWeights(ex.name, ex.sets));
+      S.session.exercises.forEach((ex, ei) => saveLastWeights(activeExName(ei), ex.sets));
     }
     clearCurrentSession();
     S.session=null; S.viewing=false; homeUpdate(); show('home');
@@ -2292,7 +2335,7 @@ function confirmEnd() {
 }
 function completeAllAndFinish() {
   savePendingInputs();
-  S.session.exercises.forEach(ex => {
+  S.session.exercises.forEach((ex, ei) => {
     ex.sets.forEach(set => {
       if (!set.done) {
         set.w = set._pw || set.w || null;
@@ -2301,7 +2344,7 @@ function completeAllAndFinish() {
         set.done = true;
       }
     });
-    saveLastWeights(ex.name, ex.sets);
+    saveLastWeights(activeExName(ei), ex.sets);
   });
   finish();
 }
