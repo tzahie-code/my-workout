@@ -391,6 +391,13 @@
   position:sticky; top:0; z-index:10; border-radius:20px 20px 0 0; }
 .picker-hd h3 { font-size:18px; font-weight:800; }
 .picker-close { background:none; border:none; font-size:24px; color:var(--txt2); cursor:pointer; line-height:1; }
+.picker-search-wrap { background:white; padding:8px 12px 10px; border-bottom:1px solid var(--border); }
+.picker-search { width:100%; padding:9px 12px 9px 34px; border:1.5px solid var(--border);
+  border-radius:10px; font-size:15px; outline:none; background:#f2f2f7;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23636366' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:10px center; }
+.picker-search:focus { border-color:var(--b); background-color:white; }
+.picker-search::placeholder { color:#aaa; }
 .picker-filters { display:flex; gap:6px; padding:8px 12px; overflow-x:auto;
   background:white; border-bottom:1px solid var(--border); -webkit-overflow-scrolling:touch; }
 .picker-filters::-webkit-scrollbar { display:none; }
@@ -586,6 +593,10 @@
       <button class="picker-close" onclick="closeBuilderPicker()">✕</button>
     </div>
     <div id="picker-sub-banner" class="picker-sub-banner"></div>
+    <div class="picker-search-wrap">
+      <input class="picker-search" id="picker-search" type="search" placeholder="Search exercise or muscle…"
+        oninput="pickerSearchInput(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
     <div class="picker-filters" id="picker-filters"></div>
     <div id="picker-list"></div>
     <div class="picker-spacer"></div>
@@ -1373,6 +1384,16 @@ function builderToggleKey(rid, idx) {
 
 // _builderSubstIdx: index of exercise being substituted (null = add mode)
 let _builderSubstIdx = null;
+let _pickerSearch = '';
+
+function _openPickerSheet() {
+  document.getElementById('picker-wrap').classList.add('active');
+  const sheet = document.querySelector('.picker-sheet');
+  if (sheet) sheet.scrollTop = 0;
+  const inp = document.getElementById('picker-search');
+  if (inp) { inp.value = ''; _pickerSearch = ''; }
+  pickerRender();
+}
 
 function openBuilderPicker(rid) {
   _builderPickRid = rid;
@@ -1380,10 +1401,7 @@ function openBuilderPicker(rid) {
   document.getElementById('picker-title').textContent = 'Add Exercise';
   const banner = document.getElementById('picker-sub-banner');
   banner.textContent = ''; banner.classList.remove('active');
-  pickerRender();
-  document.getElementById('picker-wrap').classList.add('active');
-  const sheet = document.querySelector('.picker-sheet');
-  if (sheet) sheet.scrollTop = 0;
+  _openPickerSheet();
 }
 
 function openSubstitutePicker(rid, idx) {
@@ -1391,16 +1409,12 @@ function openSubstitutePicker(rid, idx) {
   _builderSubstIdx = idx;
   const exName = _builderState[rid].exercises[idx].name;
   const exMuscles = _builderState[rid].exercises[idx].muscles || [];
-  // Pre-filter to the exercise's primary muscle
   _pickerFilter = exMuscles[0] || null;
   document.getElementById('picker-title').textContent = 'Find Substitute';
   const banner = document.getElementById('picker-sub-banner');
   banner.textContent = '⇄ Replacing: ' + exName;
   banner.classList.add('active');
-  pickerRender();
-  document.getElementById('picker-wrap').classList.add('active');
-  const sheet = document.querySelector('.picker-sheet');
-  if (sheet) sheet.scrollTop = 0;
+  _openPickerSheet();
 }
 
 function closeBuilderPicker(e) {
@@ -1410,8 +1424,23 @@ function closeBuilderPicker(e) {
   _builderSubstIdx = null;
 }
 
+function pickerSearchInput(val) {
+  _pickerSearch = val.trim().toLowerCase();
+  // When typing, clear muscle filter so results aren't double-restricted
+  if (_pickerSearch) { _pickerFilter = null; }
+  pickerRender();
+}
+
 function pickerRender() {
-  const filtered = _pickerFilter ? EXERCISE_LIBRARY.filter(e => e.muscles.includes(_pickerFilter)) : EXERCISE_LIBRARY;
+  let filtered = _pickerFilter ? EXERCISE_LIBRARY.filter(e => e.muscles.includes(_pickerFilter)) : EXERCISE_LIBRARY;
+  if (_pickerSearch) {
+    const q = _pickerSearch;
+    filtered = filtered.filter(e => {
+      const nameMatch = e.name.toLowerCase().includes(q);
+      const muscleMatch = (e.muscles||[]).some(m => (MUSCLE_LABELS[m]||m).toLowerCase().includes(q) || m.toLowerCase().includes(q));
+      return nameMatch || muscleMatch;
+    });
+  }
   // Filters
   const filterHtml = [
     `<button class="lib-fbtn${!_pickerFilter?' sel':''}" onclick="pickerSetFilter(null)">All</button>`,
@@ -1439,11 +1468,16 @@ function pickerRender() {
       </div>
     </div>`;
   }).join('');
-  document.getElementById('picker-list').innerHTML = listHtml;
+  document.getElementById('picker-list').innerHTML = listHtml ||
+    `<div style="text-align:center;padding:32px 16px;color:var(--txt2);font-size:14px">No exercises found 🤷</div>`;
 }
 
 function pickerSetFilter(f) {
   _pickerFilter = f;
+  // Clear search text when selecting a muscle chip
+  _pickerSearch = '';
+  const inp = document.getElementById('picker-search');
+  if (inp) inp.value = '';
   pickerRender();
 }
 
