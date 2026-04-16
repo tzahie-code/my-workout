@@ -1689,8 +1689,10 @@ function _getAudioCtx() {
   }
   return _audioCtx;
 }
-// Call on any user tap to unlock audio (iOS requires this)
+// Call on any user tap to unlock audio (iOS requires this).
+// Only does anything if the alarm is actually ON — avoids blip sounds otherwise.
 function unlockAudio() {
+  if (!getSettings().restAlarm) return;
   const ctx = _getAudioCtx();
   if (ctx && ctx.state === 'suspended') ctx.resume();
 }
