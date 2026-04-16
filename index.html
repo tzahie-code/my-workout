@@ -331,10 +331,10 @@
     .hi-edit-inp { width:68px; padding:5px 8px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13px; text-align:center; font-family:inherit; }
     .hi-edit-inp:focus { border-color:var(--a); outline:none; }
     .hi-edit-sep { font-size:13px; color:var(--txt2); }
-    .hi-edit-actions { display:flex; gap:8px; margin-top:16px; }
-    .hi-edit-save { flex:1; padding:11px; background:var(--a); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .hi-edit-actions { display:flex; gap:8px; margin-bottom:14px; }
+    .hi-edit-save { flex:1; padding:7px 12px; background:var(--a); color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
     .hi-edit-save:active { opacity:.8; }
-    .hi-edit-cancel { padding:11px 18px; background:var(--card2); color:var(--txt2); border:none; border-radius:10px; font-size:14px; cursor:pointer; font-family:inherit; }
+    .hi-edit-cancel { padding:7px 14px; background:var(--card2); color:var(--txt2); border:none; border-radius:8px; font-size:13px; cursor:pointer; font-family:inherit; }
 
     /* ── EXERCISE LIBRARY ── */
     .lib-card { display:flex; align-items:center; gap:12px; background:var(--card);
@@ -1241,6 +1241,7 @@ function show(id) {
 }
 function goHome() {
   S.session = null;
+  _editHistId = null;
   homeUpdate(); show('home');
 }
 function forceUpdate() {
@@ -2791,17 +2792,17 @@ function histRender() {
         </div>`;
       }).join('');
       detailHtml = `
+        <div class="hi-edit-actions">
+          <button class="hi-edit-save" onclick="saveHistEdit(${sessId})">✓ Save</button>
+          <button class="hi-edit-cancel" onclick="cancelHistEdit()">✕ Cancel</button>
+        </div>
         <div class="hi-edit-dur-row">
           <span>Duration</span>
           <input id="hdur-${sessId}" type="number" inputmode="numeric"
             value="${durMin||''}" placeholder="min" min="1" max="600">
           <span>min</span>
         </div>
-        ${exInputs}
-        <div class="hi-edit-actions">
-          <button class="hi-edit-save" onclick="saveHistEdit(${sessId})">✓ Save Changes</button>
-          <button class="hi-edit-cancel" onclick="cancelHistEdit()">✕ Cancel</button>
-        </div>`;
+        ${exInputs}`;
     } else {
       // ── Read mode ──
       detailHtml = s.exercises.map((ex,ei)=>{
