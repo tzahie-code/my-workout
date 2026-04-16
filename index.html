@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>My Workout</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,6 +100,9 @@
     .hi-del { background: none; border: none; color: var(--txt2); font-size: 16px;
       cursor: pointer; padding: 4px 8px; border-radius: 6px; opacity: .6; }
     .hi-del:active { color: var(--red); opacity: 1; }
+    .hi-edit-btn { background: none; border: none; color: var(--txt2); font-size: 15px;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px; opacity: .6; }
+    .hi-edit-btn:active { color: var(--b); opacity: 1; }
     .wk-prog { height: 3px; background: var(--border); }
     .wk-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
     .wk-body { padding: 12px 16px 60px; }
@@ -316,6 +322,19 @@
     .hi-en { font-size: 13px; font-weight: 600; color: var(--txt2); direction: rtl; text-align: right; margin-bottom: 4px; }
     .hi-sets { display: flex; flex-wrap: wrap; gap: 5px; }
     .hi-pill { background: var(--card2); border-radius: 6px; padding: 3px 10px; font-size: 12px; }
+    .hi-edit-dur-row { display:flex; align-items:center; gap:8px; margin-bottom:14px; font-size:13px; color:var(--txt2); }
+    .hi-edit-dur-row input { width:64px; padding:5px 8px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:14px; text-align:center; font-family:inherit; }
+    .hi-edit-dur-row input:focus { border-color:var(--b); outline:none; }
+    .hi-edit-ex { margin-bottom:12px; }
+    .hi-edit-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+    .hi-edit-lbl { min-width:44px; font-size:12px; color:var(--txt2); }
+    .hi-edit-inp { width:68px; padding:5px 8px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13px; text-align:center; font-family:inherit; }
+    .hi-edit-inp:focus { border-color:var(--a); outline:none; }
+    .hi-edit-sep { font-size:13px; color:var(--txt2); }
+    .hi-edit-actions { display:flex; gap:8px; margin-top:16px; }
+    .hi-edit-save { flex:1; padding:11px; background:var(--a); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .hi-edit-save:active { opacity:.8; }
+    .hi-edit-cancel { padding:11px 18px; background:var(--card2); color:var(--txt2); border:none; border-radius:10px; font-size:14px; cursor:pointer; font-family:inherit; }
 
     /* ── EXERCISE LIBRARY ── */
     .lib-card { display:flex; align-items:center; gap:12px; background:var(--card);
@@ -627,6 +646,7 @@
         </div>
         <div class="settings-row">
           <button class="settings-btn" onclick="forceUpdate()">↻ Update App</button>
+          <div style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5">v2026.04.16-b</div>
         </div>
       </div>
     </div>
@@ -750,6 +770,61 @@ window.addEventListener('touchend',  () => builderDragEnd());
 window.addEventListener('mousemove', e => builderDragMove(e));
 window.addEventListener('mouseup',   () => builderDragEnd());
 
+function repairNullWeights() {
+  if (localStorage.getItem('mwRepaired2')) return; // already ran
+  const d = get();
+  if (!d.sessions.length) return;
+
+  // Build a map: exName → last known weight (from sessions sorted oldest→newest)
+  const sorted = [...d.sessions].sort((a,b) => a.id - b.id);
+  const lastKnownW = {}; // exName → last non-null weight value
+  let changed = false;
+
+  sorted.forEach(sess => {
+    sess.exercises.forEach(ex => {
+      const doneSets = ex.sets.filter(s => s.done);
+      doneSets.forEach(set => {
+        if (set.w != null && set.w !== '') {
+          lastKnownW[ex.name] = set.w; // record known good weight
+        }
+      });
+    });
+  });
+
+  // Second pass: fill null weights using nearest known weight
+  // We do forward-fill from earlier sessions and also back-fill from later sessions
+  // Strategy: for each session with null weights, use the last known weight for that exercise
+  const knownAtPoint = {}; // exName → weight at time of this session
+
+  sorted.forEach(sess => {
+    // First, record weights from this session that ARE known (update running map)
+    sess.exercises.forEach(ex => {
+      const doneSets = ex.sets.filter(s => s.done);
+      const knownSet = doneSets.find(s => s.w != null && s.w !== '');
+      if (knownSet) knownAtPoint[ex.name] = knownSet.w;
+    });
+
+    // Then fill any null weights using knownAtPoint OR lastKnownW (global)
+    sess.exercises.forEach(ex => {
+      const fillW = knownAtPoint[ex.name] || lastKnownW[ex.name];
+      if (!fillW) return;
+      ex.sets.forEach(set => {
+        if (set.done && (set.w == null || set.w === '')) {
+          set.w = fillW;
+          changed = true;
+        }
+      });
+    });
+  });
+
+  if (changed) {
+    put(d);
+    sbSaveDebounced(); // sync fix to Supabase too
+    console.log('[repair] Filled null weights from session history.');
+  }
+  localStorage.setItem('mwRepaired2', '1');
+}
+
 async function initApp() {
   loadProgram();
   try {
@@ -792,6 +867,7 @@ async function initApp() {
     console.warn('Supabase init error:', e);
   }
 
+  repairNullWeights();
   homeUpdate();
   const saved = loadCurrentSession();
   if (saved) {
@@ -1123,6 +1199,7 @@ let ROUTINES = {
 // STATE
 // ════════════════════════════════════
 let S = { rid:null, session:null, expanded:null, viewing:false };
+let _editHistId = null;
 
 // ════════════════════════════════════
 // STORAGE
@@ -1168,17 +1245,22 @@ function goHome() {
 }
 function forceUpdate() {
   clearCurrentSession();
+  const bust = () => {
+    // Navigate to a cache-busting URL — forces a completely fresh file load
+    window.location.href = window.location.pathname + '?v=' + Date.now();
+  };
+  const clearSW = () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(regs => Promise.all(regs.map(r => r.unregister())))
+        .then(bust).catch(bust);
+    } else { bust(); }
+  };
   if ('caches' in window) {
-    caches.keys().then(names => names.forEach(n => caches.delete(n)));
-  }
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs =>
-      Promise.all(regs.map(r => r.unregister()))
-    );
-  }
-  fetch(location.pathname, { cache: 'no-store' })
-    .then(() => location.reload())
-    .catch(() => location.reload());
+    caches.keys()
+      .then(names => Promise.all(names.map(n => caches.delete(n))))
+      .then(clearSW).catch(clearSW);
+  } else { clearSW(); }
 }
 function showHistory() { histRender(); show('history'); }
 
@@ -2681,43 +2763,123 @@ function histRender() {
   const el  = document.getElementById('hist-body');
   if (!all.length) { el.innerHTML='<div class="no-hist">No workouts yet 💪<br>Start your first session!</div>'; return; }
   el.innerHTML = all.map((s,i)=>{
-    const date = new Date(s.id).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
-    const dur  = s.endTime ? Math.round((s.endTime-s.id)/60000)+' min' : '—';
-    const tot  = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
-    const exH  = s.exercises.map(ex=>{
-      const ds = ex.sets.filter(s=>s.done);
-      if(!ds.length) return '';
-      return `<div class="hi-ex">
-        <div class="hi-en he">${ex.name}</div>
-        <div class="hi-sets">${ds.map((x,j)=>`<span class="hi-pill">Set ${j+1}: ${displayWeight(x.w)||'?'} × ${x.r||'?'}</span>`).join('')}</div>
-        ${ex.comment ? `<div class="hi-comment">💬 ${ex.comment}</div>` : ''}
-      </div>`;
-    }).join('');
+    const date   = new Date(s.id).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    const durMin = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
+    const durTxt = durMin ? durMin+' min' : '—';
+    const tot    = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
+    const sessId = s.id;
+    const editing = _editHistId === sessId;
+
+    let detailHtml;
+    if (editing) {
+      // ── Edit mode ──
+      const exInputs = s.exercises.map((ex,ei)=>{
+        const ds = ex.sets.filter(set=>set.done);
+        if (!ds.length) return '';
+        const rows = ds.map((x,j)=>`
+          <div class="hi-edit-row">
+            <span class="hi-edit-lbl">Set ${j+1}</span>
+            <input class="hi-edit-inp" id="hw-${sessId}-${ei}-${j}" type="text"
+              inputmode="decimal" value="${x.w!=null?x.w:''}" placeholder="kg">
+            <span class="hi-edit-sep">×</span>
+            <input class="hi-edit-inp" id="hr-${sessId}-${ei}-${j}" type="text"
+              inputmode="numeric" value="${x.r!=null?x.r:''}" placeholder="reps">
+          </div>`).join('');
+        return `<div class="hi-edit-ex">
+          <div class="hi-en he" style="margin-bottom:6px">${ex.name}</div>
+          ${rows}
+        </div>`;
+      }).join('');
+      detailHtml = `
+        <div class="hi-edit-dur-row">
+          <span>Duration</span>
+          <input id="hdur-${sessId}" type="number" inputmode="numeric"
+            value="${durMin||''}" placeholder="min" min="1" max="600">
+          <span>min</span>
+        </div>
+        ${exInputs}
+        <div class="hi-edit-actions">
+          <button class="hi-edit-save" onclick="saveHistEdit(${sessId})">✓ Save Changes</button>
+          <button class="hi-edit-cancel" onclick="cancelHistEdit()">✕ Cancel</button>
+        </div>`;
+    } else {
+      // ── Read mode ──
+      detailHtml = s.exercises.map((ex,ei)=>{
+        const ds = ex.sets.filter(set=>set.done);
+        if (!ds.length) return '';
+        return `<div class="hi-ex">
+          <div class="hi-en he">${ex.name}</div>
+          <div class="hi-sets">${ds.map((x,j)=>{
+            const wDisp = displayWeight(x.w)||'?';
+            return `<span class="hi-pill">Set ${j+1}: ${wDisp} \u00d7 ${x.r||'?'}</span>`;
+          }).join('')}</div>
+          ${ex.comment ? `<div class="hi-comment">💬 ${ex.comment}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
     return `<div class="si">
-      <div class="si-top" onclick="toggleHist(${i})">
+      <div class="si-top" onclick="${editing?'':('toggleHist('+i+')')}">
         <span class="si-r">Routine ${s.routine}</span>
-        <span style="display:flex;align-items:center;gap:8px">
+        <span style="display:flex;align-items:center;gap:4px">
           <span class="si-dt">${date}</span>
-          <button class="hi-del" onclick="event.stopPropagation();deleteSession(${s.id})">🗑</button>
+          <button class="hi-edit-btn" onclick="event.stopPropagation();editHist(${sessId},${i})" title="Edit session">✏️</button>
+          <button class="hi-del" onclick="event.stopPropagation();deleteSession(${sessId})">🗑</button>
         </span>
       </div>
-      <div class="si-m">${tot} sets · <span id="dur-${s.id}" onclick="event.stopPropagation();editDuration(${s.id})" style="cursor:pointer;border-bottom:1px dashed var(--border)" title="Tap to edit duration">${dur}</span></div>
-      <div class="si-detail" id="hd${i}">${exH}</div>
+      <div class="si-m">${tot} sets · ${durTxt}</div>
+      <div class="si-detail${editing?' open':''}" id="hd${i}">${detailHtml}</div>
     </div>`;
   }).join('');
 }
-function toggleHist(i) { document.getElementById('hd'+i).classList.toggle('open'); }
-function editDuration(id) {
+function toggleHist(i) {
+  const el = document.getElementById('hd'+i);
+  if (el) el.classList.toggle('open');
+}
+function editHist(sessId, idx) {
+  _editHistId = sessId;
+  histRender();
+  // ensure detail is open
+  const el = document.getElementById('hd'+idx);
+  if (el) el.classList.add('open');
+}
+function cancelHistEdit() {
+  _editHistId = null;
+  histRender();
+}
+function saveHistEdit(sessId) {
   const d = get();
-  const sess = d.sessions.find(s => s.id === id);
+  const sess = d.sessions.find(s => s.id === sessId);
   if (!sess) return;
-  const currentMins = sess.endTime ? Math.round((sess.endTime - sess.id) / 60000) : '';
-  const input = prompt('Workout duration (minutes):', currentMins);
-  if (input === null) return;
-  const mins = parseInt(input);
-  if (isNaN(mins) || mins <= 0 || mins > 600) { alert('Please enter a valid number of minutes (1–600).'); return; }
-  sess.endTime = sess.id + mins * 60000;
+  // Duration
+  const durEl = document.getElementById('hdur-'+sessId);
+  if (durEl) {
+    const mins = parseInt(durEl.value);
+    if (!isNaN(mins) && mins > 0 && mins <= 600) {
+      sess.endTime = sessId + mins * 60000;
+    }
+  }
+  // Sets
+  sess.exercises.forEach((ex, ei) => {
+    let doneIdx = 0;
+    ex.sets.forEach(set => {
+      if (!set.done) return;
+      const j = doneIdx++;
+      const wEl = document.getElementById(`hw-${sessId}-${ei}-${j}`);
+      const rEl = document.getElementById(`hr-${sessId}-${ei}-${j}`);
+      if (wEl) {
+        const v = wEl.value.trim();
+        set.w = v === '' ? null : (isNaN(parseFloat(v)) ? v : parseFloat(v));
+      }
+      if (rEl) {
+        const v = rEl.value.trim();
+        if (v !== '') set.r = v;
+      }
+    });
+  });
   put(d);
+  sbSaveDebounced();
+  _editHistId = null;
   histRender();
 }
 function deleteSession(id) {
@@ -2752,6 +2914,7 @@ function deleteSession(id) {
   histRender();
   homeUpdate();
 }
+
 
 // ════════════════════════════════════
 // INIT
