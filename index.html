@@ -2166,9 +2166,9 @@ function ytUrl(name) {
 }
 function ytBtn(name) {
   return `<a class="yt-btn" href="${ytUrl(name)}" target="_blank" rel="noopener"
-    onclick="event.stopPropagation()" title="${escHtml(name)} — proper form">
-    <svg viewBox="0 0 24 17" xmlns="http://www.w3.org/2000/svg" width="24" height="17">
-      <rect width="24" height="17" rx="3.5" fill="#FF0000"/>
+    onclick="event.stopPropagation()" title="${escHtml(name)} — proper form on YouTube">
+    <svg viewBox="0 0 24 17" xmlns="http://www.w3.org/2000/svg" width="22" height="16">
+      <rect width="24" height="17" rx="3.5" fill="#8e8e93"/>
       <path d="M9.5 12V5l7 3.5-7 3.5z" fill="white"/>
     </svg>
   </a>`;
@@ -2303,8 +2303,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
-        ${ytBtn(activeName)}
-        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
+        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}${ytBtn(activeName)}</div>`; })()}
         ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="note..."
