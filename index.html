@@ -129,10 +129,9 @@
       border: 1px solid var(--border); border-radius: 10px; padding: 2px 9px; cursor: pointer;
       margin-bottom: 4px; display: inline-flex; align-items: center; gap: 3px; }
     .variant-btn:active { opacity: .7; }
-    .yt-form-btn { font-size: 11px; font-weight: 600; color: #ff4444; text-decoration: none;
-      background: rgba(255,68,68,.1); border: 1px solid rgba(255,68,68,.25);
-      border-radius: 10px; padding: 2px 9px; display: inline-block; margin-bottom: 4px; }
-    .yt-form-btn:active { opacity: .7; }
+    .yt-btn { display:inline-flex; align-items:center; justify-content:center;
+      width:30px; height:22px; border-radius:6px; text-decoration:none; flex-shrink:0; }
+    .yt-btn:active { opacity:.6; }
 
     /* Set dots */
     .sdot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
@@ -987,6 +986,7 @@ function libraryRender() {
         <div class="lib-name">${ex.name}</div>
         <div class="muscle-tags" style="margin-top:4px">${tags}</div>
       </div>
+      ${ytBtn(ex.name)}
     </div>`;
   }).join('');
 
@@ -1002,7 +1002,8 @@ function showLibDetail(idx) {
   document.getElementById('lib-modal-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <h3 style="font-size:18px;font-weight:800;flex:1;padding-right:12px">${ex.name}</h3>
-      <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1">✕</button>
+      ${ytBtn(ex.name)}
+      <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1;margin-left:8px">✕</button>
     </div>
     ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:180px;object-fit:cover;object-position:top center;border-radius:12px;margin-bottom:12px;background:#1a1a2e" onerror="this.style.display='none'">` : ''}
     <div class="muscle-tags" style="margin-bottom:16px">${tags}</div>
@@ -1394,6 +1395,7 @@ function builderRenderTab() {
           <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},1)">+</button>
           <span style="font-size:10px;color:var(--txt2);margin-left:2px">sets</span>
         </div>
+        ${ytBtn(ex.name)}
         <button class="builder-key-btn${ex.key?' active':''}" title="Key exercise" onclick="builderToggleKey('${rid}',${idx})">🔥</button>
         <button class="builder-sub-btn" title="Find substitute" onclick="openSubstitutePicker('${rid}',${idx})">⇄</button>
         <button class="builder-del-btn" onclick="builderDelEx('${rid}',${idx})">✕</button>
@@ -1549,10 +1551,11 @@ function pickerRender() {
     const isCurrent = substName && ex.name === substName;
     return `<div class="picker-card${isCurrent?' picker-card-dim':''}" onclick="builderPickEx(${idx})" style="${isCurrent?'opacity:.35;pointer-events:none':''}">
       ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
-      <div>
+      <div style="flex:1">
         <div class="picker-card-name">${escHtml(ex.name)}${isCurrent?' <span style="font-size:11px;color:var(--txt2)">(current)</span>':''}</div>
         <div class="picker-card-muscles">${escHtml(muscles)}</div>
       </div>
+      ${ytBtn(ex.name)}
     </div>`;
   }).join('');
   document.getElementById('picker-list').innerHTML = listHtml ||
@@ -2161,6 +2164,15 @@ function acHex() { return S.rid==='A' ? '#ff6b35' : '#3b82f6'; }
 function ytUrl(name) {
   return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(name + ' proper form');
 }
+function ytBtn(name) {
+  return `<a class="yt-btn" href="${ytUrl(name)}" target="_blank" rel="noopener"
+    onclick="event.stopPropagation()" title="${escHtml(name)} — proper form">
+    <svg viewBox="0 0 24 17" xmlns="http://www.w3.org/2000/svg" width="24" height="17">
+      <rect width="24" height="17" rx="3.5" fill="#FF0000"/>
+      <path d="M9.5 12V5l7 3.5-7 3.5z" fill="white"/>
+    </svg>
+  </a>`;
+}
 
 function wkRender() {
   const rt = ROUTINES[S.rid];
@@ -2291,8 +2303,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
-        <a class="yt-form-btn" href="${ytUrl(activeName)}" target="_blank" rel="noopener"
-          onclick="event.stopPropagation()">▶ Proper Form</a>
+        ${ytBtn(activeName)}
         ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
         ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
