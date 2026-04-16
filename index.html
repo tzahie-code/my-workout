@@ -2230,7 +2230,6 @@ function buildCard(ex, i) {
   const tags = (ex.muscles||[]).map(m =>
     `<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`
   ).join('');
-  const muscleTags = tags ? `<div class="muscle-tags">${tags}</div>` : '';
 
   // ── Expanded section: all sets + comment ──
   let expandHtml = '';
@@ -2302,8 +2301,8 @@ function buildCard(ex, i) {
         </div>
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
-        ${muscleTags}
-        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}${ytBtn(activeName)}</div>`; })()}
+        ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
+        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
         ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="note..."
