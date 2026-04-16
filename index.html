@@ -2158,32 +2158,8 @@ function startWorkout(rid) {
 function ac() { return S.rid==='A' ? 'var(--a)' : 'var(--b)'; }
 function acHex() { return S.rid==='A' ? '#ff6b35' : '#3b82f6'; }
 
-// YouTube "proper form" search queries mapped from Hebrew exercise names
-const YT_QUERIES = {
-  // Routine A
-  'לחיצת חזה בשיפוע עליון - במוט':                              'incline barbell bench press',
-  'לחיצת חזה במכונה - יד יד':                                   'chest press machine single arm',
-  'פרפר כנגד מכונה':                                            'butterfly machine chest fly',
-  'כבל קרוס - בפולי עליון':                                     'cable crossover upper chest',
-  'לחיצת כתפיים כנגד משקולות בישיבה זקופה':                     'seated dumbbell shoulder press',
-  'הרחקת זרועות לצדדים בישיבה - משקולות':                       'seated dumbbell lateral raises',
-  'פשיטת מרפקים בפולי עליון במוט וי':                           'cable tricep pushdown V-bar',
-  'פשיטת מרפקים - פולי אמצעי חבל/מוט וי מעל הראש גובה 22':     'overhead cable tricep extension',
-  // Routine B
-  'משיכת גב - פולי / מכונה':                                    'lat pulldown machine',
-  'הרחקה אופקית כנגד כבל (גובה 22)':                            'cable rear delt fly',
-  'חתירה - מכונה יד יד':                                        'seated cable row single arm',
-  'כפיפת גב על ספסל רומי גובה 7':                               'hyperextension roman chair',
-  'פשיטת ברכיים - מכונה רגל רגל':                               'leg extension machine single leg',
-  'כפיפת ברכיים במכונה':                                        'lying leg curl machine',
-  'סקווט מכונה - מכונה':                                        'hack squat machine',
-  'כפיפת מרפקים בישיבה בשיפוע 45 מעלות - משקולות':              'incline dumbbell bicep curl',
-  'כפיפת פטישים בישיבה':                                        'seated hammer curl',
-};
 function ytUrl(name) {
-  const q = YT_QUERIES[name];
-  if (!q) return null;
-  return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q + ' proper form');
+  return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(name + ' proper form');
 }
 
 function wkRender() {
@@ -2315,7 +2291,8 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${muscleTags}
-        ${(()=>{ const u=ytUrl(activeName); return u ? `<a class="yt-form-btn" href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Proper Form</a>` : ''; })()}
+        <a class="yt-form-btn" href="${ytUrl(activeName)}" target="_blank" rel="noopener"
+          onclick="event.stopPropagation()">▶ Proper Form</a>
         ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
         ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
