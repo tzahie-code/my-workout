@@ -1670,6 +1670,7 @@ function toggleRestCountdown() {
 }
 
 function toggleRestAlarm() {
+  unlockAudio();
   const s = getSettings();
   s.restAlarm = !s.restAlarm;
   putSettings(s);
@@ -1677,9 +1678,23 @@ function toggleRestAlarm() {
   showSettings();
 }
 
+// Single persistent AudioContext — must be created & resumed on a user gesture
+let _audioCtx = null;
+function _getAudioCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return _audioCtx;
+}
+// Call on any user tap to unlock audio (iOS requires this)
+function unlockAudio() {
+  const ctx = _getAudioCtx();
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+}
 function playAlarmBeep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const ctx = _getAudioCtx();
+  if (!ctx) return;
+  ctx.resume().then(() => {
     const beep = (freq, startOffset, dur) => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -1687,15 +1702,15 @@ function playAlarmBeep() {
       gain.connect(ctx.destination);
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.45, ctx.currentTime + startOffset);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime + startOffset);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + dur);
       osc.start(ctx.currentTime + startOffset);
       osc.stop(ctx.currentTime + startOffset + dur + 0.05);
     };
-    beep(880,  0.00, 0.15);   // short beep
-    beep(880,  0.22, 0.15);   // short beep
-    beep(1100, 0.44, 0.35);   // longer higher beep
-  } catch(e) { /* AudioContext not available */ }
+    beep(880,  0.00, 0.15);
+    beep(880,  0.22, 0.15);
+    beep(1100, 0.44, 0.40);
+  }).catch(() => {});
 }
 
 function saveRestOpt(idx, val) {
@@ -2318,6 +2333,7 @@ function buildCard(ex, i) {
 }
 
 function toggleCard(i) {
+  unlockAudio();
   savePendingInputs();
   S.expanded = S.expanded===i ? null : i;
   wkRender();
@@ -2456,6 +2472,7 @@ function saveSetNote(ei, si, val) {
 }
 
 function toggleSet(ei, si) {
+  unlockAudio();
   savePendingInputs();
   const set = S.session.exercises[ei].sets[si];
   let justDone = false;
