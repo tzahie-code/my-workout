@@ -513,6 +513,49 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 .picker-card-name { font-size:14px; font-weight:700; }
 .picker-card-muscles { font-size:11px; color:var(--txt2); margin-top:2px; }
 .picker-spacer { height:20px; }
+
+  /* ── LANGUAGE / RTL ── */
+  html[dir="rtl"] .sr-prev { padding-left: 0; padding-right: 26px; }
+  html[dir="rtl"] .picker-search {
+    background-position: calc(100% - 10px) center;
+    padding-right: 34px; padding-left: 12px; }
+  html[dir="rtl"] .wk-bar { direction: rtl; }
+  html[dir="rtl"] .si-top { direction: rtl; }
+  html[dir="rtl"] .si-m  { text-align: right; }
+  html[dir="rtl"] .sr-prev { text-align: right; }
+  html[dir="rtl"] .prog-stat { text-align: right; }
+  html[dir="rtl"] .prog-section-lbl { text-align: right; }
+  html[dir="rtl"] .d-row { direction: rtl; }
+  html[dir="rtl"] .settings-row { direction: rtl; }
+  html[dir="rtl"] .settings-title { text-align: right; }
+  html[dir="rtl"] .prog-item { direction: rtl; }
+  html[dir="rtl"] .builder-name-row { direction: rtl; }
+  html[dir="rtl"] .builder-tabs { direction: rtl; }
+  html[dir="rtl"] .builder-body { direction: rtl; }
+  html[dir="rtl"] .picker-hd { direction: rtl; }
+  html[dir="rtl"] .hist-hd  { direction: rtl; }
+  html[dir="rtl"] .home-hd  { direction: rtl; }
+  html[dir="rtl"] .h-link   { direction: rtl; }
+  html[dir="rtl"] .rc-top   { direction: rtl; }
+  html[dir="rtl"] .rc-info  { text-align: right; }
+  html[dir="rtl"] .rc-meta  { direction: rtl; }
+  html[dir="rtl"] .rc-days  { direction: rtl; }
+  html[dir="rtl"] .rc-locker { direction: rtl; }
+  html[dir="rtl"] .hi-edit-dur-row { direction: rtl; }
+  html[dir="rtl"] .hi-edit-actions { direction: rtl; }
+  html[dir="rtl"] #screen-done { direction: rtl; }
+  html[dir="rtl"] .lib-filters { direction: rtl; }
+  html[dir="rtl"] .picker-filters { direction: rtl; }
+  html[dir="rtl"] .rest-row { direction: rtl; }
+  html[dir="rtl"] .prog-edit-panel { direction: rtl; }
+  html[dir="rtl"] .prog-hist-row { direction: rtl; }
+  html[dir="rtl"] .prog-hist-date { text-align: right; }
+  html[dir="rtl"] .lib-info { text-align: right; }
+  html[dir="rtl"] .picker-card { direction: rtl; }
+  html[dir="rtl"] .builder-ex-row { direction: rtl; }
+  html[dir="rtl"] .builder-ex-text { text-align: right; }
+  html[dir="rtl"] .picker-body-wrap { direction: rtl; }
+  html[dir="rtl"] .pv-info { text-align: right; }
   </style>
 </head>
 <body>
@@ -521,7 +564,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- HOME -->
   <div id="screen-home" class="screen active">
     <div class="home-hd">
-      <h1>My Workout 💪</h1>
+      <h1 data-t="app-title">My Workout 💪</h1>
       <div class="dt" id="home-date"></div>
     </div>
     <div class="home-body">
@@ -548,11 +591,11 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         <button class="rc-btn" id="rc-btn-b" style="background:linear-gradient(135deg,#64a8ff,#3b82f6)" onclick="startWorkout('B')">Start Routine B</button>
       </div>
       <div class="h-link">
-        <button onclick="showHistory()">📋 History</button>
-        <button onclick="showLibrary()">💪 Exercises</button>
-        <button onclick="showProgress()">📈 Progress</button>
-        <button onclick="showSettings()">⚙️ Settings</button>
-        <button onclick="resetWeek()" style="color:var(--txt2);opacity:.6">↺ Reset Week</button>
+        <button onclick="showHistory()" data-t="btn-history">📋 History</button>
+        <button onclick="showLibrary()" data-t="btn-exercises">💪 Exercises</button>
+        <button onclick="showProgress()" data-t="btn-progress">📈 Progress</button>
+        <button onclick="showSettings()" data-t="btn-settings">⚙️ Settings</button>
+        <button onclick="resetWeek()" style="color:var(--txt2);opacity:.6" data-t="btn-reset-week">↺ Reset Week</button>
       </div>
     </div>
   </div>
@@ -566,7 +609,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div class="wk-saved" id="wk-saved">✓ Saved</div>
         </div>
         <button class="wk-back" id="wk-back-btn" onclick="confirmEnd()">← Back</button>
-        <button class="wk-finish-all" id="wk-finish-all-btn" onclick="completeAllAndFinish()">✓ Finish Workout</button>
+        <button class="wk-finish-all" id="wk-finish-all-btn" onclick="completeAllAndFinish()" data-t="finish-workout">✓ Finish Workout</button>
       </div>
       <div class="wk-prog"><div class="wk-fill" id="wk-fill" style="width:0%"></div></div>
     </div>
@@ -576,10 +619,10 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- DONE -->
   <div id="screen-done" class="screen">
     <div class="done-ico">🏆</div>
-    <div class="done-h">Workout Done!</div>
+    <div class="done-h" data-t="workout-done">Workout Done!</div>
     <div class="done-sub" id="done-sub"></div>
     <div class="done-crd" id="done-stats"></div>
-    <button class="home-btn" onclick="goHome()">Back to Home</button>
+    <button class="home-btn" onclick="goHome()" data-t="back-to-home">Back to Home</button>
   </div>
 
   <!-- PREVIEW -->
@@ -594,8 +637,8 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- PROGRESS -->
   <div id="screen-progress" class="screen">
     <div class="hist-hd">
-      <h2>📈 Progress</h2>
-      <button class="back-btn" onclick="goHome()">← Back</button>
+      <h2 data-t="progress">📈 Progress</h2>
+      <button class="back-btn" onclick="goHome()" data-t="back">← Back</button>
     </div>
     <div class="hist-body" id="progress-body"></div>
   </div>
@@ -603,8 +646,8 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- LIBRARY -->
   <div id="screen-library" class="screen">
     <div class="hist-hd">
-      <h2>💪 Exercises</h2>
-      <button class="back-btn" onclick="goHome()">← Back</button>
+      <h2 data-t="exercises">💪 Exercises</h2>
+      <button class="back-btn" onclick="goHome()" data-t="back">← Back</button>
     </div>
     <div class="picker-search-wrap" style="position:sticky;top:0;z-index:5;border-bottom:none">
       <input class="picker-search" id="lib-search" type="search"
@@ -615,11 +658,11 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
     <div class="picker-body-wrap">
       <div class="picker-body-col">
         <svg class="picker-bsvg" id="lbsvg-front" width="95" height="190" viewBox="0 0 100 200"></svg>
-        <div class="picker-body-lbl">Front</div>
+        <div class="picker-body-lbl" data-t="front">Front</div>
       </div>
       <div class="picker-body-col">
         <svg class="picker-bsvg" id="lbsvg-back" width="95" height="190" viewBox="0 0 100 200"></svg>
-        <div class="picker-body-lbl">Back</div>
+        <div class="picker-body-lbl" data-t="back-body">Back</div>
       </div>
     </div>
     <div id="library-body"></div>
@@ -633,8 +676,8 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- HISTORY -->
   <div id="screen-history" class="screen">
     <div class="hist-hd">
-      <h2>History</h2>
-      <button class="back-btn" onclick="goHome()">← Back</button>
+      <h2 data-t="history">History</h2>
+      <button class="back-btn" onclick="goHome()" data-t="back">← Back</button>
     </div>
     <div class="hist-body" id="hist-body"></div>
   </div>
@@ -642,38 +685,45 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- SETTINGS -->
   <div id="screen-settings" class="screen">
     <div class="hist-hd">
-      <h2>⚙️ Settings</h2>
-      <button class="back-btn" onclick="goHome()">← Back</button>
+      <h2 data-t="settings">⚙️ Settings</h2>
+      <button class="back-btn" onclick="goHome()" data-t="back">← Back</button>
     </div>
     <div class="hist-body">
       <div class="settings-section">
-        <div class="settings-title">Rest Timer</div>
+        <div class="settings-title" data-t="rest-timer">Rest Timer</div>
         <div class="settings-row">
-          <span class="settings-lbl">Count down after each set</span>
+          <span class="settings-lbl" data-t="countdown-lbl">Count down after each set</span>
           <button class="toggle-btn" id="rest-countdown-toggle" onclick="toggleRestCountdown()">OFF</button>
         </div>
         <div class="settings-row">
-          <span class="settings-lbl">Play alarm when timer ends</span>
+          <span class="settings-lbl" data-t="alarm-lbl">Play alarm when timer ends</span>
           <button class="toggle-btn" id="rest-alarm-toggle" onclick="toggleRestAlarm()">OFF</button>
         </div>
         <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-          <span class="settings-lbl">Timer options</span>
+          <span class="settings-lbl" data-t="timer-options">Timer options</span>
           <div class="rest-opts-inputs" id="rest-opts-inputs"></div>
         </div>
       </div>
       <div class="settings-section">
-        <div class="settings-title">Workout Programs</div>
+        <div class="settings-title" data-t="workout-programs">Workout Programs</div>
         <div class="settings-row">
-          <button class="settings-btn" onclick="showPrograms()">📦 Manage Programs</button>
+          <button class="settings-btn" onclick="showPrograms()" data-t="manage-programs">📦 Manage Programs</button>
         </div>
       </div>
       <div class="settings-section">
-        <div class="settings-title">Account &amp; Data</div>
+        <div class="settings-title" data-t="language">Language</div>
         <div class="settings-row">
-          <button class="settings-btn" onclick="showSyncCode()">🔑 Sync / Change device</button>
+          <span class="settings-lbl" data-t="language-lbl">App Language</span>
+          <button class="toggle-btn" id="lang-toggle" onclick="toggleLanguage()">EN</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title" data-t="account-data">Account &amp; Data</div>
+        <div class="settings-row">
+          <button class="settings-btn" onclick="showSyncCode()" data-t="sync-btn">🔑 Sync / Change device</button>
         </div>
         <div class="settings-row">
-          <button class="settings-btn" onclick="forceUpdate()">↻ Update App</button>
+          <button class="settings-btn" onclick="forceUpdate()" data-t="update-btn">↻ Update App</button>
           <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
           <script>
             (function(){
@@ -694,8 +744,8 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- PROGRAMS -->
   <div id="screen-programs" class="screen">
     <div class="hist-hd">
-      <h2>📦 Programs</h2>
-      <button class="back-btn" onclick="goHome()">← Back</button>
+      <h2 data-t="programs">📦 Programs</h2>
+      <button class="back-btn" onclick="goHome()" data-t="back">← Back</button>
     </div>
     <div class="hist-body" id="programs-body"></div>
   </div>
@@ -704,19 +754,19 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <div id="screen-builder" class="screen">
     <div class="hist-hd">
       <h2 id="builder-hd-title">Program</h2>
-      <button class="back-btn" onclick="builderBack()">← Back</button>
+      <button class="back-btn" onclick="builderBack()" data-t="back">← Back</button>
     </div>
     <div class="builder-name-row">
-      <div style="font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Program Name</div>
+      <div style="font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px" data-t="program-name">Program Name</div>
       <input class="builder-name-inp" id="builder-name-inp" placeholder="e.g. Strength Block 1"
         oninput="_builderState.name=this.value">
     </div>
     <div class="builder-tabs">
-      <div class="builder-tab active" id="btab-A" onclick="builderSetTab('A')">Routine A</div>
-      <div class="builder-tab" id="btab-B" onclick="builderSetTab('B')">Routine B</div>
+      <div class="builder-tab active" id="btab-A" onclick="builderSetTab('A')" data-t="routine-a">Routine A</div>
+      <div class="builder-tab" id="btab-B" onclick="builderSetTab('B')" data-t="routine-b">Routine B</div>
     </div>
     <div id="builder-body"></div>
-    <button class="builder-save-btn" onclick="saveBuilder()">Save Program</button>
+    <button class="builder-save-btn" onclick="saveBuilder()" data-t="save-program">Save Program</button>
   </div>
 
 </div>
@@ -725,7 +775,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 <div id="picker-wrap" class="picker-wrap" onclick="closeBuilderPicker(event)">
   <div class="picker-sheet" onclick="event.stopPropagation()">
     <div class="picker-hd">
-      <h3 id="picker-title">Add Exercise</h3>
+      <h3 id="picker-title" data-t="add-exercise-picker">Add Exercise</h3>
       <button class="picker-close" onclick="closeBuilderPicker()">✕</button>
     </div>
     <div id="picker-sub-banner" class="picker-sub-banner"></div>
@@ -736,11 +786,11 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
     <div class="picker-body-wrap">
       <div class="picker-body-col">
         <svg class="picker-bsvg" id="pbsvg-front" width="95" height="190" viewBox="0 0 100 200"></svg>
-        <div class="picker-body-lbl">Front</div>
+        <div class="picker-body-lbl" data-t="front">Front</div>
       </div>
       <div class="picker-body-col">
         <svg class="picker-bsvg" id="pbsvg-back" width="95" height="190" viewBox="0 0 100 200"></svg>
-        <div class="picker-body-lbl">Back</div>
+        <div class="picker-body-lbl" data-t="back-body">Back</div>
       </div>
     </div>
     <div class="picker-filters" id="picker-filters"></div>
@@ -752,9 +802,9 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 <!-- REST COUNTDOWN OVERLAY -->
 <div id="rest-overlay" class="rest-overlay">
   <div class="rest-ov-box">
-    <div class="rest-ov-lbl">Rest</div>
+    <div class="rest-ov-lbl" data-t="rest">Rest</div>
     <div class="rest-ov-time" id="rest-ov-time">1:30</div>
-    <button class="rest-ov-skip" onclick="skipRestTimer()">Skip →</button>
+    <button class="rest-ov-skip" onclick="skipRestTimer()" data-t="skip">Skip →</button>
   </div>
 </div>
 
@@ -818,6 +868,258 @@ window.addEventListener('touchmove', e => builderDragMove(e), { passive: false }
 window.addEventListener('touchend',  () => builderDragEnd());
 window.addEventListener('mousemove', e => builderDragMove(e));
 window.addEventListener('mouseup',   () => builderDragEnd());
+
+// ════════════════════════════════════
+// TRANSLATIONS  (EN / HE)
+// ════════════════════════════════════
+const HE_DAYS = { Sun:'א׳', Mon:'ב׳', Tue:'ג׳', Wed:'ד׳', Thu:'ה׳', Fri:'ו׳', Sat:'ש׳' };
+
+const HE_MUSCLE_LABELS = {
+  chest:'חזה', shoulder:'כתפיים', tricep:'טריצפס',
+  bicep:'ביצפס', forearm:'אמות', abs:'בטן',
+  'upper-back':'גב עליון', 'lower-back':'גב תחתון', lat:'לאט',
+  quad:'ארבע ראשי', hamstring:'ירך אחורית', glute:'ישבן', calf:'שוק'
+};
+
+const HE_EXERCISE_NAMES = {
+  'Barbell Bench Press':'לחיצת חזה עם מוט',
+  'Incline Dumbbell Press':'לחיצת חזה בשיפוע',
+  'Decline Dumbbell Press':'לחיצת חזה שיפוע שלילי',
+  'Pec Deck':'פרפר',
+  'Cable Crossover':'כבל קרוס',
+  'Dumbbell Flyes':'פרפר עם משקולות',
+  'Push-Ups':'שכיבות סמיכה',
+  'Dips':'דיפס',
+  'Wide Grip Lat Pulldown':'משיכת פולי רחבה',
+  'Pull-Ups':'מתח',
+  'Seated Cable Row':'חתירה בישיבה',
+  'Incline Dumbbell Row':'חתירה שכובה',
+  'Face Pull':'פייס פול',
+  'Hyperextensions':'פשיטת גב',
+  'Straight Arm Pulldown':'משיכת פולי זרועות ישרות',
+  'Deadlift':'מתח מת',
+  'Romanian Deadlift':'מתח מת רומני',
+  'Dumbbell Shoulder Press':'לחיצת כתפיים',
+  'Barbell Overhead Press':'לחיצת מעל הראש',
+  'Lateral Raises':'הרחקה לצדדים',
+  'Front Raises':'הרמה קדמית',
+  'Rear Delt Fly':'פרפר אחורי',
+  'Arnold Press':'לחיצת ארנולד',
+  'Upright Row':'חתירה זקופה',
+  'Barbell Curl':'כפיפת מרפקים עם מוט',
+  'Dumbbell Curl':'כפיפת מרפקים',
+  'Hammer Curl':'כפיפת פטישים',
+  'Cable Curl':'כפיפת מרפקים בכבל',
+  'Preacher Curl':'כפיפת כהן',
+  'Concentration Curl':'כפיפת ריכוז',
+  'Incline Dumbbell Curl':'כפיפת מרפקים בשיפוע',
+  'Triceps Pushdown':'פשיטת מרפקים',
+  'Overhead Triceps Extension':'פשיטת מרפקים מעל הראש',
+  'Skull Crushers':'מוחצות',
+  'Close Grip Bench Press':'לחיצת חזה אחיזה צרה',
+  'Triceps Kickback':'כיפוף טריצפס אחורה',
+  'Wrist Curl':'כפיפת שורש כף יד',
+  'Reverse Curl':'כפיפה הפוכה',
+  'Cable Crunch':'כפיפות בטן בכבל',
+  'Hanging Leg Raises':'הרמת רגליים תלוי',
+  'Ab Wheel Rollout':'גלגל בטן',
+  'Russian Twist':'טוויסט רוסי',
+  'Decline Crunch':'כפיפות בטן שיפוע שלילי',
+  'Flat Bench Leg Raises':'הרמת רגליים על ספסל',
+  'Barbell Squat':'סקווט עם מוט',
+  'Leg Press':'לחיצת רגליים',
+  'Leg Extension':'פשיטת ברכיים',
+  'Bulgarian Split Squat':'סקווט בולגרי',
+  'Hack Squat':'הק סקווט',
+  'Barbell Lunge':'לאנג׳ עם מוט',
+  'Lying Leg Curl':'כפיפת ברכיים שכיבה',
+  'Stiff-Leg Deadlift':'מתח מת רגליים ישרות',
+  'Good Morning':'בוקר טוב',
+  'Hip Thrust':'דחיפת ירך',
+  'Standing Calf Raises':'עמידה על קצות אצבעות',
+  'Seated Calf Raises':'עמידה על קצות אצבעות בישיבה',
+  'Leg Press Calf Raise':'שוק במכונת לחיצה',
+  // Routine exercises
+  'Smith Bench Press':'לחיצת חזה בסמית׳',
+  'Lat Pulldown / Pull Up':'משיכת פולי / מתח',
+  'Lat Pulldown':'משיכת פולי',
+  'Pull Up':'מתח',
+  'Seated Row / Chest Supported Row':'חתירה / תמיכת חזה',
+  'Seated Row':'חתירה בישיבה',
+  'Chest Supported Row':'חתירה תמיכת חזה',
+  'Back Extension':'פשיטת גב',
+  'Leg Curl':'כפיפת ברכיים',
+  'Calf Raises':'עמידה על קצות אצבעות',
+  'Shoulder Press':'לחיצת כתפיים',
+  'Hammer Curl / Cable Curl':'כפיפת פטישים / כבל',
+};
+
+const TRANSLATIONS = {
+  en: {
+    'app-title':'My Workout 💪',
+    'history':'History','exercises':'💪 Exercises','progress':'📈 Progress',
+    'settings':'⚙️ Settings','programs':'📦 Programs',
+    'back':'← Back','done-btn':'✓ Done',
+    'routine-a':'Routine A','routine-b':'Routine B',
+    'start-routine-a':'Start Routine A','start-routine-b':'Start Routine B',
+    'resume-routine-a':'▶ Resume Routine A','resume-routine-b':'▶ Resume Routine B',
+    'btn-history':'📋 History','btn-exercises':'💪 Exercises',
+    'btn-progress':'📈 Progress','btn-settings':'⚙️ Settings',
+    'btn-reset-week':'↺ Reset Week',
+    'locker':'Locker','last-session':'Last session:','exercises-count':'exercises',
+    'finish-workout':'✓ Finish Workout',
+    'rest':'Rest','skip':'Skip →',
+    'copy-first-to-all':'Copy first to all',
+    'mark-all-done':'✓ Mark all sets done',
+    'undo-exercise':'↩ Undo — mark as not done',
+    'note-placeholder':'note...','machine-placeholder':'machine / bench / location',
+    'kg-placeholder':'kg','last-label':'Last:','key-badge':'🔥 Key',
+    'last-increase':'Last increase:',
+    'workout-done':'Workout Done!','back-to-home':'Back to Home',
+    'duration':'Duration','exercises-label':'Exercises','sets-logged':'Sets logged',
+    'no-workouts':'No workouts yet 💪','start-first':'Start your first session!',
+    'sets':'sets','min':'min',
+    'not-enough-data':'Not enough data yet — need at least 2 sessions',
+    'best':'Best:','edit-history':'✏️ Edit history','close':'▲ Close',
+    'exclude':'Exclude','excluded':'Excluded','sessions-label':'sessions',
+    'rest-timer':'Rest Timer','countdown-lbl':'Count down after each set',
+    'alarm-lbl':'Play alarm when timer ends','timer-options':'Timer options',
+    'workout-programs':'Workout Programs','manage-programs':'📦 Manage Programs',
+    'language':'Language','language-lbl':'App Language',
+    'account-data':'Account & Data','sync-btn':'🔑 Sync / Change device',
+    'update-btn':'↻ Update App',
+    'search-placeholder':'Search exercise or muscle…',
+    'all':'All','no-exercises':'No exercises found',
+    'front':'Front','back-body':'Back',
+    'active-program':'Active Program','draft-building':'Draft (building)',
+    'archived':'Archived','edit':'Edit','copy-to-draft':'Copy to Draft',
+    'make-active':'✓ Make Active','discard':'Discard','restore':'Restore','delete':'Delete',
+    'saved':'Saved','build-new':'+ Build New Program',
+    'save-program':'Save Program','program-name':'Program Name',
+    'add-exercise':'+ Add Exercise','no-exercises-add':'No exercises — add some below',
+    'reorder':'↕ Reorder Exercises','done-reorder':'✓ Done Reordering',
+    'add-exercise-picker':'Add Exercise','find-substitute':'Find Substitute',
+    'current-exercise':'(current)','replacing':'⇄ Replacing:',
+    'set-label':'S','set-num':'Set',
+  },
+  he: {
+    'app-title':'האימון שלי 💪',
+    'history':'היסטוריה','exercises':'💪 תרגילים','progress':'📈 התקדמות',
+    'settings':'⚙️ הגדרות','programs':'📦 תוכניות',
+    'back':'חזרה ←','done-btn':'סיום ✓',
+    'routine-a':'שגרה א׳','routine-b':'שגרה ב׳',
+    'start-routine-a':'התחל שגרה א׳','start-routine-b':'התחל שגרה ב׳',
+    'resume-routine-a':'המשך שגרה א׳ ▶','resume-routine-b':'המשך שגרה ב׳ ▶',
+    'btn-history':'היסטוריה 📋','btn-exercises':'תרגילים 💪',
+    'btn-progress':'התקדמות 📈','btn-settings':'הגדרות ⚙️',
+    'btn-reset-week':'איפוס שבוע ↺',
+    'locker':'ארון','last-session':'אימון אחרון:','exercises-count':'תרגילים',
+    'finish-workout':'סיים אימון ✓',
+    'rest':'מנוחה','skip':'דלג ←',
+    'copy-first-to-all':'העתק לכולם',
+    'mark-all-done':'סמן הכל כהושלם ✓',
+    'undo-exercise':'בטל — סמן כלא הושלם ↩',
+    'note-placeholder':'הערה...','machine-placeholder':'מכונה / ספסל / מיקום',
+    'kg-placeholder':'ק״ג','last-label':'אחרון:','key-badge':'🔥 עיקרי',
+    'last-increase':'עלייה אחרונה:',
+    'workout-done':'האימון הסתיים!','back-to-home':'חזרה לבית',
+    'duration':'משך זמן','exercises-label':'תרגילים','sets-logged':'סטים שנרשמו',
+    'no-workouts':'עדיין אין אימונים 💪','start-first':'התחל את הסשן הראשון שלך!',
+    'sets':'סטים','min':'דק׳',
+    'not-enough-data':'לא מספיק נתונים — צריך לפחות 2 סשנים',
+    'best':'הטוב ביותר:','edit-history':'✏️ ערוך היסטוריה','close':'▲ סגור',
+    'exclude':'הסר','excluded':'מוסר','sessions-label':'סשנים',
+    'rest-timer':'טיימר מנוחה','countdown-lbl':'ספירה לאחור אחרי כל סט',
+    'alarm-lbl':'אזעקה כשהטיימר מסתיים','timer-options':'אפשרויות טיימר',
+    'workout-programs':'תוכניות אימון','manage-programs':'📦 ניהול תוכניות',
+    'language':'שפה','language-lbl':'שפת האפליקציה',
+    'account-data':'חשבון ונתונים','sync-btn':'🔑 סנכרון / החלפת מכשיר',
+    'update-btn':'↻ עדכן אפליקציה',
+    'search-placeholder':'חפש תרגיל או שריר...',
+    'all':'הכל','no-exercises':'לא נמצאו תרגילים',
+    'front':'קדמי','back-body':'אחורי',
+    'active-program':'תוכנית פעילה','draft-building':'טיוטה (בבנייה)',
+    'archived':'בארכיון','edit':'ערוך','copy-to-draft':'העתק לטיוטה',
+    'make-active':'הפוך לפעיל ✓','discard':'בטל','restore':'שחזר','delete':'מחק',
+    'saved':'נשמר','build-new':'+ בנה תוכנית חדשה',
+    'save-program':'שמור תוכנית','program-name':'שם תוכנית',
+    'add-exercise':'+ הוסף תרגיל','no-exercises-add':'אין תרגילים — הוסף למטה',
+    'reorder':'שינוי סדר ↕','done-reorder':'סיום שינוי סדר ✓',
+    'add-exercise-picker':'הוסף תרגיל','find-substitute':'מצא תחליף',
+    'current-exercise':'(נוכחי)','replacing':'⇄ מחליף:',
+    'set-label':'ס׳','set-num':'סט',
+  }
+};
+
+function getLang() {
+  try { return JSON.parse(localStorage.getItem('mwPrefs')||'{}')?.settings?.lang || 'en'; }
+  catch { return 'en'; }
+}
+function t(key) {
+  const lang = getLang();
+  return (TRANSLATIONS[lang]?.[key]) ?? TRANSLATIONS.en[key] ?? key;
+}
+function tEx(name) {
+  if (!name) return name;
+  if (getLang() !== 'he') return name;
+  return HE_EXERCISE_NAMES[name] || name;
+}
+function tM(muscle) {
+  if (!muscle) return '';
+  if (getLang() === 'he') return HE_MUSCLE_LABELS[muscle] || MUSCLE_LABELS[muscle] || muscle;
+  return MUSCLE_LABELS[muscle] || muscle;
+}
+function tDay(day) {
+  if (getLang() !== 'he') return day;
+  return HE_DAYS[day] || day;
+}
+
+function toggleLanguage() {
+  const s = getSettings();
+  applyLanguage(s.lang === 'he' ? 'en' : 'he');
+}
+
+function applyLanguage(lang) {
+  const s = getSettings();
+  s.lang = lang;
+  putSettings(s);
+  document.documentElement.dir  = lang === 'he' ? 'rtl' : 'ltr';
+  document.documentElement.lang = lang;
+  const langBtn = document.getElementById('lang-toggle');
+  if (langBtn) {
+    langBtn.textContent = lang === 'he' ? 'עב' : 'EN';
+    langBtn.classList.toggle('on', lang === 'he');
+  }
+  _applyLangToDOM();
+  // Re-render the currently visible screen
+  const active = document.querySelector('.screen.active');
+  if (active) {
+    const id = active.id.replace('screen-', '');
+    switch (id) {
+      case 'home':     homeUpdate(); break;
+      case 'history':  histRender(); break;
+      case 'library':  libraryRender(); break;
+      case 'progress': progressRender(); break;
+      case 'settings': showSettings(); break;
+      case 'programs': programsRender(); break;
+      case 'builder':  builderRenderTab(); break;
+      case 'workout':  if (S.session) wkRender(); break;
+    }
+  }
+}
+
+function _applyLangToDOM() {
+  document.querySelectorAll('[data-t]').forEach(el => {
+    const txt = t(el.dataset.t);
+    if (el.tagName === 'INPUT') el.placeholder = txt;
+    else el.textContent = txt;
+  });
+  // search inputs are generated by JS, update placeholder manually
+  ['picker-search','lib-search'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.placeholder = t('search-placeholder');
+  });
+}
 
 function repairNullWeights() {
   if (localStorage.getItem('mwRepaired2')) return; // already ran
@@ -917,6 +1219,13 @@ async function initApp() {
   }
 
   repairNullWeights();
+  // Apply saved language (sets dir, updates static DOM)
+  const _savedLang = getSettings().lang || 'en';
+  if (_savedLang !== 'en') {
+    document.documentElement.dir  = 'rtl';
+    document.documentElement.lang = 'he';
+  }
+  _applyLangToDOM();
   homeUpdate();
   const saved = loadCurrentSession();
   if (saved) {
@@ -1155,29 +1464,29 @@ function libraryRender() {
     filtered = filtered.filter(e => {
       const nameMatch   = e.name.toLowerCase().includes(q);
       const muscleMatch = (e.muscles||[]).some(m =>
-        (MUSCLE_LABELS[m]||m).toLowerCase().includes(q) || m.toLowerCase().includes(q));
+        tM(m).toLowerCase().includes(q) || (MUSCLE_LABELS[m]||m).toLowerCase().includes(q) || m.toLowerCase().includes(q));
       return nameMatch || muscleMatch;
     });
   }
 
   const filterBtns = [
-    `<button class="lib-fbtn${!_libFilter?' sel':''}" onclick="librarySetFilter(null)">All</button>`,
-    ...Object.entries(MUSCLE_LABELS).map(([k,v]) => {
+    `<button class="lib-fbtn${!_libFilter?' sel':''}" onclick="librarySetFilter(null)">${t('all')}</button>`,
+    ...Object.entries(MUSCLE_LABELS).map(([k]) => {
       const isSel = _libFilter === k;
       const col = _mHex(k);
       return `<button class="lib-fbtn${isSel?' sel':''}" onclick="librarySetFilter('${k}')"
-        style="${isSel?`background:${col};color:white;border-color:${col};`:''}">${v}</button>`;
+        style="${isSel?`background:${col};color:white;border-color:${col};`:''}">${tM(k)}</button>`;
     })
   ].join('');
 
   const cards = filtered.map((ex, fi) => {
     const idx = EXERCISE_LIBRARY.indexOf(ex);
     const imgSrc = _exImgSrc(ex.img);
-    const tags = ex.muscles.map(m=>`<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`).join('');
+    const tags = ex.muscles.map(m=>`<span class="mtag">${tM(m)}</span>`).join('');
     return `<div class="lib-card" onclick="showLibDetail(${idx})">
       ${imgSrc ? `<img class="lib-img" src="${imgSrc}" loading="lazy" alt="" onerror="this.outerHTML='<div class=\'lib-img-ph\'></div>'">` : '<div class="lib-img-ph"></div>'}
       <div class="lib-info">
-        <div class="lib-name">${ex.name}</div>
+        <div class="lib-name">${tEx(ex.name)}</div>
         <div class="muscle-tags" style="margin-top:4px">${tags}</div>
       </div>
       ${ytBtn(ex.name)}
@@ -1186,16 +1495,16 @@ function libraryRender() {
 
   el.innerHTML = `
     <div class="lib-filters">${filterBtns}</div>
-    <div style="padding:12px 16px 40px">${cards || '<div class="no-hist">No exercises found</div>'}</div>`;
+    <div style="padding:12px 16px 40px">${cards || `<div class="no-hist">${t('no-exercises')}</div>`}</div>`;
 }
 
 function showLibDetail(idx) {
   const ex = EXERCISE_LIBRARY[idx];
   const imgSrc = _exImgSrc(ex.img);
-  const tags = ex.muscles.map(m=>`<span class="mtag" style="background:${_mRgba(m,0.15)};color:${_mHex(m)};font-weight:700">${MUSCLE_LABELS[m]||m}</span>`).join('');
+  const tags = ex.muscles.map(m=>`<span class="mtag" style="background:${_mRgba(m,0.15)};color:${_mHex(m)};font-weight:700">${tM(m)}</span>`).join('');
   document.getElementById('lib-modal-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <h3 style="font-size:18px;font-weight:800;flex:1;padding-right:12px">${ex.name}</h3>
+      <h3 style="font-size:18px;font-weight:800;flex:1;padding-right:12px">${tEx(ex.name)}</h3>
       ${ytBtn(ex.name)}
       <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1;margin-left:8px">✕</button>
     </div>
@@ -1373,56 +1682,56 @@ function programsRender() {
 
   // ── Active program ──
   const activeHtml = `
-    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Active Program</div>
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">${t('active-program')}</div>
     <div class="prog-item" style="margin-bottom:4px">
       <div class="prog-item-info">
         <input class="prog-name-inp" value="${escHtml(progName)}" placeholder="Program name"
           onblur="renameActiveProgram(this.value)"
           onkeydown="if(event.key==='Enter')this.blur()">
-        <div class="prog-item-date" style="margin-top:4px">A: ${ROUTINES.A.exercises.length} exercises &nbsp;·&nbsp; B: ${ROUTINES.B.exercises.length} exercises</div>
+        <div class="prog-item-date" style="margin-top:4px">A: ${ROUTINES.A.exercises.length} ${t('exercises-count')} &nbsp;·&nbsp; B: ${ROUTINES.B.exercises.length} ${t('exercises-count')}</div>
       </div>
       <div class="prog-actions">
-        <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border)" onclick="showBuilder('active')">Edit</button>
-        <button class="prog-btn" style="background:var(--bg);color:var(--txt2);border:1px solid var(--border)" onclick="copyActiveToDraft()">Copy to Draft</button>
+        <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border)" onclick="showBuilder('active')">${t('edit')}</button>
+        <button class="prog-btn" style="background:var(--bg);color:var(--txt2);border:1px solid var(--border)" onclick="copyActiveToDraft()">${t('copy-to-draft')}</button>
         <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDF(ROUTINES, getCurrentProgramName())">📤</button>
       </div>
     </div>`;
 
   // ── Draft ──
   const draftHtml = draft ? `
-    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">Draft (building)</div>
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">${t('draft-building')}</div>
     <div class="prog-item" style="border:2px solid var(--b)">
       <div class="prog-item-info">
         <input class="prog-name-inp" value="${escHtml(draft.name)}" placeholder="Program name"
           onblur="renameDraft(this.value)"
           onkeydown="if(event.key==='Enter')this.blur()">
-        <div class="prog-item-date" style="margin-top:4px">A: ${draft.routines.A.exercises.length} exercises &nbsp;·&nbsp; B: ${draft.routines.B.exercises.length} exercises</div>
+        <div class="prog-item-date" style="margin-top:4px">A: ${draft.routines.A.exercises.length} ${t('exercises-count')} &nbsp;·&nbsp; B: ${draft.routines.B.exercises.length} ${t('exercises-count')}</div>
       </div>
       <div class="prog-actions" style="flex-direction:column;gap:5px">
-        <button class="prog-btn" style="background:var(--green);color:white;width:100%" onclick="makeDraftActive()">✓ Make Active</button>
+        <button class="prog-btn" style="background:var(--green);color:white;width:100%" onclick="makeDraftActive()">${t('make-active')}</button>
         <div style="display:flex;gap:5px">
-          <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border);flex:1" onclick="showBuilder('draft')">Edit</button>
-          <button class="prog-btn" style="background:#ff3b30;color:white" onclick="discardDraft()">Discard</button>
+          <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border);flex:1" onclick="showBuilder('draft')">${t('edit')}</button>
+          <button class="prog-btn" style="background:#ff3b30;color:white" onclick="discardDraft()">${t('discard')}</button>
           <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDF(getDraft().routines, getDraft().name)">📤</button>
         </div>
       </div>
     </div>` : `
     <div style="margin-top:16px">
-      <button class="builder-add-btn" onclick="showBuilder('new')">+ Build New Program</button>
+      <button class="builder-add-btn" onclick="showBuilder('new')">${t('build-new')}</button>
     </div>`;
 
   // ── Archived ──
   const archHtml = archives.length ? `
-    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">Archived</div>
+    <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">${t('archived')}</div>
     ${archives.map(a => `
       <div class="prog-item">
         <div class="prog-item-info">
           <div class="prog-item-name">${escHtml(a.name)}</div>
-          <div class="prog-item-date">Saved ${new Date(a.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+          <div class="prog-item-date">${t('saved')} ${new Date(a.savedAt).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
         </div>
         <div class="prog-actions">
-          <button class="prog-btn" style="background:var(--b);color:white" onclick="restoreProgram(${a.id})">Restore</button>
-          <button class="prog-btn" style="background:var(--bg);color:#ff3b30;border:1px solid var(--border)" onclick="deleteArchive(${a.id})">Delete</button>
+          <button class="prog-btn" style="background:var(--b);color:white" onclick="restoreProgram(${a.id})">${t('restore')}</button>
+          <button class="prog-btn" style="background:var(--bg);color:#ff3b30;border:1px solid var(--border)" onclick="deleteArchive(${a.id})">${t('delete')}</button>
           <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDFById(${a.id})">📤</button>
         </div>
       </div>
@@ -1532,17 +1841,17 @@ function showBuilder(mode) {
   if (mode === 'active') {
     _builderTarget = 'active';
     _builderState = _routinesToBuilderState(ROUTINES, getCurrentProgramName());
-    document.getElementById('builder-hd-title').textContent = 'Edit Active Program';
+    document.getElementById('builder-hd-title').textContent = getLang()==='he' ? 'ערוך תוכנית פעילה' : 'Edit Active Program';
   } else if (mode === 'draft') {
     const draft = getDraft();
     _builderTarget = 'draft';
     _builderState = draft ? _routinesToBuilderState(draft.routines, draft.name)
       : { name: 'New Program', A: { label: 'Routine A', exercises: [] }, B: { label: 'Routine B', exercises: [] } };
-    document.getElementById('builder-hd-title').textContent = 'Edit Draft';
+    document.getElementById('builder-hd-title').textContent = getLang()==='he' ? 'ערוך טיוטה' : 'Edit Draft';
   } else { // 'new'
     _builderTarget = 'draft';
     _builderState = { name: 'New Program', A: { label: 'Routine A', exercises: [] }, B: { label: 'Routine B', exercises: [] } };
-    document.getElementById('builder-hd-title').textContent = 'New Program';
+    document.getElementById('builder-hd-title').textContent = getLang()==='he' ? 'תוכנית חדשה' : 'New Program';
   }
   _builderTab = 'A';
   _builderReorderMode = false;
@@ -1581,12 +1890,12 @@ function builderRenderTab() {
           ontouchstart="builderDragStart(event,'${rid}',${idx})"
           onmousedown="builderDragStart(event,'${rid}',${idx})">⠿</span>
         <span style="flex:1;font-size:15px;font-weight:700">${escHtml(ex.name)}</span>
-        <span style="font-size:12px;color:var(--txt2)">${ex.setCount||3} sets${ex.key?' 🔥':''}</span>
+        <span style="font-size:12px;color:var(--txt2)">${ex.setCount||3} ${t('sets')}${ex.key?' 🔥':''}</span>
       </div>`).join('');
   } else {
     rows = exs.map((ex, idx) => {
       const imgSrc = _exImgSrc(ex.img);
-      const muscles = (ex.muscles||[]).map(m => MUSCLE_LABELS[m]||m).join(', ');
+      const muscles = (ex.muscles||[]).map(m => tM(m)).join(', ');
       return `<div class="builder-ex-row" data-idx="${idx}">
         ${imgSrc ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : '<div class="builder-ex-img"></div>'}
         <div class="builder-ex-text">
@@ -1597,7 +1906,7 @@ function builderRenderTab() {
           <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},-1)">−</button>
           <span class="builder-sets-num">${ex.setCount||3}</span>
           <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},1)">+</button>
-          <span style="font-size:10px;color:var(--txt2);margin-left:2px">sets</span>
+          <span style="font-size:10px;color:var(--txt2);margin-left:2px">${t('sets')}</span>
         </div>
         ${ytBtn(ex.name)}
         <button class="builder-key-btn${ex.key?' active':''}" title="Key exercise" onclick="builderToggleKey('${rid}',${idx})">🔥</button>
@@ -1612,13 +1921,13 @@ function builderRenderTab() {
         display:block;width:100%;padding:10px;margin-bottom:12px;
         border:1.5px solid var(--border);border-radius:10px;background:${_builderReorderMode?'var(--b)':'white'};
         color:${_builderReorderMode?'white':'var(--txt2)'};font-size:13px;font-weight:700;cursor:pointer">
-        ${_builderReorderMode ? '✓ Done Reordering' : '↕ Reorder Exercises'}
+        ${_builderReorderMode ? t('done-reorder') : t('reorder')}
       </button>` : '';
 
   document.getElementById('builder-body').innerHTML = `<div class="builder-body">
     ${reorderBtn}
-    ${rows || '<div class="no-hist" style="padding:24px 0">No exercises — add some below</div>'}
-    ${_builderReorderMode ? '' : `<button class="builder-add-btn" onclick="openBuilderPicker('${rid}')">+ Add Exercise</button>`}
+    ${rows || `<div class="no-hist" style="padding:24px 0">${t('no-exercises-add')}</div>`}
+    ${_builderReorderMode ? '' : `<button class="builder-add-btn" onclick="openBuilderPicker('${rid}')">${t('add-exercise')}</button>`}
   </div>`;
 }
 
@@ -1692,7 +2001,7 @@ function _openPickerSheet() {
 function openBuilderPicker(rid) {
   _builderPickRid = rid;
   _builderSubstIdx = null;
-  document.getElementById('picker-title').textContent = 'Add Exercise';
+  document.getElementById('picker-title').textContent = t('add-exercise-picker');
   const banner = document.getElementById('picker-sub-banner');
   banner.textContent = ''; banner.classList.remove('active');
   _openPickerSheet();
@@ -1704,9 +2013,9 @@ function openSubstitutePicker(rid, idx) {
   const exName = _builderState[rid].exercises[idx].name;
   const exMuscles = _builderState[rid].exercises[idx].muscles || [];
   _pickerFilter = exMuscles[0] || null;
-  document.getElementById('picker-title').textContent = 'Find Substitute';
+  document.getElementById('picker-title').textContent = t('find-substitute');
   const banner = document.getElementById('picker-sub-banner');
-  banner.textContent = '⇄ Replacing: ' + exName;
+  banner.textContent = t('replacing') + ' ' + exName;
   banner.classList.add('active');
   _openPickerSheet();
 }
@@ -1800,17 +2109,17 @@ function pickerRender() {
     const q = _pickerSearch;
     filtered = filtered.filter(e => {
       const nameMatch = e.name.toLowerCase().includes(q);
-      const muscleMatch = (e.muscles||[]).some(m => (MUSCLE_LABELS[m]||m).toLowerCase().includes(q) || m.toLowerCase().includes(q));
+      const muscleMatch = (e.muscles||[]).some(m => tM(m).toLowerCase().includes(q) || (MUSCLE_LABELS[m]||m).toLowerCase().includes(q) || m.toLowerCase().includes(q));
       return nameMatch || muscleMatch;
     });
   }
   // Filters
   const filterHtml = [
-    `<button class="lib-fbtn${!_pickerFilter?' sel':''}" onclick="pickerSetFilter(null)">All</button>`,
-    ...Object.entries(MUSCLE_LABELS).map(([k,v]) => {
+    `<button class="lib-fbtn${!_pickerFilter?' sel':''}" onclick="pickerSetFilter(null)">${t('all')}</button>`,
+    ...Object.entries(MUSCLE_LABELS).map(([k]) => {
       const sel = _pickerFilter === k;
       const col = _mHex(k);
-      return `<button class="lib-fbtn${sel?' sel':''}" style="${sel?`background:${col};color:white;border-color:${col};`:''}" onclick="pickerSetFilter('${k}')">${v}</button>`;
+      return `<button class="lib-fbtn${sel?' sel':''}" style="${sel?`background:${col};color:white;border-color:${col};`:''}" onclick="pickerSetFilter('${k}')">${tM(k)}</button>`;
     })
   ].join('');
   document.getElementById('picker-filters').innerHTML = filterHtml;
@@ -1820,20 +2129,20 @@ function pickerRender() {
   const listHtml = filtered.map(ex => {
     const idx = EXERCISE_LIBRARY.indexOf(ex);
     const imgSrc = _exImgSrc(ex.img);
-    const muscles = ex.muscles.map(m => MUSCLE_LABELS[m]||m).join(', ');
+    const muscles = ex.muscles.map(m => tM(m)).join(', ');
     // In substitute mode, dim the current exercise so user knows to pick a different one
     const isCurrent = substName && ex.name === substName;
     return `<div class="picker-card${isCurrent?' picker-card-dim':''}" onclick="builderPickEx(${idx})" style="${isCurrent?'opacity:.35;pointer-events:none':''}">
       ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
       <div style="flex:1">
-        <div class="picker-card-name">${escHtml(ex.name)}${isCurrent?' <span style="font-size:11px;color:var(--txt2)">(current)</span>':''}</div>
+        <div class="picker-card-name">${escHtml(tEx(ex.name))}${isCurrent?` <span style="font-size:11px;color:var(--txt2)">${t('current-exercise')}</span>`:''}</div>
         <div class="picker-card-muscles">${escHtml(muscles)}</div>
       </div>
       ${ytBtn(ex.name)}
     </div>`;
   }).join('');
   document.getElementById('picker-list').innerHTML = listHtml ||
-    `<div style="text-align:center;padding:32px 16px;color:var(--txt2);font-size:14px">No exercises found 🤷</div>`;
+    `<div style="text-align:center;padding:32px 16px;color:var(--txt2);font-size:14px">${t('no-exercises')} 🤷</div>`;
 }
 
 function pickerSetFilter(f) {
@@ -1924,6 +2233,12 @@ function showSettings() {
   if (alarmToggle) {
     alarmToggle.textContent = s.restAlarm ? 'ON' : 'OFF';
     alarmToggle.classList.toggle('on', !!s.restAlarm);
+  }
+  const langBtn = document.getElementById('lang-toggle');
+  if (langBtn) {
+    const lang = s.lang || 'en';
+    langBtn.textContent = lang === 'he' ? 'עב' : 'EN';
+    langBtn.classList.toggle('on', lang === 'he');
   }
   const opts = getRestOpts();
   const container = document.getElementById('rest-opts-inputs');
@@ -2162,7 +2477,7 @@ function getLastUpscale(exName) {
 }
 
 function drawMiniChart(pts, hexColor) {
-  if (pts.length < 2) return `<div class="prog-no-data">Not enough data yet — need at least 2 sessions</div>`;
+  if (pts.length < 2) return `<div class="prog-no-data">${t('not-enough-data')}</div>`;
   const W = 300, H = 72;
   const maxW = Math.max(...pts.map(p=>p.max));
   const minW = Math.min(...pts.map(p=>p.max));
@@ -2179,13 +2494,13 @@ function drawMiniChart(pts, hexColor) {
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">
     <polyline points="${poly}" fill="none" stroke="${hexColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
     ${coords.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="3.5" fill="${c.bw?'#aaa':hexColor}"/>`).join('')}
-    <text x="8" y="${H}" font-size="9" fill="#aaa">${new Date(pts[0].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
-    <text x="${W-8}" y="${H}" font-size="9" fill="#aaa" text-anchor="end">${new Date(pts[pts.length-1].date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>
+    <text x="8" y="${H}" font-size="9" fill="#aaa">${new Date(pts[0].date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})}</text>
+    <text x="${W-8}" y="${H}" font-size="9" fill="#aaa" text-anchor="end">${new Date(pts[pts.length-1].date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})}</text>
   </svg>
   <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px">
     <span style="color:var(--txt2)">${minW===0?'BW':minW+'kg'} → ${maxW}kg</span>
     <span style="font-weight:700;color:${diffColor}">${diffStr}</span>
-    <span style="color:var(--txt2)">${pts.length} sessions</span>
+    <span style="color:var(--txt2)">${pts.length} ${t('sessions-label')}</span>
   </div>`;
 }
 
@@ -2195,7 +2510,7 @@ function progressRender() {
   const el = document.getElementById('progress-body');
   const d = get();
   if (!d.sessions.length) {
-    el.innerHTML = '<div class="no-hist">No workouts yet 💪<br>Start your first session!</div>';
+    el.innerHTML = `<div class="no-hist">${t('no-workouts')}<br>${t('start-first')}</div>`;
     return;
   }
   el.innerHTML = ['A','B'].map(rid => {
@@ -2206,18 +2521,18 @@ function progressRender() {
       const lastUp = getLastUpscale(ex.name);
       const best   = pts.length ? Math.max(...pts.map(p=>p.max)) : null;
       const lastUpStr = lastUp
-        ? `· <span style="color:var(--green);font-weight:700">Last increase: ${new Date(lastUp.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (+${lastUp.to-lastUp.from}kg)</span>`
+        ? `· <span style="color:var(--green);font-weight:700">${t('last-increase')} ${new Date(lastUp.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (+${lastUp.to-lastUp.from}kg)</span>`
         : '';
       const editKey  = `${rid}-${ei}`;
       const isOpen   = _openProgEdits.has(editKey);
       const allPts   = getAllProgressRawPoints(ex.name);
       const editPanel = allPts.length ? `
         <button class="prog-edit-toggle" onclick="toggleProgEdit('${rid}',${ei})">
-          ${isOpen ? '▲ Close' : '✏️ Edit history'}
+          ${isOpen ? t('close') : t('edit-history')}
         </button>
         <div class="prog-edit-panel${isOpen?' open':''}">
           <div style="font-size:11px;color:var(--txt2);margin-bottom:8px">
-            Edit a weight or tap <strong>Exclude</strong> to hide a session from the chart.
+            ${getLang()==='he' ? 'ערוך משקל או לחץ <strong>הסר</strong> להסתרת סשן מהגרף.' : 'Edit a weight or tap <strong>Exclude</strong> to hide a session from the chart.'}
           </div>
           ${allPts.map(pt => {
             const dateStr = new Date(pt.sessId).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
@@ -2229,19 +2544,19 @@ function progressRender() {
                 onblur="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)">
               ${pt.overridden ? `<button class="prog-hist-reset" title="Reset to original" onclick="resetProgWeight('${rid}',${ei},${pt.sessId})">↩</button>` : '<span style="width:24px"></span>'}
               <button class="prog-hist-excl${pt.excl?' excl':''}" onclick="toggleProgExcl('${rid}',${ei},${pt.sessId})">
-                ${pt.excl ? 'Excluded' : 'Exclude'}
+                ${pt.excl ? t('excluded') : t('exclude')}
               </button>
             </div>`;
           }).join('')}
         </div>` : '';
       return `<div class="prog-ex" id="prog-card-${rid}-${ei}">
-        <div class="prog-name">${ex.key?'🔥 ':''}${ex.name}</div>
-        <div class="prog-stat">Best: <strong>${best!=null?best+'kg':'—'}</strong> ${lastUpStr}</div>
+        <div class="prog-name">${ex.key?'🔥 ':''}${tEx(ex.name)}</div>
+        <div class="prog-stat">${t('best')} <strong>${best!=null?best+'kg':'—'}</strong> ${lastUpStr}</div>
         ${drawMiniChart(pts, hexColor)}
         ${editPanel}
       </div>`;
     }).join('');
-    return `<div class="prog-section-lbl" style="color:${color}">Routine ${rid}</div>${cards}`;
+    return `<div class="prog-section-lbl" style="color:${color}">${t('routine-'+rid.toLowerCase())}</div>${cards}`;
   }).join('');
 }
 
@@ -2357,13 +2672,14 @@ function homeUpdate() {
   checkMidnightReset();
   // Update routine card names from active ROUTINES
   if(document.getElementById('rc-name-a')) {
-    document.getElementById('rc-name-a').textContent = 'Routine A';
-    document.getElementById('rc-desc-a').textContent = (ROUTINES.A.label||'') + ' · ' + ROUTINES.A.exercises.length + ' exercises';
-    document.getElementById('rc-name-b').textContent = 'Routine B';
-    document.getElementById('rc-desc-b').textContent = (ROUTINES.B.label||'') + ' · ' + ROUTINES.B.exercises.length + ' exercises';
+    document.getElementById('rc-name-a').textContent = t('routine-a');
+    document.getElementById('rc-desc-a').textContent = (ROUTINES.A.label||'') + ' · ' + ROUTINES.A.exercises.length + ' ' + t('exercises-count');
+    document.getElementById('rc-name-b').textContent = t('routine-b');
+    document.getElementById('rc-desc-b').textContent = (ROUTINES.B.label||'') + ' · ' + ROUTINES.B.exercises.length + ' ' + t('exercises-count');
   }
+  const _locale = getLang() === 'he' ? 'he-IL' : 'en-US';
   document.getElementById('home-date').textContent =
-    new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    new Date().toLocaleDateString(_locale,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const d = get();
   const p = getPrefs();
   ['A','B'].forEach(r => {
@@ -2373,18 +2689,18 @@ function homeUpdate() {
     const color   = COLORS[r];
     const last    = d.sessions.filter(s=>s.routine===r).sort((a,b)=>b.id-a.id)[0];
     const lastTxt = last
-      ? `<span style="font-size:12px;color:var(--txt2)">Last session: ${new Date(last.id).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>`
+      ? `<span style="font-size:12px;color:var(--txt2)">${t('last-session')} ${new Date(last.id).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})}</span>`
       : '';
     const dayBtns = DAYS.map(dy => {
       const isSel = selDays.includes(dy);
       const style = isSel ? `style="background:${color}"` : '';
       return `<button class="day-btn${isSel?' sel':''}" ${style}
-        onclick="setDay('${r}','${dy}')">${dy}</button>`;
+        onclick="setDay('${r}','${dy}')">${tDay(dy)}</button>`;
     }).join('');
     document.getElementById('rc-meta-'+r.toLowerCase()).innerHTML = `
       <div class="rc-days">${dayBtns}</div>
       <div class="rc-locker">
-        🔐 Locker
+        🔐 ${t('locker')}
         <input class="locker-inp" value="${locker.replace(/"/g,'&quot;')}"
           oninput="setLocker('${r}',this.value)" onfocus="this.select()">
         ${lastTxt}
@@ -2394,9 +2710,9 @@ function homeUpdate() {
     const btn = document.getElementById('rc-btn-'+r.toLowerCase());
     if (btn) {
       if (saved && saved.rid === r) {
-        btn.textContent = '▶ Resume Routine ' + r;
+        btn.textContent = t('resume-routine-' + r.toLowerCase());
       } else {
-        btn.textContent = 'Start Routine ' + r;
+        btn.textContent = t('start-routine-' + r.toLowerCase());
       }
     }
   });
@@ -2475,9 +2791,13 @@ function ytBtn(name) {
 
 function wkRender() {
   const rt = ROUTINES[S.rid];
-  document.getElementById('wk-title').textContent = S.viewing ? '✏️ Edit Routine '+S.rid : 'Routine '+S.rid;
+  document.getElementById('wk-title').textContent = S.viewing
+    ? '✏️ ' + (getLang()==='he' ? 'עריכת שגרה ' : 'Edit Routine ') + S.rid
+    : t('routine-' + S.rid.toLowerCase());
   const backBtn = document.getElementById('wk-back-btn');
-  if (backBtn) backBtn.textContent = S.viewing ? '✓ Done' : '← Back';
+  if (backBtn) backBtn.textContent = S.viewing ? t('done-btn') : t('back');
+  const finBtn = document.getElementById('wk-finish-all-btn');
+  if (finBtn) finBtn.textContent = t('finish-workout');
   document.getElementById('wk-finish-all-btn').style.background = ac();
   document.getElementById('wk-finish-all-btn').style.display = S.viewing ? 'none' : '';
   document.getElementById('wk-fill').style.background = ac();
@@ -2521,13 +2841,13 @@ function buildCard(ex, i) {
   const mach = `<div class="ec-machine">
     <span style="font-size:11px">📍</span>
     <input class="ec-machine-inp" id="mx${i}" style="color:${color}"
-      value="${machVal}" placeholder="machine / bench / location"
+      value="${machVal}" placeholder="${t('machine-placeholder')}"
       onclick="event.stopPropagation()"
       oninput="saveMachine(${i},this.value)">
   </div>`;
-  const keyBadge = ex.key ? `<span class="mtag-key">🔥 Key</span>` : '';
+  const keyBadge = ex.key ? `<span class="mtag-key">${t('key-badge')}</span>` : '';
   const tags = (ex.muscles||[]).map(m =>
-    `<span class="mtag">${MUSCLE_LABELS[m]||m}</span>`
+    `<span class="mtag">${tM(m)}</span>`
   ).join('');
 
   // ── Expanded section: all sets + comment ──
@@ -2552,7 +2872,7 @@ function buildCard(ex, i) {
           <div class="sr-line">
             <span class="sr-num">S${si+1}</span>
             <input class="sr-w${focCls}" id="iw${i}_${si}" type="text" inputmode="decimal"
-              placeholder="kg" value="${defW}"
+              placeholder="${t('kg-placeholder')}" value="${defW}"
               onfocus="this.setSelectionRange(this.value.length,this.value.length)"
               oninput="liveSave(${i},${si},'w',this.value)">
             <span class="sr-x">×</span>
@@ -2565,22 +2885,22 @@ function buildCard(ex, i) {
               oninput="saveSetNote(${i},${si},this.value)">
             ${S.viewing ? '' : `<button class="set-ck${ckCls}" onclick="toggleSet(${i},${si})">${ckIcon}</button>`}
           </div>
-          ${!set.done && prevW!==null ? `<div class="sr-prev">Last: <strong>${displayWeight(prevW)}${!isBW(String(prevW))?' kg':''}</strong></div>` : ''}
+          ${!set.done && prevW!==null ? `<div class="sr-prev">${t('last-label')} <strong>${displayWeight(prevW)}${!isBW(String(prevW))?' kg':''}</strong></div>` : ''}
         </div>`;
     }).join('');
 
     const allExDone = ses.sets.every(s=>s.done);
     const compExBtn = S.viewing ? '' : (allExDone
       ? `<button class="complete-ex-btn" style="background:var(--card2);color:var(--txt2);border:1px solid var(--border)"
-           onclick="undoExercise(${i})">↩ Undo — mark as not done</button>`
+           onclick="undoExercise(${i})">${t('undo-exercise')}</button>`
       : `<button class="complete-ex-btn" style="background:${color}"
-           onclick="completeExercise(${i})">✓ Mark all sets done</button>`);
+           onclick="completeExercise(${i})">${t('mark-all-done')}</button>`);
     expandHtml = `
       <div class="ec-expand open">
         ${compExBtn}
         <div class="sr-tools">
           <button class="sr-slash" onclick="insertSlash('iw${i}_0')">/</button>
-          <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">Copy first to all</button>
+          <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">${t('copy-first-to-all')}</button>
         </div>
         <div class="set-list">${setRows}</div>
       </div>`;
@@ -2601,10 +2921,10 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
-        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">Rest:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
-        ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 Last increase: ${new Date(u.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
+        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
+        ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 ${t('last-increase')} ${new Date(u.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
-          placeholder="note..."
+          placeholder="${t('note-placeholder')}"
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
           onclick="event.stopPropagation()"
           oninput="saveComment(${i},this.value)">
@@ -2871,11 +3191,11 @@ function finish() {
   const dur  = Math.round((S.session.endTime-S.session.startTime)/60000);
   const sets = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
   document.getElementById('done-sub').textContent =
-    `Routine ${S.rid} · ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+    `${t('routine-'+S.rid.toLowerCase())} · ${new Date().toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric',year:'numeric'})}`;
   document.getElementById('done-stats').innerHTML = `
-    <div class="d-row"><span class="d-lbl">Duration</span><span class="d-val">${dur} min</span></div>
-    <div class="d-row"><span class="d-lbl">Exercises</span><span class="d-val">${S.session.exercises.length}</span></div>
-    <div class="d-row"><span class="d-lbl">Sets logged</span><span class="d-val">${sets}</span></div>`;
+    <div class="d-row"><span class="d-lbl">${t('duration')}</span><span class="d-val">${dur} ${t('min')}</span></div>
+    <div class="d-row"><span class="d-lbl">${t('exercises-label')}</span><span class="d-val">${S.session.exercises.length}</span></div>
+    <div class="d-row"><span class="d-lbl">${t('sets-logged')}</span><span class="d-val">${sets}</span></div>`;
   show('done');
 }
 
@@ -2917,11 +3237,11 @@ function histRender() {
   const d = get();
   const all = [...d.sessions].sort((a,b)=>b.id-a.id);
   const el  = document.getElementById('hist-body');
-  if (!all.length) { el.innerHTML='<div class="no-hist">No workouts yet 💪<br>Start your first session!</div>'; return; }
+  if (!all.length) { el.innerHTML=`<div class="no-hist">${t('no-workouts')}<br>${t('start-first')}</div>`; return; }
   el.innerHTML = all.map((s,i)=>{
-    const date   = new Date(s.id).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    const date   = new Date(s.id).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
     const durMin = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
-    const durTxt = durMin ? durMin+' min' : '—';
+    const durTxt = durMin ? durMin+' '+t('min') : '—';
     const tot    = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
     const sessId = s.id;
     const editing = _editHistId === sessId;
@@ -2934,7 +3254,7 @@ function histRender() {
         if (!ds.length) return '';
         const rows = ds.map((x,j)=>`
           <div class="hi-edit-row">
-            <span class="hi-edit-lbl">Set ${j+1}</span>
+            <span class="hi-edit-lbl">${t('set-num')} ${j+1}</span>
             <input class="hi-edit-inp" id="hw-${sessId}-${ei}-${j}" type="text"
               inputmode="decimal" value="${x.w!=null?x.w:''}" placeholder="kg">
             <span class="hi-edit-sep">×</span>
@@ -2948,11 +3268,11 @@ function histRender() {
       }).join('');
       detailHtml = `
         <div class="hi-edit-actions">
-          <button class="hi-edit-save" onclick="saveHistEdit(${sessId})">✓ Save</button>
-          <button class="hi-edit-cancel" onclick="cancelHistEdit()">✕ Cancel</button>
+          <button class="hi-edit-save" onclick="saveHistEdit(${sessId})">✓ ${t('saved')}</button>
+          <button class="hi-edit-cancel" onclick="cancelHistEdit()">✕</button>
         </div>
         <div class="hi-edit-dur-row">
-          <span>Duration</span>
+          <span>${t('duration')}</span>
           <input id="hdur-${sessId}" type="number" inputmode="numeric"
             value="${durMin||''}" placeholder="min" min="1" max="600">
           <span>min</span>
@@ -2967,7 +3287,7 @@ function histRender() {
           <div class="hi-en he">${ex.name}</div>
           <div class="hi-sets">${ds.map((x,j)=>{
             const wDisp = displayWeight(x.w)||'?';
-            return `<span class="hi-pill">Set ${j+1}: ${wDisp} \u00d7 ${x.r||'?'}</span>`;
+            return `<span class="hi-pill">${t('set-num')} ${j+1}: ${wDisp} \u00d7 ${x.r||'?'}</span>`;
           }).join('')}</div>
           ${ex.comment ? `<div class="hi-comment">💬 ${ex.comment}</div>` : ''}
         </div>`;
@@ -2976,14 +3296,14 @@ function histRender() {
 
     return `<div class="si">
       <div class="si-top" onclick="${editing?'':('toggleHist('+i+')')}">
-        <span class="si-r">Routine ${s.routine}</span>
+        <span class="si-r">${t('routine-'+s.routine.toLowerCase())}</span>
         <span style="display:flex;align-items:center;gap:4px">
           <span class="si-dt">${date}</span>
           <button class="hi-edit-btn" onclick="event.stopPropagation();editHist(${sessId},${i})" title="Edit session">✏️</button>
           <button class="hi-del" onclick="event.stopPropagation();deleteSession(${sessId})">🗑</button>
         </span>
       </div>
-      <div class="si-m">${tot} sets · ${durTxt}</div>
+      <div class="si-m">${tot} ${t('sets')} · ${durTxt}</div>
       <div class="si-detail${editing?' open':''}" id="hd${i}">${detailHtml}</div>
     </div>`;
   }).join('');
