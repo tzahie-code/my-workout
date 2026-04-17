@@ -795,9 +795,6 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <button class="settings-btn" onclick="authSignOut()" style="color:var(--red)" data-t="sign-out">→ Sign Out</button>
         </div>
         <div class="settings-row">
-          <button class="settings-btn" onclick="showSyncCode()" data-t="sync-btn">🔑 Sync / Change device</button>
-        </div>
-        <div class="settings-row">
           <button class="settings-btn" onclick="forceUpdate()" data-t="update-btn">↻ Update App</button>
           <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
           <script>
@@ -1766,6 +1763,7 @@ function goHome() {
   homeUpdate(); show('home');
 }
 function forceUpdate() {
+  localStorage.setItem('mwReloading', '1'); // tells init to skip auth screen
   clearCurrentSession();
   const bust = () => {
     // Navigate to a cache-busting URL — forces a completely fresh file load
@@ -3747,11 +3745,18 @@ async function exportProgramPDF(routines, programName) {
 let _appInited = false;
 
 function _onSession(session) {
-  // Update user ID to the auth user so Supabase data is per-account
   localStorage.setItem('mwUserId', 'auth-' + session.user.id);
-  // Show signed-in email in Settings
   const emailEl = document.getElementById('auth-user-email');
   if (emailEl) emailEl.textContent = session.user.email || '';
+}
+
+// If user triggered a force-update while inside the app, skip the auth
+// screen entirely and go straight to home after reload
+if (localStorage.getItem('mwReloading')) {
+  localStorage.removeItem('mwReloading');
+  document.getElementById('screen-auth').classList.remove('active');
+  document.getElementById('screen-home').classList.add('active');
+  _appInited = true; // onAuthStateChange will still init properly below
 }
 
 getSb().auth.onAuthStateChange(async (event, session) => {
@@ -3771,6 +3776,10 @@ getSb().auth.onAuthStateChange(async (event, session) => {
       } else {
         show('home'); // removes auth + shows home in one step
       }
+    } else if (_appInited && event === 'INITIAL_SESSION') {
+      // Force-reload case: session confirmed, now run initApp properly
+      try { await initApp(); } catch(e) { console.error(e); }
+      if (!S.session) show('home');
     }
   } else {
     _appInited = false;
