@@ -1001,6 +1001,16 @@ const HE_MUSCLE_LABELS = {
   quad:'ארבע ראשי', hamstring:'ירך אחורית', glute:'ישבן', calf:'שוק'
 };
 
+const HE_ROUTINE_LABELS = {
+  'Legs, Back & Abs':        'רגליים, גב ובטן',
+  'Chest, Shoulders & Arms': 'חזה, כתפיים וידיים',
+};
+function tLabel(label) {
+  if (!label) return '';
+  if (getLang() !== 'he') return label;
+  return HE_ROUTINE_LABELS[label] || label;
+}
+
 const HE_EXERCISE_NAMES = {
   'Barbell Bench Press':'לחיצת חזה עם מוט',
   'Incline Dumbbell Press':'לחיצת חזה בשיפוע',
@@ -2839,9 +2849,9 @@ function homeUpdate() {
   // Update routine card names from active ROUTINES
   if(document.getElementById('rc-name-a')) {
     document.getElementById('rc-name-a').textContent = t('routine-a');
-    document.getElementById('rc-desc-a').textContent = (ROUTINES.A.label||'') + ' · ' + ROUTINES.A.exercises.length + ' ' + t('exercises-count');
+    document.getElementById('rc-desc-a').textContent = tLabel(ROUTINES.A.label||'') + ' · ' + ROUTINES.A.exercises.length + ' ' + t('exercises-count');
     document.getElementById('rc-name-b').textContent = t('routine-b');
-    document.getElementById('rc-desc-b').textContent = (ROUTINES.B.label||'') + ' · ' + ROUTINES.B.exercises.length + ' ' + t('exercises-count');
+    document.getElementById('rc-desc-b').textContent = tLabel(ROUTINES.B.label||'') + ' · ' + ROUTINES.B.exercises.length + ' ' + t('exercises-count');
   }
   const _locale = getLang() === 'he' ? 'he-IL' : 'en-US';
   document.getElementById('home-date').textContent =
