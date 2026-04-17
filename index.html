@@ -7,6 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>My Workout</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
@@ -414,6 +415,13 @@
 .prog-btn { font-size:12px; font-weight:700; border:none; border-radius:8px;
   padding:6px 12px; cursor:pointer; white-space:nowrap; font-family:inherit; }
 .prog-btn:active { opacity:.7; }
+.prog-share-btn { background:none; border:1px solid var(--border); border-radius:8px; padding:6px 9px;
+  font-size:15px; cursor:pointer; color:var(--txt2); line-height:1; font-family:inherit; }
+.prog-share-btn:active { background:var(--border); }
+.pdf-loading { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; z-index:9999; gap:12px; color:#fff; font-size:16px; font-weight:600; }
+.pdf-spinner { width:36px; height:36px; border:3px solid rgba(255,255,255,.2);
+  border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
 .builder-name-row { background:var(--card); padding:14px 16px; border-bottom:1px solid var(--border); }
 .builder-name-inp { font-size:20px; font-weight:800; width:100%; border:none; outline:none;
   background:transparent; color:var(--txt); border-bottom:2px solid var(--border); padding:4px 0;
@@ -1303,6 +1311,7 @@ function programsRender() {
       <div class="prog-actions">
         <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border)" onclick="showBuilder('active')">Edit</button>
         <button class="prog-btn" style="background:var(--bg);color:var(--txt2);border:1px solid var(--border)" onclick="copyActiveToDraft()">Copy to Draft</button>
+        <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDF(ROUTINES, getCurrentProgramName())">📤</button>
       </div>
     </div>`;
 
@@ -1321,6 +1330,7 @@ function programsRender() {
         <div style="display:flex;gap:5px">
           <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border);flex:1" onclick="showBuilder('draft')">Edit</button>
           <button class="prog-btn" style="background:#ff3b30;color:white" onclick="discardDraft()">Discard</button>
+          <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDF(getDraft().routines, getDraft().name)">📤</button>
         </div>
       </div>
     </div>` : `
@@ -1340,6 +1350,7 @@ function programsRender() {
         <div class="prog-actions">
           <button class="prog-btn" style="background:var(--b);color:white" onclick="restoreProgram(${a.id})">Restore</button>
           <button class="prog-btn" style="background:var(--bg);color:#ff3b30;border:1px solid var(--border)" onclick="deleteArchive(${a.id})">Delete</button>
+          <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDFById(${a.id})">📤</button>
         </div>
       </div>
     `).join('')}` : '';
@@ -2916,6 +2927,177 @@ function deleteSession(id) {
   homeUpdate();
 }
 
+
+// ════════════════════════════════════
+// PDF EXPORT
+// ════════════════════════════════════
+function exportProgramPDFById(archiveId) {
+  const a = getArchives().find(x => x.id === archiveId);
+  if (a) exportProgramPDF(a.routines, a.name);
+}
+
+async function loadImgDataUrl(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/jpeg', 0.85));
+      } catch(e) { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function exportProgramPDF(routines, programName) {
+  if (!window.jspdf) { alert('PDF library not loaded. Please check your connection and try again.'); return; }
+
+  // Show loading spinner
+  const loader = document.createElement('div');
+  loader.className = 'pdf-loading';
+  loader.innerHTML = '<div class="pdf-spinner"></div><div>Building PDF…</div>';
+  document.body.appendChild(loader);
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const PW = 210, PH = 297, ML = 13, MR = 13, CW = PW - ML - MR;
+
+    // Pre-load all images in parallel
+    const imgCache = {};
+    const allNames = [...(routines.A?.exercises||[]), ...(routines.B?.exercises||[])].map(e=>e.name);
+    await Promise.all([...new Set(allNames)].map(async name => {
+      const src = EX_IMGS[name];
+      if (src) imgCache[name] = await loadImgDataUrl(src);
+    }));
+
+    // ── COVER HEADER ──
+    doc.setFillColor(17, 17, 20);
+    doc.rect(0, 0, PW, 38, 'F');
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(120,120,135);
+    doc.text('MY WORKOUT', ML, 11);
+    const exportDate = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    doc.text(`Exported ${exportDate}`, PW - MR, 11, { align:'right' });
+    doc.setFontSize(20); doc.setFont('helvetica','bold'); doc.setTextColor(242,242,247);
+    doc.text(programName || 'My Program', ML, 24);
+    const countA = routines.A?.exercises?.length || 0, countB = routines.B?.exercises?.length || 0;
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(142,142,154);
+    doc.text(`Routine A: ${countA} exercises  ·  Routine B: ${countB} exercises`, ML, 32);
+
+    let y = 44;
+    const ACCENT = { A:[255,107,53], B:[77,142,248] };
+    const LABEL  = { A:'Routine A', B:'Routine B' };
+
+    for (const rid of ['A','B']) {
+      const exList = routines[rid]?.exercises || [];
+      if (!exList.length) continue;
+
+      // Need new page for routine header?
+      if (y + 12 > PH - 14) { doc.addPage(); y = 14; }
+
+      // Routine header bar
+      const [r,g,b] = ACCENT[rid];
+      doc.setFillColor(r,g,b);
+      doc.roundedRect(ML, y, CW, 9, 2, 2, 'F');
+      doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+      doc.text(`${LABEL[rid]}  —  ${exList.length} exercises`, ML+4, y+6.2);
+      y += 13;
+
+      const prefs = getPrefs();
+
+      for (const ex of exList) {
+        const cardH = 27;
+        if (y + cardH > PH - 10) { doc.addPage(); y = 14; }
+
+        // Card background
+        doc.setFillColor(245, 245, 248);
+        doc.roundedRect(ML, y, CW, cardH - 2, 2.5, 2.5, 'F');
+
+        // Image
+        const imgData = imgCache[ex.name];
+        if (imgData) {
+          try { doc.addImage(imgData, 'JPEG', ML + 2, y + 1, 23, 23); }
+          catch(e) { /* skip broken image */ }
+        } else {
+          doc.setFillColor(210,210,218);
+          doc.roundedRect(ML+2, y+1, 23, 23, 2, 2, 'F');
+        }
+
+        const tx = ML + 28;
+
+        // Exercise name
+        doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(20,20,28);
+        doc.text(ex.name, tx, y + 6.5);
+
+        // Muscles
+        const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
+        if (lib?.muscles?.length) {
+          const mText = lib.muscles.map(m => MUSCLE_LABELS[m]||m).join('  ·  ');
+          doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(120,120,135);
+          doc.text(mText, tx, y + 11.5);
+        }
+
+        // Sets · reps · weight
+        const setsCount = ex.sets?.length || 0;
+        const repsSet = [...new Set((ex.sets||[]).map(s=>s.r).filter(Boolean))];
+        const wtSet   = [...new Set((ex.sets||[]).map(s=>s.w).filter(w=>w&&w!==''))];
+        const repsStr = repsSet.length ? repsSet.join('/') + ' reps' : '';
+        const wtStr   = wtSet.length   ? wtSet.join('/') + ' kg' : '';
+        const restStr = (prefs.rest && prefs.rest[ex.name]) ? `Rest ${prefs.rest[ex.name]}` : '';
+        const statsArr = [`${setsCount} sets`, repsStr, wtStr, restStr].filter(Boolean);
+        doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(55,55,68);
+        doc.text(statsArr.join('   '), tx, y + 17.5);
+
+        // Machine / notes
+        if (ex.machine) {
+          doc.setFontSize(7.5); doc.setFont('helvetica','italic'); doc.setTextColor(140,140,155);
+          const noteText = String(ex.machine).substring(0,70);
+          doc.text(noteText, tx, y + 22.5);
+        }
+
+        // Separator line
+        doc.setDrawColor(220,220,228); doc.setLineWidth(0.3);
+        doc.line(ML, y + cardH - 1, ML + CW, y + cardH - 1);
+
+        y += cardH;
+      }
+      y += 6;
+    }
+
+    // ── Footer on each page ──
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,170);
+      doc.text(`${programName || 'My Program'}  ·  Page ${i} of ${pageCount}`, PW/2, PH-5, {align:'center'});
+    }
+
+    // ── Share or download ──
+    const fileName = (programName || 'Workout').replace(/[^a-z0-9]/gi,'_') + '.pdf';
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], fileName, { type:'application/pdf' });
+
+    if (navigator.canShare && navigator.canShare({ files:[file] })) {
+      await navigator.share({ files:[file], title: programName || 'My Workout' });
+    } else {
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+    }
+  } catch(err) {
+    console.error('PDF export error:', err);
+    alert('Could not generate PDF. Please try again.');
+  } finally {
+    document.body.removeChild(loader);
+  }
+}
 
 // ════════════════════════════════════
 // INIT
