@@ -471,6 +471,14 @@
 .builder-key-btn { background:none; border:none; font-size:17px; cursor:pointer;
   padding:2px 4px; flex-shrink:0; line-height:1; opacity:.3; }
 .builder-key-btn.active { opacity:1; }
+/* Builder variant row */
+.builder-var-row { display:flex; align-items:center; gap:4px; margin-top:3px; }
+.builder-var-lbl { font-size:10px; color:var(--b); font-weight:600; }
+.builder-var-rm  { background:none; border:none; color:var(--txt3); font-size:11px;
+  cursor:pointer; padding:0 2px; opacity:.6; font-family:inherit; }
+.builder-var-add { background:none; border:1px dashed var(--border); border-radius:6px;
+  color:var(--txt3); font-size:10px; cursor:pointer; padding:2px 7px; margin-top:3px;
+  font-family:inherit; display:inline-block; }
 .builder-add-btn { display:block; width:100%; padding:15px; border:2px dashed var(--border);
   border-radius:var(--r); background:transparent; font-size:15px; font-weight:700;
   color:var(--txt2); cursor:pointer; font-family:inherit; }
@@ -1011,6 +1019,8 @@ const TRANSLATIONS = {
     'reorder':'↕ Reorder Exercises','done-reorder':'✓ Done Reordering',
     'add-exercise-picker':'Add Exercise','find-substitute':'Find Substitute',
     'current-exercise':'(current)','replacing':'⇄ Replacing:',
+    'add-variant':'+ Add variant','pick-variant-picker':'Pick Variant Exercise',
+    'variant-for':'Variant for:','remove-variant':'Remove variant',
     'set-label':'S','set-num':'Set',
   },
   he: {
@@ -1058,6 +1068,8 @@ const TRANSLATIONS = {
     'reorder':'שינוי סדר ↕','done-reorder':'סיום שינוי סדר ✓',
     'add-exercise-picker':'הוסף תרגיל','find-substitute':'מצא תחליף',
     'current-exercise':'(נוכחי)','replacing':'⇄ מחליף:',
+    'add-variant':'+ הוסף חלופה','pick-variant-picker':'בחר תרגיל חלופי',
+    'variant-for':'חלופה עבור:','remove-variant':'הסר חלופה',
     'set-label':'ס׳','set-num':'סט',
   }
 };
@@ -1918,6 +1930,9 @@ function builderRenderTab() {
         <div class="builder-ex-text">
           <div class="builder-ex-name">${escHtml(ex.name)}</div>
           <div class="builder-ex-muscles">${escHtml(muscles)}</div>
+          ${ex.variants
+            ? `<div class="builder-var-row"><span class="builder-var-lbl">⇄ ${escHtml(tEx(ex.variants[1]))}</span><button class="builder-var-rm" title="${t('remove-variant')}" onclick="event.stopPropagation();builderRemoveVariant('${rid}',${idx})">✕</button></div>`
+            : `<button class="builder-var-add" onclick="event.stopPropagation();openVariantPicker('${rid}',${idx})">${t('add-variant')}</button>`}
         </div>
         <div class="builder-sets-ctrl">
           <button class="builder-sets-btn" onclick="builderAdjSets('${rid}',${idx},-1)">−</button>
@@ -2003,6 +2018,27 @@ function builderToggleKey(rid, idx) {
 
 // _builderSubstIdx: index of exercise being substituted (null = add mode)
 let _builderSubstIdx = null;
+// _builderVariantIdx: index of exercise we're adding a variant for (null = not in variant mode)
+let _builderVariantIdx = null;
+
+function openVariantPicker(rid, idx) {
+  _builderPickRid = rid;
+  _builderSubstIdx = null;
+  _builderVariantIdx = idx;
+  const exName = _builderState[rid].exercises[idx].name;
+  const exMuscles = _builderState[rid].exercises[idx].muscles || [];
+  _pickerFilter = exMuscles[0] || null;
+  document.getElementById('picker-title').textContent = t('pick-variant-picker');
+  const banner = document.getElementById('picker-sub-banner');
+  banner.textContent = t('variant-for') + ' ' + exName;
+  banner.classList.add('active');
+  _openPickerSheet();
+}
+
+function builderRemoveVariant(rid, idx) {
+  delete _builderState[rid].exercises[idx].variants;
+  builderRenderTab();
+}
 let _pickerSearch = '';
 
 function _openPickerSheet() {
@@ -2111,6 +2147,7 @@ function closeBuilderPicker(e) {
   document.getElementById('picker-wrap').classList.remove('active');
   _builderPickRid = null;
   _builderSubstIdx = null;
+  _builderVariantIdx = null;
 }
 
 function pickerSearchInput(val) {
@@ -2186,6 +2223,16 @@ function builderPickEx(libIdx) {
     };
     document.getElementById('picker-wrap').classList.remove('active');
     _builderPickRid = null; _builderSubstIdx = null;
+    builderRenderTab();
+    return;
+  }
+
+  if (_builderVariantIdx !== null) {
+    // Variant mode — attach this exercise as the swappable alternative
+    const mainEx = _builderState[rid].exercises[_builderVariantIdx];
+    mainEx.variants = [mainEx.name, ex.name];
+    document.getElementById('picker-wrap').classList.remove('active');
+    _builderPickRid = null; _builderVariantIdx = null;
     builderRenderTab();
     return;
   }
@@ -2930,7 +2977,7 @@ function buildCard(ex, i) {
             oninput="saveExName('${S.rid}',${i},this.value)">
           ${keyBadge}
         </div>
-        ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
+        ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${tEx(otherName)}</button>` : ''}
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
         ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
