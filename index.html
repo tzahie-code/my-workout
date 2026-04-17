@@ -529,6 +529,32 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 .picker-card-muscles { font-size:11px; color:var(--txt2); margin-top:2px; }
 .picker-spacer { height:20px; }
 
+  /* ── AUTH SCREEN ── */
+  .auth-wrap { display:flex; flex-direction:column; align-items:center;
+    justify-content:center; min-height:100vh; padding:40px 24px; }
+  .auth-form { width:100%; max-width:320px; }
+  .auth-logo { font-size:58px; text-align:center; margin-bottom:8px; }
+  .auth-headline { font-size:28px; font-weight:800; text-align:center; margin-bottom:4px; }
+  .auth-sub { font-size:14px; color:var(--txt2); text-align:center; margin-bottom:32px; }
+  .auth-inp { display:block; width:100%; padding:14px 16px; border-radius:12px;
+    border:1.5px solid var(--border); background:var(--card); color:var(--txt);
+    font-size:16px; font-family:inherit; margin-bottom:10px; outline:none;
+    transition:border-color .15s; }
+  .auth-inp:focus { border-color:var(--b); }
+  .auth-msg { font-size:13px; min-height:18px; margin-bottom:10px; text-align:center; }
+  .auth-btn { display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:15px; border-radius:14px; border:none; font-size:16px;
+    font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:10px;
+    transition:opacity .15s; }
+  .auth-btn:active { opacity:.8; }
+  .auth-btn:disabled { opacity:.45; cursor:wait; }
+  .auth-primary   { background:var(--b); color:#fff; }
+  .auth-secondary { background:var(--card2); color:var(--txt2); border:1.5px solid var(--border); }
+  .auth-google    { background:#fff; color:#1a1a1a; }
+  .auth-sep { display:flex; align-items:center; gap:10px; color:var(--txt2);
+    font-size:12px; margin:2px 0 12px; }
+  .auth-sep::before,.auth-sep::after { content:''; flex:1; height:1px; background:var(--border); }
+
   /* ── LANGUAGE / RTL ── */
   html[dir="rtl"] .sr-prev { padding-left: 0; padding-right: 26px; }
   html[dir="rtl"] .picker-search {
@@ -580,8 +606,34 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 <body>
 <div id="app">
 
+  <!-- AUTH -->
+  <div id="screen-auth" class="screen active">
+    <div class="auth-wrap">
+      <div class="auth-logo">💪</div>
+      <div class="auth-headline">My Workout</div>
+      <div class="auth-sub">Sign in to continue</div>
+      <div class="auth-form">
+        <input id="auth-email"    type="email"    class="auth-inp" placeholder="Email"    autocomplete="email">
+        <input id="auth-password" type="password" class="auth-inp" placeholder="Password" autocomplete="current-password">
+        <div id="auth-msg" class="auth-msg"></div>
+        <button id="auth-signin-btn" class="auth-btn auth-primary"   onclick="authSignIn()">Sign In</button>
+        <button id="auth-signup-btn" class="auth-btn auth-secondary" onclick="authSignUp()">Create Account</button>
+        <div class="auth-sep"><span>or</span></div>
+        <button id="auth-google-btn" class="auth-btn auth-google" onclick="authGoogle()">
+          <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908C16.658 14.251 17.64 11.943 17.64 9.2Z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- HOME -->
-  <div id="screen-home" class="screen active">
+  <div id="screen-home" class="screen">
     <div class="home-hd">
       <h1 data-t="app-title">My Workout 💪</h1>
       <div class="dt" id="home-date"></div>
@@ -738,6 +790,10 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
       </div>
       <div class="settings-section">
         <div class="settings-title" data-t="account-data">Account &amp; Data</div>
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:2px">
+          <span id="auth-user-email" style="font-size:12px;color:var(--txt2)"></span>
+          <button class="settings-btn" onclick="authSignOut()" style="color:var(--red)" data-t="sign-out">→ Sign Out</button>
+        </div>
         <div class="settings-row">
           <button class="settings-btn" onclick="showSyncCode()" data-t="sync-btn">🔑 Sync / Change device</button>
         </div>
@@ -852,6 +908,52 @@ function getUserId() {
   return id;
 }
 function getSyncCode() { return getUserId().replace('mw-', ''); }
+
+// ════════════════════════════════════
+// AUTH
+// ════════════════════════════════════
+function _setAuthMsg(msg, isErr) {
+  const el = document.getElementById('auth-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--green)';
+}
+function _setAuthBusy(on) {
+  ['auth-signin-btn','auth-signup-btn','auth-google-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = on;
+  });
+}
+async function authSignIn() {
+  const email = (document.getElementById('auth-email').value || '').trim();
+  const pass  =  document.getElementById('auth-password').value || '';
+  if (!email || !pass) return _setAuthMsg('Please enter email and password', true);
+  _setAuthBusy(true);
+  const { error } = await getSb().auth.signInWithPassword({ email, password: pass });
+  _setAuthBusy(false);
+  if (error) _setAuthMsg(error.message, true);
+}
+async function authSignUp() {
+  const email = (document.getElementById('auth-email').value || '').trim();
+  const pass  =  document.getElementById('auth-password').value || '';
+  if (!email || !pass) return _setAuthMsg('Please enter email and password', true);
+  if (pass.length < 6) return _setAuthMsg('Password must be at least 6 characters', true);
+  _setAuthBusy(true);
+  const { error } = await getSb().auth.signUp({ email, password: pass });
+  _setAuthBusy(false);
+  if (error) _setAuthMsg(error.message, true);
+  else _setAuthMsg('Check your email to confirm your account ✉️');
+}
+async function authGoogle() {
+  const { error } = await getSb().auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin }
+  });
+  if (error) _setAuthMsg(error.message, true);
+}
+async function authSignOut() {
+  await getSb().auth.signOut();
+}
 
 let _sbTimer = null;
 function sbSaveDebounced() {
@@ -1005,7 +1107,7 @@ const TRANSLATIONS = {
     'alarm-lbl':'Play alarm when timer ends','timer-options':'Timer options',
     'workout-programs':'Workout Programs','manage-programs':'📦 Manage Programs',
     'language':'Language','language-lbl':'App Language',
-    'account-data':'Account & Data','sync-btn':'🔑 Sync / Change device',
+    'account-data':'Account & Data','sync-btn':'🔑 Sync / Change device','sign-out':'→ Sign Out',
     'update-btn':'↻ Update App',
     'search-placeholder':'Search exercise or muscle…',
     'all':'All','no-exercises':'No exercises found',
@@ -1054,7 +1156,7 @@ const TRANSLATIONS = {
     'alarm-lbl':'אזעקה כשהטיימר מסתיים','timer-options':'אפשרויות טיימר',
     'workout-programs':'תוכניות אימון','manage-programs':'📦 ניהול תוכניות',
     'language':'שפה','language-lbl':'שפת האפליקציה',
-    'account-data':'חשבון ונתונים','sync-btn':'🔑 סנכרון / החלפת מכשיר',
+    'account-data':'חשבון ונתונים','sync-btn':'🔑 סנכרון / החלפת מכשיר','sign-out':'→ התנתקות',
     'update-btn':'↻ עדכן אפליקציה',
     'search-placeholder':'חפש תרגיל או שריר...',
     'all':'הכל','no-exercises':'לא נמצאו תרגילים',
@@ -2287,6 +2389,11 @@ function getRestOpts() {
 }
 
 function showSettings() {
+  // Populate signed-in email
+  getSb().auth.getUser().then(({ data: { user } }) => {
+    const el = document.getElementById('auth-user-email');
+    if (el && user) el.textContent = user.email || '';
+  });
   const s = getSettings();
   const toggle = document.getElementById('rest-countdown-toggle');
   if (toggle) {
@@ -3637,7 +3744,31 @@ async function exportProgramPDF(routines, programName) {
 // ════════════════════════════════════
 // INIT
 // ════════════════════════════════════
-initApp();
+let _appInited = false;
+
+function _onSession(session) {
+  // Update user ID to the auth user so Supabase data is per-account
+  localStorage.setItem('mwUserId', 'auth-' + session.user.id);
+  // Show signed-in email in Settings
+  const emailEl = document.getElementById('auth-user-email');
+  if (emailEl) emailEl.textContent = session.user.email || '';
+}
+
+getSb().auth.onAuthStateChange(async (event, session) => {
+  if (session) {
+    _onSession(session);
+    if (!_appInited) {
+      _appInited = true;
+      document.getElementById('screen-auth').classList.remove('active');
+      await initApp();
+      if (!S.session) show('home');
+    }
+  } else {
+    _appInited = false;
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-auth').classList.add('active');
+  }
+});
 </script>
 </body>
 </html>
