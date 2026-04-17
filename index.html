@@ -612,6 +612,16 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         oninput="librarySearchInput(this.value)"
         autocomplete="off" autocorrect="off" spellcheck="false">
     </div>
+    <div class="picker-body-wrap">
+      <div class="picker-body-col">
+        <svg class="picker-bsvg" id="lbsvg-front" width="95" height="190" viewBox="0 0 100 200"></svg>
+        <div class="picker-body-lbl">Front</div>
+      </div>
+      <div class="picker-body-col">
+        <svg class="picker-bsvg" id="lbsvg-back" width="95" height="190" viewBox="0 0 100 200"></svg>
+        <div class="picker-body-lbl">Back</div>
+      </div>
+    </div>
     <div id="library-body"></div>
     <div id="lib-modal" class="lib-modal-wrap" onclick="closeLibDetail(event)">
       <div class="lib-modal-sheet" onclick="event.stopPropagation()">
@@ -1086,6 +1096,7 @@ function showLibrary() {
   show('library');
   const inp = document.getElementById('lib-search');
   if (inp) inp.value = '';
+  _buildLibDiagram();
 }
 
 function librarySearchInput(val) {
@@ -1096,11 +1107,42 @@ function librarySearchInput(val) {
 
 function librarySetFilter(muscle) {
   _libFilter = muscle === _libFilter ? null : muscle;
-  // Clear search text when selecting a muscle chip
   _libSearch = '';
   const inp = document.getElementById('lib-search');
   if (inp) inp.value = '';
+  _syncLibDiagram(_libFilter);
   libraryRender();
+}
+
+function _syncLibDiagram(muscle) {
+  ['lbsvg-front','lbsvg-back'].forEach(id => {
+    const svg = document.getElementById(id);
+    if (!svg) return;
+    svg.querySelectorAll('polygon.bm').forEach(p => {
+      p.classList.toggle('sel', p.dataset.muscle === muscle);
+    });
+  });
+}
+
+function _buildLibDiagram() {
+  const NS = 'http://www.w3.org/2000/svg';
+  [['lbsvg-front', _BODY_ANT], ['lbsvg-back', _BODY_POST]].forEach(([id, data]) => {
+    const svg = document.getElementById(id);
+    if (!svg || svg.childElementCount > 0) return;
+    data.forEach(entry => {
+      entry.p.forEach(pts => {
+        const poly = document.createElementNS(NS, 'polygon');
+        poly.setAttribute('points', pts);
+        poly.classList.add(entry.s ? 'bs' : 'bm');
+        if (!entry.s) {
+          poly.dataset.muscle = entry.m;
+          poly.addEventListener('click', () => librarySetFilter(entry.m === _libFilter ? null : entry.m));
+        }
+        svg.appendChild(poly);
+      });
+    });
+  });
+  _syncLibDiagram(_libFilter);
 }
 
 function libraryRender() {
