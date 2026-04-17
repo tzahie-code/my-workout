@@ -654,7 +654,18 @@
         </div>
         <div class="settings-row">
           <button class="settings-btn" onclick="forceUpdate()">↻ Update App</button>
-          <div style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5">v2026.04.16-b</div>
+          <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
+          <script>
+            (function(){
+              var d = document.lastModified ? new Date(document.lastModified) : new Date();
+              document.getElementById('app-version').textContent =
+                'v' + d.getFullYear() + '.' +
+                String(d.getMonth()+1).padStart(2,'0') + '.' +
+                String(d.getDate()).padStart(2,'0') +
+                ' ' + String(d.getHours()).padStart(2,'0') + ':' +
+                String(d.getMinutes()).padStart(2,'0');
+            })();
+          </script>
         </div>
       </div>
     </div>
@@ -2999,13 +3010,25 @@ async function exportProgramPDF(routines, programName) {
       // Need new page for routine header?
       if (y + 12 > PH - 14) { doc.addPage(); y = 14; }
 
-      // Routine header bar
+      // Collect unique muscles for this routine
+      const routineMuscles = [...new Set(
+        exList.flatMap(ex => (EXERCISE_LIBRARY.find(e=>e.name===ex.name)?.muscles||[]))
+      )].map(m => MUSCLE_LABELS[m]||m).join('  ·  ');
+
+      // Routine header bar (taller if muscles line exists)
       const [r,g,b] = ACCENT[rid];
+      const hdrH = routineMuscles ? 13 : 9;
       doc.setFillColor(r,g,b);
-      doc.roundedRect(ML, y, CW, 9, 2, 2, 'F');
+      doc.roundedRect(ML, y, CW, hdrH, 2, 2, 'F');
       doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
       doc.text(`${LABEL[rid]}  —  ${exList.length} exercises`, ML+4, y+6.2);
-      y += 13;
+      if (routineMuscles) {
+        doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(255,255,255);
+        doc.setGState(new doc.GState({opacity:0.8}));
+        doc.text(routineMuscles, ML+4, y+11);
+        doc.setGState(new doc.GState({opacity:1}));
+      }
+      y += hdrH + 4;
 
       const prefs = getPrefs();
 
