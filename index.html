@@ -3774,48 +3774,57 @@ function _onSession(session) {
   if (emailEl) emailEl.textContent = session.user.email || '';
 }
 
-// If user triggered a force-update while inside the app, skip the auth
-// screen entirely and go straight to home after reload
+function _showAuthForm() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-auth').classList.add('active');
+  const chk = document.getElementById('auth-checking');
+  const frm = document.getElementById('auth-form-wrap');
+  if (chk) chk.style.display = 'none';
+  if (frm) frm.style.display = '';
+}
+
+async function _startApp(session) {
+  _onSession(session);
+  _appInited = true;
+  try { await initApp(); } catch(e) { console.error('initApp error:', e); }
+  if (S.session) {
+    document.getElementById('screen-auth').classList.remove('active');
+  } else {
+    show('home');
+  }
+}
+
+// ── Boot sequence ──────────────────────────────────────────
+// 1. Force-update case: skip auth, go straight to home
 if (localStorage.getItem('mwReloading')) {
   localStorage.removeItem('mwReloading');
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-home').classList.add('active');
-  _appInited = true; // onAuthStateChange will still init properly below
 }
 
+// 2. Explicit getSession() — reliable on iOS Safari PWA
+getSb().auth.getSession().then(({ data: { session } }) => {
+  if (session && !_appInited) {
+    _startApp(session);
+  } else if (!session) {
+    _showAuthForm();
+  }
+}).catch(() => _showAuthForm());
+
+// 3. onAuthStateChange — handles sign-in / sign-out / token refresh
 getSb().auth.onAuthStateChange(async (event, session) => {
-  if (session) {
-    _onSession(session);
-    if (!_appInited) {
-      _appInited = true;
-      // Keep auth screen visible while initApp loads data — no black flash
-      try {
-        await initApp();
-      } catch(e) {
-        console.error('initApp error:', e);
-      }
-      // Switch screens atomically: auth → home (or workout if session restored)
-      if (S.session) {
-        document.getElementById('screen-auth').classList.remove('active');
-      } else {
-        show('home'); // removes auth + shows home in one step
-      }
-    } else if (_appInited && event === 'INITIAL_SESSION') {
-      // Force-reload case: session confirmed, now run initApp properly
-      try { await initApp(); } catch(e) { console.error(e); }
-      if (!S.session) show('home');
-    }
-  } else {
+  if (session && !_appInited) {
+    _startApp(session);
+  } else if (event === 'SIGNED_OUT') {
     _appInited = false;
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-auth').classList.add('active');
-    // No session — hide spinner and reveal the sign-in form
-    const chk = document.getElementById('auth-checking');
-    const frm = document.getElementById('auth-form-wrap');
-    if (chk) chk.style.display = 'none';
-    if (frm) frm.style.display = '';
+    _showAuthForm();
   }
 });
+
+// 4. Safety timeout — if neither fires within 5s, show the form
+setTimeout(() => {
+  if (!_appInited) _showAuthForm();
+}, 5000);
 </script>
 </body>
 </html>
