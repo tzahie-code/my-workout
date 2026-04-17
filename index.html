@@ -2913,7 +2913,7 @@ function buildCard(ex, i) {
       <div class="ec-svg-wrap">${imgHtml}${compBadge}</div>
       <div class="ec-info">
         <div style="display:flex;align-items:center;gap:6px">
-          <input class="ec-name-inp" value="${activeName.replace(/"/g,'&quot;')}"
+          <input class="ec-name-inp" value="${tEx(activeName).replace(/"/g,'&quot;')}"
             onclick="event.stopPropagation()"
             oninput="saveExName('${S.rid}',${i},this.value)">
           ${keyBadge}
