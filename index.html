@@ -3760,7 +3760,11 @@ getSb().auth.onAuthStateChange(async (event, session) => {
     if (!_appInited) {
       _appInited = true;
       document.getElementById('screen-auth').classList.remove('active');
-      await initApp();
+      try {
+        await initApp();
+      } catch(e) {
+        console.error('initApp error:', e);
+      }
       if (!S.session) show('home');
     }
   } else {
