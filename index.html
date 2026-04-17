@@ -223,6 +223,7 @@
       direction: rtl; text-align: left; }
     .rest-row { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; flex-wrap: nowrap; }
     .rest-lbl { font-size: 10px; font-weight: 700; color: var(--txt2); flex-shrink: 0; }
+    .rest-btns { display: flex; gap: 4px; flex-shrink: 0; }
     .rest-opt { font-size: 10px; font-weight: 700; background: var(--card2); color: var(--txt2);
       border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; cursor: pointer; flex-shrink: 0;
       font-family: inherit; }
@@ -552,9 +553,11 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   html[dir="rtl"] #screen-done { direction: rtl; }
   html[dir="rtl"] .lib-filters { direction: rtl; }
   html[dir="rtl"] .picker-filters { direction: rtl; }
-  html[dir="rtl"] .rest-row { direction: ltr; }
-  html[dir="rtl"] .sr-line  { direction: ltr; }
-  html[dir="rtl"] .sr-tools { direction: ltr; }
+  html[dir="rtl"] .rest-row  { direction: rtl; }
+  html[dir="rtl"] .rest-btns { direction: ltr; }   /* keep button order 0:50→2:00 */
+  html[dir="rtl"] .sr-line   { direction: ltr; }
+  html[dir="rtl"] .sr-tools  { direction: ltr; }
+  html[dir="rtl"] .ec-note-inp { text-align: right; }
   html[dir="rtl"] .prog-edit-panel { direction: rtl; }
   html[dir="rtl"] .prog-hist-row { direction: rtl; }
   html[dir="rtl"] .prog-hist-date { text-align: right; }
@@ -2930,7 +2933,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${otherName}</button>` : ''}
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
-        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span>${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</div>`; })()}
+        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
         ${(()=>{ const u=getLastUpscale(ex.name); return u?`<div class="upscale-badge">📈 ${t('last-increase')} ${new Date(u.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="${t('note-placeholder')}"
