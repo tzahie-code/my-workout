@@ -3208,9 +3208,12 @@ function copyWeightToAll(ei, si) {
   const val = document.getElementById('iw'+ei+'_'+si).value;
   if (!val) return;
   const sets = S.session.exercises[ei].sets;
-  // Only copy to undone sets — don't overwrite already-committed weights
-  sets.forEach((set) => { if (!set.done) set._pw = val; });
-  // Persist immediately so a variant switch won't lose these values
+  // Copy to ALL sets in this exercise (done and undone)
+  sets.forEach((set) => {
+    if (set.done) set.w = val;   // update committed value on done sets
+    else          set._pw = val; // update pending value on undone sets
+  });
+  // Persist so a variant switch won't lose these values
   saveLastWeights(activeExName(ei), sets);
   saveCurrentSession();
   wkRender();
