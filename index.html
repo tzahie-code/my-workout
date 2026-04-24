@@ -112,9 +112,22 @@
     .ec { background: var(--card); border-radius: 18px; box-shadow: var(--sh);
       margin-bottom: 10px; overflow: hidden; border: 1.5px solid var(--border);
       transition: border-color .2s, box-shadow .2s; }
-    .ec.comp  { border-color: rgba(48,209,88,.4); box-shadow: 0 4px 24px rgba(48,209,88,.08); }
-    .ec.exp-a { border-color: rgba(255,107,53,.5); box-shadow: 0 4px 24px rgba(255,107,53,.1); }
-    .ec.exp-b { border-color: rgba(77,142,248,.5); box-shadow: 0 4px 24px rgba(77,142,248,.1); }
+    .ec.comp   { border-color: rgba(48,209,88,.4); box-shadow: 0 4px 24px rgba(48,209,88,.08); }
+    .ec.exp-a  { border-color: rgba(255,107,53,.5); box-shadow: 0 4px 24px rgba(255,107,53,.1); }
+    .ec.exp-b  { border-color: rgba(77,142,248,.5); box-shadow: 0 4px 24px rgba(77,142,248,.1); }
+    .ec.inprog { border-left: 3px solid var(--a); animation: inprog-glow 1.8s ease-in-out infinite; }
+    @keyframes inprog-glow {
+      0%,100% { box-shadow: -3px 0 12px rgba(255,107,53,.5); }
+      50%      { box-shadow: -3px 0 4px  rgba(255,107,53,.15); }
+    }
+    .ec-prog-badge { display:inline-flex; align-items:center; gap:5px; margin-left:8px;
+      font-size:11px; font-weight:700; color:var(--a); vertical-align:middle; }
+    .ec-prog-dot { width:7px; height:7px; border-radius:50%; background:var(--a); display:inline-block;
+      animation:prog-pulse 1.4s ease-in-out infinite; }
+    @keyframes prog-pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.25; transform:scale(.65); }
+    }
 
     /* Card top */
     .ec-top { display: flex; align-items: stretch; cursor: pointer; }
@@ -3027,14 +3040,17 @@ function wkRender() {
 
 function buildCard(ex, i) {
   const ses     = S.session.exercises[i];
-  const allDone = ses.sets.every(s=>s.done);
-  const isExp   = S.expanded === i;
-  const color   = ac();
-  const isB     = S.rid==='B';
+  const allDone    = ses.sets.every(s=>s.done);
+  const doneCnt    = ses.sets.filter(s=>s.done).length;
+  const inProgress = !allDone && doneCnt > 0;
+  const isExp      = S.expanded === i;
+  const color      = ac();
+  const isB        = S.rid==='B';
 
   let cls = 'ec';
-  if (allDone)  cls += ' comp';
-  else if(isExp) cls += isB ? ' exp-b' : ' exp-a';
+  if (allDone)              cls += ' comp';
+  else if (isExp)           cls += isB ? ' exp-b' : ' exp-a';
+  else if (inProgress)      cls += ' inprog';
 
   // Variant support (e.g. "Lat Pulldown" vs "Pull Up")
   const variants   = ex.variants || null;
@@ -3145,7 +3161,7 @@ function buildCard(ex, i) {
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
           onclick="event.stopPropagation()"
           oninput="saveComment(${i},this.value)">
-        <div class="ec-row">${dots}</div>
+        <div class="ec-row">${dots}${inProgress && !isExp ? `<span class="ec-prog-badge"><span class="ec-prog-dot"></span>${doneCnt}/${ses.sets.length}</span>` : ''}</div>
       </div>
       ${S.viewing ? '' : `<button class="ec-quick-ck${qkCls}" onclick="event.stopPropagation();quickToggleExercise(${i})">${qkIcon}</button>`}
     </div>
