@@ -3839,6 +3839,10 @@ async function _startApp() {
   } catch(e) { console.warn('Turso load error:', e); }
 
   try { await initApp(); } catch(e) { console.error('initApp error:', e); }
+
+  // Always push local data to Turso on login (first-time upload or refresh)
+  syncToTurso();
+
   if (S.session) {
     document.getElementById('screen-auth').classList.remove('active');
   } else {
