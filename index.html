@@ -544,17 +544,20 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 
   /* ── AUTH SCREEN ── */
   .auth-wrap { display:flex; flex-direction:column; align-items:center;
-    justify-content:center; min-height:100vh; padding:40px 24px; }
-  .auth-form { width:100%; max-width:320px; }
+    justify-content:center; min-height:100vh; padding:40px 24px;
+    /* fixed height prevents layout jumps */
+    box-sizing:border-box; overflow:hidden; }
+  .auth-body { width:100%; max-width:320px; min-height:340px;
+    display:flex; flex-direction:column; align-items:center; }
   .auth-logo { font-size:58px; text-align:center; margin-bottom:8px; }
   .auth-headline { font-size:28px; font-weight:800; text-align:center; margin-bottom:4px; }
-  .auth-sub { font-size:14px; color:var(--txt2); text-align:center; margin-bottom:32px; }
+  .auth-sub { font-size:14px; color:var(--txt2); text-align:center; margin-bottom:24px; }
   .auth-inp { display:block; width:100%; padding:14px 16px; border-radius:12px;
     border:1.5px solid var(--border); background:var(--card); color:var(--txt);
     font-size:16px; font-family:inherit; margin-bottom:10px; outline:none;
-    transition:border-color .15s; }
+    box-sizing:border-box; transition:border-color .15s; }
   .auth-inp:focus { border-color:var(--b); }
-  .auth-msg { font-size:13px; min-height:18px; margin-bottom:10px; text-align:center; }
+  .auth-msg { font-size:13px; min-height:20px; margin-bottom:8px; text-align:center; }
   .auth-btn { display:flex; align-items:center; justify-content:center; gap:8px;
     width:100%; padding:15px; border-radius:14px; border:none; font-size:16px;
     font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:10px;
@@ -562,15 +565,17 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   .auth-btn:active { opacity:.8; }
   .auth-btn:disabled { opacity:.45; cursor:wait; }
   .auth-primary   { background:var(--b); color:#fff; }
-  .auth-secondary { background:var(--card2); color:var(--txt2); border:1.5px solid var(--border); }
-  .auth-google    { background:#fff; color:#1a1a1a; }
+  .auth-secondary { background:var(--card2); color:var(--txt); border:1.5px solid var(--border); font-weight:400; font-size:14px; }
   .auth-sep { display:flex; align-items:center; gap:10px; color:var(--txt2);
-    font-size:12px; margin:2px 0 12px; }
+    font-size:12px; margin:4px 0 12px; width:100%; }
   .auth-sep::before,.auth-sep::after { content:''; flex:1; height:1px; background:var(--border); }
   .auth-spinner { width:36px; height:36px; border:3px solid var(--border);
     border-top-color:var(--b); border-radius:50%;
     animation:auth-spin .8s linear infinite; }
   @keyframes auth-spin { to { transform:rotate(360deg); } }
+  .auth-toggle { font-size:13px; color:var(--txt2); text-align:center;
+    margin-top:4px; cursor:pointer; }
+  .auth-toggle span { color:var(--b); font-weight:600; }
 
   /* ── LANGUAGE / RTL ── */
   html[dir="rtl"] .sr-prev { padding-left: 0; padding-right: 26px; }
@@ -623,13 +628,12 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 <body>
 <div id="app">
 
-  <!-- GIS auto-init (invisible) -->
+  <!-- GIS auto-init (invisible, no One Tap prompt) -->
   <div id="g_id_onload"
        data-client_id="150065779038-59bhrfcjoiup59rhj8ocimspa3pm6s48.apps.googleusercontent.com"
        data-callback="handleGoogleSignIn"
-       data-auto_select="true"
-       data-cancel_on_tap_outside="false"
-       data-itp_support="true">
+       data-auto_select="false"
+       data-skip_prompt_cookie="true">
   </div>
 
   <!-- AUTH -->
@@ -637,13 +641,29 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
     <div class="auth-wrap">
       <div class="auth-logo">💪</div>
       <div class="auth-headline">My Workout</div>
-      <div id="auth-checking" style="margin-top:32px;display:flex;flex-direction:column;align-items:center;gap:12px">
+
+      <!-- Spinner while checking stored session -->
+      <div id="auth-checking" style="margin-top:40px;display:flex;flex-direction:column;align-items:center;gap:12px">
         <div class="auth-spinner"></div>
-        <div style="font-size:13px;color:var(--txt2)">Signing in…</div>
+        <div style="font-size:13px;color:var(--txt2)">Loading…</div>
       </div>
-      <div id="auth-form-wrap" style="display:none;width:100%;max-width:320px;text-align:center">
-        <div class="auth-sub" style="margin-bottom:24px">Sign in to continue</div>
-        <div id="g-signin-btn" style="display:flex;justify-content:center;min-height:44px"></div>
+
+      <!-- Sign-in form -->
+      <div id="auth-form-wrap" style="display:none;width:100%;max-width:320px">
+        <div class="auth-sub" id="auth-mode-title">Sign in to continue</div>
+
+        <input id="auth-email"    type="email"    class="auth-inp" placeholder="Email" dir="ltr" autocomplete="email">
+        <input id="auth-password" type="password" class="auth-inp" placeholder="Password" dir="ltr" autocomplete="current-password">
+        <div id="auth-msg" class="auth-msg"></div>
+
+        <button id="auth-action-btn" class="auth-btn auth-primary" onclick="authEmailAction()">Sign In</button>
+
+        <div class="auth-sep"><span>or</span></div>
+        <div id="g-signin-btn" style="display:flex;justify-content:center;min-height:44px;width:100%"></div>
+
+        <div class="auth-toggle" id="auth-toggle-link" onclick="authToggleMode()" style="margin-top:16px">
+          Don't have an account? <span>Create one</span>
+        </div>
       </div>
     </div>
   </div>
@@ -906,10 +926,57 @@ const GOOGLE_CLIENT_ID = '150065779038-59bhrfcjoiup59rhj8ocimspa3pm6s48.apps.goo
 let _gToken = localStorage.getItem('mw_gtoken') || null; // persisted across sessions
 let _gUser  = JSON.parse(localStorage.getItem('mw_guser') || 'null');
 
-// Called by GIS when sign-in completes (silent or manual)
+let _authMode = 'login'; // 'login' | 'register'
+
+function authToggleMode() {
+  _authMode = _authMode === 'login' ? 'register' : 'login';
+  const isReg = _authMode === 'register';
+  document.getElementById('auth-mode-title').textContent  = isReg ? 'Create an account' : 'Sign in to continue';
+  document.getElementById('auth-action-btn').textContent  = isReg ? 'Create Account' : 'Sign In';
+  document.getElementById('auth-toggle-link').innerHTML   = isReg
+    ? 'Already have an account? <span>Sign in</span>'
+    : "Don't have an account? <span>Create one</span>";
+  document.getElementById('auth-msg').textContent = '';
+  document.getElementById('auth-password').autocomplete = isReg ? 'new-password' : 'current-password';
+}
+
+async function authEmailAction() {
+  const email = (document.getElementById('auth-email').value || '').trim();
+  const pass  =  document.getElementById('auth-password').value || '';
+  const msgEl =  document.getElementById('auth-msg');
+  const btn   =  document.getElementById('auth-action-btn');
+  if (!email || !pass) { msgEl.style.color='var(--red)'; msgEl.textContent='Please enter email and password'; return; }
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res  = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: _authMode, email, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = data.error || 'Something went wrong';
+      btn.disabled = false; btn.textContent = _authMode === 'register' ? 'Create Account' : 'Sign In';
+      return;
+    }
+    // Success — store session token and start app
+    _gToken = data.token;
+    _gUser  = { sub: data.userId, email: data.email };
+    localStorage.setItem('mw_gtoken', _gToken);
+    localStorage.setItem('mw_guser', JSON.stringify(_gUser));
+    localStorage.setItem('mwUserId', data.userId);
+    if (!_appInited) _startApp();
+  } catch(e) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Network error — try again';
+    btn.disabled = false; btn.textContent = _authMode === 'register' ? 'Create Account' : 'Sign In';
+  }
+}
+
+// Called by GIS when Google sign-in completes
 function handleGoogleSignIn(response) {
   _gToken = response.credential;
-  localStorage.setItem('mw_gtoken', _gToken); // persist so app stays logged in
+  localStorage.setItem('mw_gtoken', _gToken);
   try {
     const payload = JSON.parse(atob(_gToken.split('.')[1]));
     _gUser = { sub: payload.sub, email: payload.email, name: payload.name, picture: payload.picture };
@@ -3797,20 +3864,18 @@ let _appInited = false;
 function _showAuthForm() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-auth').classList.add('active');
-  const chk = document.getElementById('auth-checking');
-  const frm = document.getElementById('auth-form-wrap');
-  if (chk) chk.style.display = 'none';
-  if (frm) frm.style.display = '';
-  // Render Google Sign-In button (GIS may or may not be loaded yet)
+  document.getElementById('auth-checking').style.display = 'none';
+  document.getElementById('auth-form-wrap').style.display = '';
+  // Render Google button — no One Tap prompt to prevent layout jumps
   const renderBtn = () => {
     const btnEl = document.getElementById('g-signin-btn');
     if (btnEl && window.google?.accounts?.id) {
-      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignIn });
-      google.accounts.id.renderButton(btnEl, { theme: 'filled_black', size: 'large', text: 'signin_with', width: 280 });
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignIn, auto_select: false });
+      google.accounts.id.renderButton(btnEl, { theme: 'filled_black', size: 'large', text: 'continue_with', width: 280 });
     }
   };
   renderBtn();
-  setTimeout(renderBtn, 800); // retry after GIS loads if it wasn't ready
+  setTimeout(renderBtn, 800);
 }
 
 async function _startApp() {
@@ -3862,22 +3927,9 @@ if (localStorage.getItem('mwReloading')) {
 else if (_gToken) {
   _startApp();
 }
-// 3. No token: need to sign in via GIS
+// 3. No token: show sign-in form (no One Tap prompt — prevents jumping)
 else {
-  const _initGIS = () => {
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleSignIn,
-      auto_select: true,
-      cancel_on_tap_outside: false
-    });
-    google.accounts.id.prompt(n => { if (n.isNotDisplayed() || n.isSkippedMoment()) _showAuthForm(); });
-  };
-  if (window.google?.accounts?.id) _initGIS();
-  else {
-    window.onGoogleLibraryLoad = _initGIS;
-    setTimeout(() => { if (!_appInited) _showAuthForm(); }, 4000);
-  }
+  _showAuthForm();
 }
 </script>
 </body>

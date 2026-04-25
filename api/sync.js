@@ -35,17 +35,37 @@ export default async function handler(req) {
     updated_at INTEGER NOT NULL DEFAULT 0
   )`);
 
-  // ── Verify Google ID token ────────────────────────────────
+  // ── Verify token (Google JWT or email/password session) ──
   const auth    = req.headers.get('authorization') || '';
   const idToken = auth.replace('Bearer ', '').trim();
   if (!idToken) return err('No token', 401);
 
-  const gRes  = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
-  const gUser = await gRes.json();
-  if (!gRes.ok || !gUser.sub) return err('Invalid token', 401);
+  let userId, email;
 
-  const userId = gUser.sub;
-  const email  = gUser.email || '';
+  if (idToken.split('.').length === 3) {
+    // Google ID token (JWT)
+    const gRes  = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    const gUser = await gRes.json();
+    if (!gRes.ok || !gUser.sub) return err('Invalid token', 401);
+    userId = gUser.sub;
+    email  = gUser.email || '';
+  } else {
+    // Email/password session token
+    const sResult = await tursoExec(
+      'SELECT user_id FROM mw_sessions WHERE token = ? AND expires_at > ?',
+      [{ type:'text', value: idToken }, { type:'integer', value: String(Date.now()) }]
+    );
+    const sRows = sResult.results?.[0]?.response?.result?.rows;
+    if (!sRows?.length) return err('Invalid or expired session', 401);
+    userId = sRows[0][0].value;
+    // Get email from users table
+    const uResult = await tursoExec(
+      'SELECT email FROM mw_users WHERE user_id = ?',
+      [{ type:'text', value: userId }]
+    );
+    const uRows = uResult.results?.[0]?.response?.result?.rows;
+    email = uRows?.[0]?.[0]?.value || '';
+  }
 
   // ── GET — load user data ──────────────────────────────────
   if (req.method === 'GET') {
