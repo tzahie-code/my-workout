@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-  <!-- GIS script removed: using redirect-based OAuth2 flow instead -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -999,13 +999,26 @@ async function authEmailAction() {
   }
 }
 
-// (handleGoogleSignIn removed — using redirect flow, callback handled in boot sequence)
+function handleGoogleSignIn(response) {
+  document.getElementById('auth-form-wrap').style.visibility = 'hidden';
+  document.getElementById('auth-checking').style.display     = 'flex';
+  _gToken = response.credential;
+  localStorage.setItem('mw_gtoken', _gToken);
+  try {
+    const payload = JSON.parse(atob(_gToken.split('.')[1]));
+    _gUser = { sub: payload.sub, email: payload.email, name: payload.name, picture: payload.picture };
+    localStorage.setItem('mw_guser', JSON.stringify(_gUser));
+    localStorage.setItem('mwUserId', 'g-' + payload.sub);
+  } catch(e) {}
+  if (!_appInited) _startApp();
+}
 
 function authSignOut() {
   _gToken = null; _gUser = null;
   localStorage.removeItem('mw_gtoken');
   localStorage.removeItem('mw_guser');
   _appInited = false;
+  if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
   _showAuthForm();
 }
 
@@ -3884,20 +3897,17 @@ function _showAuthForm() {
 
 function authGoogleClick() {
   const btn = document.getElementById('auth-google-btn');
+  if (!window.google?.accounts?.id) { alert('Google Sign-In not loaded yet'); return; }
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
-  // Generate random state to prevent CSRF
-  const state = Array.from(crypto.getRandomValues(new Uint8Array(12)),
-    b => b.toString(16).padStart(2, '0')).join('');
-  sessionStorage.setItem('mw_oauth_state', state);
-  // Redirect to Google — no popup, no overlay, just a clean page navigation
-  const redir = location.origin;
-  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
-    client_id:              GOOGLE_CLIENT_ID,
-    redirect_uri:           redir,
-    response_type:          'token',
-    scope:                  'openid email profile',
-    state,
-    include_granted_scopes: 'true',
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleSignIn,
+    auto_select: true
+  });
+  google.accounts.id.prompt(n => {
+    if (n.isNotDisplayed() || n.isSkippedMoment()) {
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    }
   });
 }
 
@@ -3940,27 +3950,8 @@ async function _startApp() {
 }
 
 // ── Boot sequence ──────────────────────────────────────────
-// 0. Returning from Google OAuth2 redirect — pick up the access token
-if (_oauthCallbackToken) {
-  document.getElementById('screen-auth').classList.add('active');
-  document.getElementById('auth-checking').style.display = 'flex';
-  document.getElementById('auth-form-wrap').style.visibility = 'hidden';
-  (async () => {
-    try {
-      const u = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { 'Authorization': 'Bearer ' + _oauthCallbackToken }
-      }).then(r => r.json());
-      _gToken = _oauthCallbackToken;
-      _gUser  = { sub: u.sub, email: u.email, name: u.name, picture: u.picture };
-      localStorage.setItem('mw_gtoken',  _gToken);
-      localStorage.setItem('mw_guser',   JSON.stringify(_gUser));
-      localStorage.setItem('mwUserId',   'g-' + u.sub);
-      _startApp();
-    } catch(e) { _showAuthForm(); }
-  })();
-}
 // 1. Force-update: skip auth
-else if (localStorage.getItem('mwReloading')) {
+if (localStorage.getItem('mwReloading')) {
   localStorage.removeItem('mwReloading');
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-home').classList.add('active');
