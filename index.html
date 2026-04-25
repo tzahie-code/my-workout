@@ -3884,18 +3884,41 @@ function _showAuthForm() {
 
 function authGoogleClick() {
   const btn = document.getElementById('auth-google-btn');
-  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
-  if (!window.google?.accounts?.id) {
-    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  if (!window.google?.accounts?.oauth2) {
+    alert('Google Sign-In not loaded yet — try again in a moment');
     return;
   }
-  google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignIn, auto_select: false });
-  google.accounts.id.prompt(n => {
-    // If One Tap can't show (blocked cookies etc.), re-enable button
-    if (n.isNotDisplayed() || n.isSkippedMoment()) {
-      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+
+  google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'openid email profile',
+    callback: async (tokenResponse) => {
+      if (tokenResponse.error) {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        return;
+      }
+      // Hide form, show spinner while we load the app
+      document.getElementById('auth-form-wrap').style.visibility = 'hidden';
+      document.getElementById('auth-checking').style.display = 'flex';
+      try {
+        // Fetch user info with the access token
+        const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { 'Authorization': 'Bearer ' + tokenResponse.access_token }
+        }).then(r => r.json());
+        _gToken = tokenResponse.access_token;
+        _gUser  = { sub: info.sub, email: info.email, name: info.name, picture: info.picture };
+        localStorage.setItem('mw_gtoken',  _gToken);
+        localStorage.setItem('mw_guser',   JSON.stringify(_gUser));
+        localStorage.setItem('mwUserId',   'g-' + info.sub);
+        if (!_appInited) _startApp();
+      } catch(e) {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        document.getElementById('auth-form-wrap').style.visibility = 'visible';
+        document.getElementById('auth-checking').style.display = 'none';
+      }
     }
-  });
+  }).requestAccessToken();
 }
 
 async function _startApp() {

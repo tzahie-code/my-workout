@@ -42,8 +42,17 @@ export default async function handler(req) {
 
   let userId, email;
 
-  if (idToken.split('.').length === 3) {
-    // Google ID token (JWT)
+  if (idToken.startsWith('ya29.')) {
+    // Google OAuth access token
+    const gRes  = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { 'Authorization': `Bearer ${idToken}` }
+    });
+    const gUser = await gRes.json();
+    if (!gRes.ok || !gUser.sub) return err('Invalid token', 401);
+    userId = gUser.sub;
+    email  = gUser.email || '';
+  } else if (idToken.split('.').length === 3) {
+    // Google ID token (JWT) — legacy
     const gRes  = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
     const gUser = await gRes.json();
     if (!gRes.ok || !gUser.sub) return err('Invalid token', 401);
