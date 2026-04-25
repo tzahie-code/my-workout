@@ -903,13 +903,13 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 // ════════════════════════════════════
 const GOOGLE_CLIENT_ID = '150065779038-59bhrfcjoiup59rhj8ocimspa3pm6s48.apps.googleusercontent.com';
 
-let _gToken = null; // current Google ID token (short-lived, refreshed via GIS)
+let _gToken = localStorage.getItem('mw_gtoken') || null; // persisted across sessions
 let _gUser  = JSON.parse(localStorage.getItem('mw_guser') || 'null');
 
 // Called by GIS when sign-in completes (silent or manual)
 function handleGoogleSignIn(response) {
   _gToken = response.credential;
-  // Decode payload (no need to verify client-side — server verifies)
+  localStorage.setItem('mw_gtoken', _gToken); // persist so app stays logged in
   try {
     const payload = JSON.parse(atob(_gToken.split('.')[1]));
     _gUser = { sub: payload.sub, email: payload.email, name: payload.name, picture: payload.picture };
@@ -921,6 +921,7 @@ function handleGoogleSignIn(response) {
 
 function authSignOut() {
   _gToken = null; _gUser = null;
+  localStorage.removeItem('mw_gtoken');
   localStorage.removeItem('mw_guser');
   _appInited = false;
   if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
@@ -3851,25 +3852,19 @@ async function _startApp() {
 }
 
 // ── Boot sequence ──────────────────────────────────────────
-// 1. Force-update: skip auth, go straight to home
+// 1. Force-update: skip auth
 if (localStorage.getItem('mwReloading')) {
   localStorage.removeItem('mwReloading');
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-home').classList.add('active');
 }
-// 2. GIS silent sign-in: initialize with auto_select so returning users sign in silently
-else if (window.google?.accounts?.id) {
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: handleGoogleSignIn,
-    auto_select: true,
-    cancel_on_tap_outside: false
-  });
-  google.accounts.id.prompt(n => { if (n.isNotDisplayed() || n.isSkippedMoment()) _showAuthForm(); });
+// 2. Stored token: go straight to app — no login screen
+else if (_gToken) {
+  _startApp();
 }
-// 3. GIS not loaded yet — wait for it, or fall back to showing the form
+// 3. No token: need to sign in via GIS
 else {
-  window.onGoogleLibraryLoad = () => {
+  const _initGIS = () => {
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleSignIn,
@@ -3878,8 +3873,11 @@ else {
     });
     google.accounts.id.prompt(n => { if (n.isNotDisplayed() || n.isSkippedMoment()) _showAuthForm(); });
   };
-  // Safety timeout
-  setTimeout(() => { if (!_appInited) _showAuthForm(); }, 4000);
+  if (window.google?.accounts?.id) _initGIS();
+  else {
+    window.onGoogleLibraryLoad = _initGIS;
+    setTimeout(() => { if (!_appInited) _showAuthForm(); }, 4000);
+  }
 }
 </script>
 </body>
