@@ -646,14 +646,16 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
       <div style="position:relative;width:100%;max-width:320px;margin-top:8px">
 
         <!-- Sign-in form — always in layout (visibility toggled, not display) -->
-        <div id="auth-form-wrap" style="visibility:hidden">
+        <div id="auth-form-wrap" dir="ltr" style="visibility:hidden">
           <div class="auth-sub" id="auth-mode-title">Sign in to continue</div>
           <input id="auth-email"    type="email"    class="auth-inp" placeholder="Email"    dir="ltr" autocomplete="email">
           <input id="auth-password" type="password" class="auth-inp" placeholder="Password" dir="ltr" autocomplete="current-password">
           <div id="auth-msg" class="auth-msg"></div>
           <button id="auth-action-btn" class="auth-btn auth-primary" onclick="authEmailAction()">Sign In</button>
           <div class="auth-sep"><span>or</span></div>
-          <div id="g-signin-btn" style="width:280px;height:44px;margin:0 auto;overflow:hidden"></div>
+          <div dir="ltr" style="width:280px;height:44px;margin:0 auto;overflow:hidden">
+            <div id="g-signin-btn"></div>
+          </div>
           <div class="auth-toggle" id="auth-toggle-link" onclick="authToggleMode()" style="margin-top:16px">
             Don't have an account? <span>Create one</span>
           </div>
