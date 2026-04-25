@@ -641,28 +641,30 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
       <div class="auth-logo">💪</div>
       <div class="auth-headline">My Workout</div>
 
-      <!-- Spinner while checking stored session -->
-      <div id="auth-checking" style="margin-top:40px;display:flex;flex-direction:column;align-items:center;gap:12px">
-        <div class="auth-spinner"></div>
-        <div style="font-size:13px;color:var(--txt2)">Loading…</div>
-      </div>
+      <!-- Form + spinner share the same space. Spinner is an absolute overlay
+           so the form always occupies its full height — no layout jump ever. -->
+      <div style="position:relative;width:100%;max-width:320px;margin-top:8px">
 
-      <!-- Sign-in form -->
-      <div id="auth-form-wrap" style="display:none;width:100%;max-width:320px">
-        <div class="auth-sub" id="auth-mode-title">Sign in to continue</div>
-
-        <input id="auth-email"    type="email"    class="auth-inp" placeholder="Email" dir="ltr" autocomplete="email">
-        <input id="auth-password" type="password" class="auth-inp" placeholder="Password" dir="ltr" autocomplete="current-password">
-        <div id="auth-msg" class="auth-msg"></div>
-
-        <button id="auth-action-btn" class="auth-btn auth-primary" onclick="authEmailAction()">Sign In</button>
-
-        <div class="auth-sep"><span>or</span></div>
-        <div id="g-signin-btn" style="display:flex;justify-content:center;min-height:44px;width:100%"></div>
-
-        <div class="auth-toggle" id="auth-toggle-link" onclick="authToggleMode()" style="margin-top:16px">
-          Don't have an account? <span>Create one</span>
+        <!-- Sign-in form — always in layout (visibility toggled, not display) -->
+        <div id="auth-form-wrap" style="visibility:hidden">
+          <div class="auth-sub" id="auth-mode-title">Sign in to continue</div>
+          <input id="auth-email"    type="email"    class="auth-inp" placeholder="Email"    dir="ltr" autocomplete="email">
+          <input id="auth-password" type="password" class="auth-inp" placeholder="Password" dir="ltr" autocomplete="current-password">
+          <div id="auth-msg" class="auth-msg"></div>
+          <button id="auth-action-btn" class="auth-btn auth-primary" onclick="authEmailAction()">Sign In</button>
+          <div class="auth-sep"><span>or</span></div>
+          <div id="g-signin-btn" style="display:flex;justify-content:center;height:44px;width:100%"></div>
+          <div class="auth-toggle" id="auth-toggle-link" onclick="authToggleMode()" style="margin-top:16px">
+            Don't have an account? <span>Create one</span>
+          </div>
         </div>
+
+        <!-- Spinner overlay — sits on top, removed when form is ready -->
+        <div id="auth-checking" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg)">
+          <div class="auth-spinner"></div>
+          <div style="font-size:13px;color:var(--txt2)">Loading…</div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -959,9 +961,9 @@ async function authEmailAction() {
       btn.disabled = false; btn.textContent = _authMode === 'register' ? 'Create Account' : 'Sign In';
       return;
     }
-    // Success — switch to spinner immediately, then start app
-    document.getElementById('auth-form-wrap').style.display = 'none';
-    document.getElementById('auth-checking').style.display  = 'flex';
+    // Success — hide form behind spinner overlay, then start app
+    document.getElementById('auth-form-wrap').style.visibility = 'hidden';
+    document.getElementById('auth-checking').style.display     = 'flex';
     _gToken = data.token;
     _gUser  = { sub: data.userId, email: data.email };
     localStorage.setItem('mw_gtoken', _gToken);
@@ -976,9 +978,9 @@ async function authEmailAction() {
 
 // Called by GIS when Google sign-in completes
 function handleGoogleSignIn(response) {
-  // Immediately swap to spinner so the form doesn't stay visible during async load
-  document.getElementById('auth-form-wrap').style.display = 'none';
-  document.getElementById('auth-checking').style.display  = 'flex';
+  // Immediately hide form behind spinner overlay during async load
+  document.getElementById('auth-form-wrap').style.visibility = 'hidden';
+  document.getElementById('auth-checking').style.display     = 'flex';
   _gToken = response.credential;
   localStorage.setItem('mw_gtoken', _gToken);
   try {
@@ -3868,18 +3870,24 @@ let _appInited = false;
 function _showAuthForm() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-auth').classList.add('active');
-  document.getElementById('auth-checking').style.display = 'none';
-  document.getElementById('auth-form-wrap').style.display = '';
-  // Render Google button — no One Tap prompt to prevent layout jumps
+  // Render Google button first (while still hidden), then reveal — no jump
+  const reveal = () => {
+    document.getElementById('auth-checking').style.display  = 'none';
+    document.getElementById('auth-form-wrap').style.visibility = 'visible';
+  };
   const renderBtn = () => {
     const btnEl = document.getElementById('g-signin-btn');
     if (btnEl && window.google?.accounts?.id) {
       google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignIn, auto_select: false });
       google.accounts.id.renderButton(btnEl, { theme: 'filled_black', size: 'large', text: 'continue_with', width: 280 });
+      reveal();
+    } else {
+      reveal(); // show even without Google button
     }
   };
-  renderBtn();
-  setTimeout(renderBtn, 800);
+  // Small delay lets GIS render the button before we reveal the form
+  if (window.google?.accounts?.id) { renderBtn(); }
+  else { setTimeout(renderBtn, 500); }
 }
 
 async function _startApp() {
