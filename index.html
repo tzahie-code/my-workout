@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Apply saved language/direction before first paint to prevent flicker -->
+  <script>
+    try {
+      var _lang = JSON.parse(localStorage.getItem('mwSettings')||'{}').lang || 'en';
+      if (_lang === 'he') { document.documentElement.setAttribute('dir','rtl'); document.documentElement.setAttribute('lang','he'); }
+    } catch(e) {}
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -628,14 +635,6 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 <body>
 <div id="app">
 
-  <!-- GIS auto-init (invisible, no One Tap prompt) -->
-  <div id="g_id_onload"
-       data-client_id="150065779038-59bhrfcjoiup59rhj8ocimspa3pm6s48.apps.googleusercontent.com"
-       data-callback="handleGoogleSignIn"
-       data-auto_select="false"
-       data-skip_prompt_cookie="true">
-  </div>
-
   <!-- AUTH -->
   <div id="screen-auth" class="screen active">
     <div class="auth-wrap">
@@ -960,7 +959,9 @@ async function authEmailAction() {
       btn.disabled = false; btn.textContent = _authMode === 'register' ? 'Create Account' : 'Sign In';
       return;
     }
-    // Success — store session token and start app
+    // Success — switch to spinner immediately, then start app
+    document.getElementById('auth-form-wrap').style.display = 'none';
+    document.getElementById('auth-checking').style.display  = 'flex';
     _gToken = data.token;
     _gUser  = { sub: data.userId, email: data.email };
     localStorage.setItem('mw_gtoken', _gToken);
@@ -975,6 +976,9 @@ async function authEmailAction() {
 
 // Called by GIS when Google sign-in completes
 function handleGoogleSignIn(response) {
+  // Immediately swap to spinner so the form doesn't stay visible during async load
+  document.getElementById('auth-form-wrap').style.display = 'none';
+  document.getElementById('auth-checking').style.display  = 'flex';
   _gToken = response.credential;
   localStorage.setItem('mw_gtoken', _gToken);
   try {
