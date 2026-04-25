@@ -653,9 +653,15 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div id="auth-msg" class="auth-msg"></div>
           <button id="auth-action-btn" class="auth-btn auth-primary" onclick="authEmailAction()">Sign In</button>
           <div class="auth-sep"><span>or</span></div>
-          <div dir="ltr" style="width:280px;height:44px;margin:0 auto;overflow:hidden">
-            <div id="g-signin-btn"></div>
-          </div>
+          <button class="auth-btn auth-google" id="auth-google-btn" onclick="authGoogleClick()">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908C16.658 14.251 17.64 11.943 17.64 9.2Z" fill="#4285F4"/>
+              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+              <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+            </svg>
+            Continue with Google
+          </button>
           <div class="auth-toggle" id="auth-toggle-link" onclick="authToggleMode()" style="margin-top:16px">
             Don't have an account? <span>Create one</span>
           </div>
@@ -3872,24 +3878,24 @@ let _appInited = false;
 function _showAuthForm() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-auth').classList.add('active');
-  // Render Google button first (while still hidden), then reveal — no jump
-  const reveal = () => {
-    document.getElementById('auth-checking').style.display  = 'none';
-    document.getElementById('auth-form-wrap').style.visibility = 'visible';
-  };
-  const renderBtn = () => {
-    const btnEl = document.getElementById('g-signin-btn');
-    if (btnEl && window.google?.accounts?.id) {
-      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignIn, auto_select: false });
-      google.accounts.id.renderButton(btnEl, { theme: 'filled_black', size: 'large', text: 'continue_with', width: 280 });
-      reveal();
-    } else {
-      reveal(); // show even without Google button
+  document.getElementById('auth-checking').style.display     = 'none';
+  document.getElementById('auth-form-wrap').style.visibility = 'visible';
+}
+
+function authGoogleClick() {
+  const btn = document.getElementById('auth-google-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  if (!window.google?.accounts?.id) {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    return;
+  }
+  google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignIn, auto_select: false });
+  google.accounts.id.prompt(n => {
+    // If One Tap can't show (blocked cookies etc.), re-enable button
+    if (n.isNotDisplayed() || n.isSkippedMoment()) {
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
-  };
-  // Small delay lets GIS render the button before we reveal the form
-  if (window.google?.accounts?.id) { renderBtn(); }
-  else { setTimeout(renderBtn, 500); }
+  });
 }
 
 async function _startApp() {
