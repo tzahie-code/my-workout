@@ -940,7 +940,7 @@ const _oauthCallbackToken = (function () {
     const s = p.get('state');
     if (t && s && s === sessionStorage.getItem('mw_oauth_state')) {
       sessionStorage.removeItem('mw_oauth_state');
-      history.replaceState(null, '', location.pathname);
+      history.replaceState(null, '', location.origin);
       return t;
     }
   } catch(e) {}
@@ -3890,7 +3890,7 @@ function authGoogleClick() {
     b => b.toString(16).padStart(2, '0')).join('');
   sessionStorage.setItem('mw_oauth_state', state);
   // Redirect to Google — no popup, no overlay, just a clean page navigation
-  const redir = location.origin + (location.pathname || '/');
+  const redir = location.origin;
   location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
     client_id:              GOOGLE_CLIENT_ID,
     redirect_uri:           redir,
