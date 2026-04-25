@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -623,36 +623,27 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 <body>
 <div id="app">
 
+  <!-- GIS auto-init (invisible) -->
+  <div id="g_id_onload"
+       data-client_id="150065779038-59bhrfcjoiup59rhj8ocimspa3pm6s48.apps.googleusercontent.com"
+       data-callback="handleGoogleSignIn"
+       data-auto_select="true"
+       data-cancel_on_tap_outside="false"
+       data-itp_support="true">
+  </div>
+
   <!-- AUTH -->
   <div id="screen-auth" class="screen active">
     <div class="auth-wrap">
       <div class="auth-logo">💪</div>
       <div class="auth-headline">My Workout</div>
-      <!-- Loading spinner — shown while checking stored session -->
       <div id="auth-checking" style="margin-top:32px;display:flex;flex-direction:column;align-items:center;gap:12px">
         <div class="auth-spinner"></div>
         <div style="font-size:13px;color:var(--txt2)">Signing in…</div>
       </div>
-      <!-- Sign-in form — hidden until we confirm no session exists -->
-      <div id="auth-form-wrap" style="display:none;width:100%">
-        <div class="auth-sub">Sign in to continue</div>
-        <div class="auth-form">
-          <input id="auth-email"    type="email"    class="auth-inp" placeholder="Email"    autocomplete="email">
-          <input id="auth-password" type="password" class="auth-inp" placeholder="Password" autocomplete="current-password">
-          <div id="auth-msg" class="auth-msg"></div>
-          <button id="auth-signin-btn" class="auth-btn auth-primary"   onclick="authSignIn()">Sign In</button>
-          <button id="auth-signup-btn" class="auth-btn auth-secondary" onclick="authSignUp()">Create Account</button>
-          <div class="auth-sep"><span>or</span></div>
-          <button id="auth-google-btn" class="auth-btn auth-google" onclick="authGoogle()">
-            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908C16.658 14.251 17.64 11.943 17.64 9.2Z" fill="#4285F4"/>
-              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
-              <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
-              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
-            </svg>
-            Continue with Google
-          </button>
-        </div>
+      <div id="auth-form-wrap" style="display:none;width:100%;max-width:320px;text-align:center">
+        <div class="auth-sub" style="margin-bottom:24px">Sign in to continue</div>
+        <div id="g-signin-btn" style="display:flex;justify-content:center;min-height:44px"></div>
       </div>
     </div>
   </div>
@@ -907,90 +898,74 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 
 <script>
 // ════════════════════════════════════
-// SUPABASE
 // ════════════════════════════════════
-const SUPABASE_URL = 'https://idatbejilvjxdaewxjoc.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkYXRiZWppbHZqeGRhZXd4am9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNzQ1ODcsImV4cCI6MjA5MTY1MDU4N30.CSL3dls3QvBhSK5O2880jlvzsH0-JKAmvxj9ux2z20s';
+// AUTH — Google Identity Services
+// ════════════════════════════════════
+const GOOGLE_CLIENT_ID = '150065779038-59bhrfcjoiup59rhj8ocimspa3pm6s48.apps.googleusercontent.com';
 
-let _sbClient = null;
-function getSb() {
-  if (!_sbClient) _sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: true, storage: window.localStorage, autoRefreshToken: true }
-  });
-  return _sbClient;
+let _gToken = null; // current Google ID token (short-lived, refreshed via GIS)
+let _gUser  = JSON.parse(localStorage.getItem('mw_guser') || 'null');
+
+// Called by GIS when sign-in completes (silent or manual)
+function handleGoogleSignIn(response) {
+  _gToken = response.credential;
+  // Decode payload (no need to verify client-side — server verifies)
+  try {
+    const payload = JSON.parse(atob(_gToken.split('.')[1]));
+    _gUser = { sub: payload.sub, email: payload.email, name: payload.name, picture: payload.picture };
+    localStorage.setItem('mw_guser', JSON.stringify(_gUser));
+    localStorage.setItem('mwUserId', 'g-' + payload.sub);
+  } catch(e) {}
+  if (!_appInited) _startApp();
+}
+
+function authSignOut() {
+  _gToken = null; _gUser = null;
+  localStorage.removeItem('mw_guser');
+  _appInited = false;
+  if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+  _showAuthForm();
 }
 
 function getUserId() {
-  let id = localStorage.getItem('mwUserId');
-  if (!id) {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    id = 'mw-' + code;
-    localStorage.setItem('mwUserId', id);
-  }
-  return id;
-}
-function getSyncCode() { return getUserId().replace('mw-', ''); }
-
-// ════════════════════════════════════
-// AUTH
-// ════════════════════════════════════
-function _setAuthMsg(msg, isErr) {
-  const el = document.getElementById('auth-msg');
-  if (!el) return;
-  el.textContent = msg;
-  el.style.color = isErr ? 'var(--red)' : 'var(--green)';
-}
-function _setAuthBusy(on) {
-  ['auth-signin-btn','auth-signup-btn','auth-google-btn'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.disabled = on;
-  });
-}
-async function authSignIn() {
-  const email = (document.getElementById('auth-email').value || '').trim();
-  const pass  =  document.getElementById('auth-password').value || '';
-  if (!email || !pass) return _setAuthMsg('Please enter email and password', true);
-  _setAuthBusy(true);
-  const { error } = await getSb().auth.signInWithPassword({ email, password: pass });
-  _setAuthBusy(false);
-  if (error) _setAuthMsg(error.message, true);
-}
-async function authSignUp() {
-  const email = (document.getElementById('auth-email').value || '').trim();
-  const pass  =  document.getElementById('auth-password').value || '';
-  if (!email || !pass) return _setAuthMsg('Please enter email and password', true);
-  if (pass.length < 6) return _setAuthMsg('Password must be at least 6 characters', true);
-  _setAuthBusy(true);
-  const { error } = await getSb().auth.signUp({ email, password: pass });
-  _setAuthBusy(false);
-  if (error) _setAuthMsg(error.message, true);
-  else _setAuthMsg('Check your email to confirm your account ✉️');
-}
-async function authGoogle() {
-  const { error } = await getSb().auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin }
-  });
-  if (error) _setAuthMsg(error.message, true);
-}
-async function authSignOut() {
-  await getSb().auth.signOut();
+  return localStorage.getItem('mwUserId') || 'local';
 }
 
-let _sbTimer = null;
-function sbSaveDebounced() {
-  clearTimeout(_sbTimer);
-  _sbTimer = setTimeout(() => {
-    getSb().from('workout_store').upsert({
-      user_id: getUserId(),
-      sessions_data: get(),
-      prefs_data: getPrefs(),
-      current_session: loadCurrentSession(),
-      updated_at: new Date().toISOString()
-    }).then(({ error }) => { if (error) console.warn('SB save error:', error); });
-  }, 1500);
+// ════════════════════════════════════
+// TURSO SYNC
+// ════════════════════════════════════
+let _syncTimer = null;
+function sbSaveDebounced() { // kept as alias so all existing callers still work
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => syncToTurso(), 2000);
+}
+
+async function syncToTurso() {
+  if (!_gToken) return;
+  try {
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${_gToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: {
+        workouts:       get(),
+        prefs:          getPrefs(),
+        currentSession: loadCurrentSession()
+      }})
+    });
+  } catch(e) { console.warn('Turso sync failed:', e); }
+}
+
+async function loadFromTurso() {
+  if (!_gToken) return null;
+  try {
+    const res = await fetch('/api/sync', {
+      headers: { 'Authorization': `Bearer ${_gToken}` }
+    });
+    if (res.status === 401) { _gToken = null; return 'expired'; }
+    if (!res.ok) return null;
+    const { data } = await res.json();
+    return data;
+  } catch(e) { return null; }
 }
 
 function mergePrefs(remote, local) {
@@ -1001,9 +976,7 @@ function mergePrefs(remote, local) {
     if (local[k] && typeof local[k]==='object' && !Array.isArray(local[k]) &&
         remote[k] && typeof remote[k]==='object' && !Array.isArray(remote[k])) {
       m[k] = { ...remote[k], ...local[k] };
-    } else {
-      m[k] = local[k];
-    }
+    } else { m[k] = local[k]; }
   });
   return m;
 }
@@ -2425,10 +2398,8 @@ function getRestOpts() {
 
 function showSettings() {
   // Populate signed-in email
-  getSb().auth.getUser().then(({ data: { user } }) => {
-    const el = document.getElementById('auth-user-email');
-    if (el && user) el.textContent = user.email || '';
-  });
+  const el = document.getElementById('auth-user-email');
+  if (el && _gUser) el.textContent = _gUser.email || '';
   const s = getSettings();
   const toggle = document.getElementById('rest-countdown-toggle');
   if (toggle) {
@@ -3822,12 +3793,6 @@ async function exportProgramPDF(routines, programName) {
 // ════════════════════════════════════
 let _appInited = false;
 
-function _onSession(session) {
-  localStorage.setItem('mwUserId', 'auth-' + session.user.id);
-  const emailEl = document.getElementById('auth-user-email');
-  if (emailEl) emailEl.textContent = session.user.email || '';
-}
-
 function _showAuthForm() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-auth').classList.add('active');
@@ -3835,11 +3800,44 @@ function _showAuthForm() {
   const frm = document.getElementById('auth-form-wrap');
   if (chk) chk.style.display = 'none';
   if (frm) frm.style.display = '';
+  // Render Google Sign-In button (GIS may or may not be loaded yet)
+  const renderBtn = () => {
+    const btnEl = document.getElementById('g-signin-btn');
+    if (btnEl && window.google?.accounts?.id) {
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleSignIn });
+      google.accounts.id.renderButton(btnEl, { theme: 'filled_black', size: 'large', text: 'signin_with', width: 280 });
+    }
+  };
+  renderBtn();
+  setTimeout(renderBtn, 800); // retry after GIS loads if it wasn't ready
 }
 
-async function _startApp(session) {
-  _onSession(session);
+async function _startApp() {
   _appInited = true;
+  // Update email display
+  const emailEl = document.getElementById('auth-user-email');
+  if (emailEl && _gUser) emailEl.textContent = _gUser.email || '';
+
+  // Load data from Turso, merge with local
+  try {
+    const remote = await loadFromTurso();
+    if (remote === 'expired') { _appInited = false; _showAuthForm(); return; }
+    if (remote) {
+      if (remote.workouts?.sessions) {
+        const local = get();
+        if (!local.sessions?.length || remote.workouts.sessions.length > local.sessions.length) {
+          localStorage.setItem('mwData3', JSON.stringify(remote.workouts));
+        }
+      }
+      if (remote.prefs) {
+        putPrefs(mergePrefs(remote.prefs, getPrefs()));
+      }
+      if (remote.currentSession && !loadCurrentSession()) {
+        localStorage.setItem('mwCurrent', JSON.stringify(remote.currentSession));
+      }
+    }
+  } catch(e) { console.warn('Turso load error:', e); }
+
   try { await initApp(); } catch(e) { console.error('initApp error:', e); }
   if (S.session) {
     document.getElementById('screen-auth').classList.remove('active');
@@ -3849,36 +3847,36 @@ async function _startApp(session) {
 }
 
 // ── Boot sequence ──────────────────────────────────────────
-// 1. Force-update case: skip auth, go straight to home
+// 1. Force-update: skip auth, go straight to home
 if (localStorage.getItem('mwReloading')) {
   localStorage.removeItem('mwReloading');
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-home').classList.add('active');
 }
-
-// 2. Explicit getSession() — reliable on iOS Safari PWA
-getSb().auth.getSession().then(({ data: { session } }) => {
-  if (session && !_appInited) {
-    _startApp(session);
-  } else if (!session) {
-    _showAuthForm();
-  }
-}).catch(() => _showAuthForm());
-
-// 3. onAuthStateChange — handles sign-in / sign-out / token refresh
-getSb().auth.onAuthStateChange(async (event, session) => {
-  if (session && !_appInited) {
-    _startApp(session);
-  } else if (event === 'SIGNED_OUT') {
-    _appInited = false;
-    _showAuthForm();
-  }
-});
-
-// 4. Safety timeout — if neither fires within 5s, show the form
-setTimeout(() => {
-  if (!_appInited) _showAuthForm();
-}, 5000);
+// 2. GIS silent sign-in: initialize with auto_select so returning users sign in silently
+else if (window.google?.accounts?.id) {
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleSignIn,
+    auto_select: true,
+    cancel_on_tap_outside: false
+  });
+  google.accounts.id.prompt(n => { if (n.isNotDisplayed() || n.isSkippedMoment()) _showAuthForm(); });
+}
+// 3. GIS not loaded yet — wait for it, or fall back to showing the form
+else {
+  window.onGoogleLibraryLoad = () => {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleSignIn,
+      auto_select: true,
+      cancel_on_tap_outside: false
+    });
+    google.accounts.id.prompt(n => { if (n.isNotDisplayed() || n.isSkippedMoment()) _showAuthForm(); });
+  };
+  // Safety timeout
+  setTimeout(() => { if (!_appInited) _showAuthForm(); }, 4000);
+}
 </script>
 </body>
 </html>
