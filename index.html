@@ -3713,6 +3713,7 @@ function saveHistEdit(sessId) {
 let _undoPending = null;
 
 function deleteSession(id) {
+  if (!confirm('Delete this workout?')) return;
   const d    = get();
   const sess = d.sessions.find(s => s.id === id);
   if (!sess) return;
