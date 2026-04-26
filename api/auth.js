@@ -64,8 +64,29 @@ export default async function handler(req) {
     expires_at INTEGER NOT NULL
   )`);
 
-  const { action, email, password } = await req.json();
-  if (!action || !email || !password) return err('Missing fields', 400);
+  const body = await req.json();
+  const { action, email, password, idToken } = body;
+  if (!action) return err('Missing action', 400);
+
+  // ── GOOGLE — exchange short-lived ID token for a long-lived session ──
+  if (action === 'google') {
+    if (!idToken) return err('Missing idToken', 400);
+    const gRes  = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    const gUser = await gRes.json();
+    if (!gRes.ok || !gUser.sub) return err('Invalid Google token', 401);
+
+    const userId     = 'g-' + gUser.sub;
+    const userEmail  = gUser.email || '';
+    const token      = randHex(32);
+    const expiresAt  = Date.now() + 365*24*60*60*1000;
+    await db(
+      'INSERT INTO mw_sessions (token, user_id, expires_at) VALUES (?,?,?)',
+      [{ type:'text', value:token }, { type:'text', value:userId }, { type:'integer', value:String(expiresAt) }]
+    );
+    return ok({ token, userId, email: userEmail });
+  }
+
+  if (!email || !password) return err('Missing fields', 400);
   const cleanEmail = email.toLowerCase().trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return err('Invalid email', 400);
   if (password.length < 6) return err('Password must be at least 6 characters', 400);
@@ -94,7 +115,7 @@ export default async function handler(req) {
     );
 
     const token     = randHex(32);
-    const expiresAt = Date.now() + 30*24*60*60*1000;
+    const expiresAt = Date.now() + 365*24*60*60*1000;
     await db(
       'INSERT INTO mw_sessions (token, user_id, expires_at) VALUES (?,?,?)',
       [{ type:'text', value:token }, { type:'text', value:userId }, { type:'integer', value:String(expiresAt) }]
@@ -119,7 +140,7 @@ export default async function handler(req) {
     if (inputHash !== passHash) return err('Invalid email or password', 401);
 
     const token     = randHex(32);
-    const expiresAt = Date.now() + 30*24*60*60*1000;
+    const expiresAt = Date.now() + 365*24*60*60*1000;
     await db(
       'INSERT INTO mw_sessions (token, user_id, expires_at) VALUES (?,?,?)',
       [{ type:'text', value:token }, { type:'text', value:userId }, { type:'integer', value:String(expiresAt) }]

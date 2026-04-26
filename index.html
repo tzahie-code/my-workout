@@ -999,18 +999,38 @@ async function authEmailAction() {
   }
 }
 
-function handleGoogleSignIn(response) {
+async function handleGoogleSignIn(response) {
   document.getElementById('auth-form-wrap').style.visibility = 'hidden';
   document.getElementById('auth-checking').style.display     = 'flex';
-  _gToken = response.credential;
-  localStorage.setItem('mw_gtoken', _gToken);
   try {
-    const payload = JSON.parse(atob(_gToken.split('.')[1]));
-    _gUser = { sub: payload.sub, email: payload.email, name: payload.name, picture: payload.picture };
-    localStorage.setItem('mw_guser', JSON.stringify(_gUser));
-    localStorage.setItem('mwUserId', 'g-' + payload.sub);
-  } catch(e) {}
-  if (!_appInited) _startApp();
+    // Extract name/picture from the short-lived JWT before it's discarded
+    let name = '', picture = '', sub = '';
+    try {
+      const p = JSON.parse(atob(response.credential.split('.')[1]));
+      name = p.name || ''; picture = p.picture || ''; sub = p.sub || '';
+    } catch(e) {}
+
+    // Exchange the short-lived Google JWT for a 1-year session token stored in Turso
+    const res  = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'google', idToken: response.credential })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Auth failed');
+
+    _gToken = data.token; // long-lived hex session token — won't expire for 1 year
+    _gUser  = { sub, email: data.email, name, picture };
+    localStorage.setItem('mw_gtoken', _gToken);
+    localStorage.setItem('mw_guser',  JSON.stringify(_gUser));
+    localStorage.setItem('mwUserId',  data.userId);
+    if (!_appInited) _startApp();
+  } catch(e) {
+    document.getElementById('auth-form-wrap').style.visibility = 'visible';
+    document.getElementById('auth-checking').style.display     = 'none';
+    const msgEl = document.getElementById('auth-msg');
+    if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Google sign-in failed — try again'; }
+  }
 }
 
 function authSignOut() {
