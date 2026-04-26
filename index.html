@@ -108,6 +108,22 @@
     .hi-del { background: none; border: none; color: var(--txt2); font-size: 16px;
       cursor: pointer; padding: 4px 8px; border-radius: 6px; opacity: .6; }
     .hi-del:active { color: var(--red); opacity: 1; }
+    /* Undo toast */
+    .undo-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: #2a2a32; color: var(--txt); padding: 13px 16px 13px 18px;
+      border-radius: 14px; display: flex; align-items: center; gap: 12px; z-index: 9999;
+      box-shadow: 0 6px 28px rgba(0,0,0,.6); font-size: 14px; font-weight: 500;
+      opacity: 0; transition: opacity .2s; pointer-events: none;
+      white-space: nowrap; min-width: 240px; overflow: hidden; border: 1px solid var(--border); }
+    .undo-toast.show { opacity: 1; pointer-events: all; }
+    .undo-btn { background: var(--a); color: white; border: none; padding: 7px 14px;
+      border-radius: 9px; font-weight: 700; cursor: pointer; font-size: 13px;
+      font-family: inherit; flex-shrink: 0; }
+    .undo-btn:active { opacity: .8; }
+    .undo-progress { position: absolute; bottom: 0; left: 0; height: 3px;
+      background: var(--a); border-radius: 0 0 14px 14px; width: 100%;
+      transition: width 5s linear; }
+    .undo-progress.run { width: 0%; }
     .hi-edit-btn { background: none; border: none; color: var(--txt2); font-size: 15px;
       cursor: pointer; padding: 4px 8px; border-radius: 6px; opacity: .6; }
     .hi-edit-btn:active { color: var(--b); opacity: 1; }
@@ -923,6 +939,13 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
     <div class="rest-ov-time" id="rest-ov-time">1:30</div>
     <button class="rest-ov-skip" onclick="skipRestTimer()" data-t="skip">Skip →</button>
   </div>
+</div>
+
+<!-- Undo delete toast -->
+<div id="undo-toast" class="undo-toast">
+  <span id="undo-toast-msg">Workout deleted</span>
+  <button class="undo-btn" onclick="undoDelete()">Undo</button>
+  <div id="undo-progress" class="undo-progress"></div>
 </div>
 
 <script>
@@ -3686,37 +3709,90 @@ function saveHistEdit(sessId) {
   _editHistId = null;
   histRender();
 }
+// ── Undo-delete state ──────────────────────────────────────
+let _undoPending = null;
+
 function deleteSession(id) {
-  if (!confirm('Delete this workout? This cannot be undone.')) return;
-  const d = get();
+  const d    = get();
   const sess = d.sessions.find(s => s.id === id);
+  if (!sess) return;
+
+  // If another delete is pending, commit it first
+  if (_undoPending) {
+    clearTimeout(_undoPending.timer);
+    _commitDelete(_undoPending);
+  }
+
+  // Save snapshot for undo, then remove from localStorage now
+  const snapshot = JSON.parse(JSON.stringify(d));
   d.sessions = d.sessions.filter(s => s.id !== id);
-  put(d);
-  // If deleted session was in the current week, unmark that day on the home screen
-  if (sess) {
-    const sessDate = new Date(sess.id);
-    const weekStart = new Date();
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // back to Sunday
-    if (sessDate >= weekStart) {
-      const dayName = DAYS[sessDate.getDay()];
-      const rid = sess.routine;
-      const stillHasDay = d.sessions.some(x => {
-        if (x.routine !== rid) return false;
-        const xd = new Date(x.id);
-        return xd >= weekStart && DAYS[xd.getDay()] === dayName;
-      });
-      if (!stillHasDay) {
-        const p = getPrefs();
-        if (p[rid] && Array.isArray(p[rid].days)) {
-          p[rid].days = p[rid].days.filter(dy => dy !== dayName);
-          putPrefs(p);
-        }
+  put(d);                        // update localStorage immediately
+  // (Turso sync intentionally delayed until undo window closes)
+
+  const timer = setTimeout(() => {
+    _commitDelete(_undoPending);
+    _undoPending = null;
+  }, 5000);
+
+  _undoPending = { sess, snapshot, timer };
+
+  _showUndoToast();
+  histRender();
+  homeUpdate();
+}
+
+function _commitDelete(pending) {
+  if (!pending) return;
+  // Now it's permanent — sync to Turso and update home-screen day dots
+  sbSaveDebounced();
+  const sess = pending.sess;
+  const d    = get();
+  const sessDate  = new Date(sess.id);
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  if (sessDate >= weekStart) {
+    const dayName = DAYS[sessDate.getDay()];
+    const rid = sess.routine;
+    const stillHasDay = d.sessions.some(x => {
+      if (x.routine !== rid) return false;
+      const xd = new Date(x.id);
+      return xd >= weekStart && DAYS[xd.getDay()] === dayName;
+    });
+    if (!stillHasDay) {
+      const p = getPrefs();
+      if (p[rid] && Array.isArray(p[rid].days)) {
+        p[rid].days = p[rid].days.filter(dy => dy !== dayName);
+        putPrefs(p);
       }
     }
   }
+  _hideUndoToast();
+}
+
+function undoDelete() {
+  if (!_undoPending) return;
+  clearTimeout(_undoPending.timer);
+  put(_undoPending.snapshot);    // restore snapshot to localStorage
+  _undoPending = null;
+  _hideUndoToast();
   histRender();
   homeUpdate();
+}
+
+function _showUndoToast() {
+  const toast = document.getElementById('undo-toast');
+  const bar   = document.getElementById('undo-progress');
+  if (!toast) return;
+  bar.classList.remove('run');
+  toast.classList.add('show');
+  // Start progress bar animation on next frame
+  requestAnimationFrame(() => requestAnimationFrame(() => bar.classList.add('run')));
+}
+
+function _hideUndoToast() {
+  const toast = document.getElementById('undo-toast');
+  if (toast) toast.classList.remove('show');
 }
 
 
