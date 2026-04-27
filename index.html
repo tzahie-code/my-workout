@@ -2883,6 +2883,14 @@ function displayWeight(w) {
   if (!w && w !== 0) return w;
   return isBW(String(w)) ? 'BW' : w;
 }
+// Parse "35/72.5" → {a:35, b:72.5}  |  "35" → {a:35, b:null}
+function parseSplitWeight(w) {
+  if (w == null || w === '' || isBW(String(w))) return { a: null, b: null };
+  const s = String(w).trim();
+  const sl = s.indexOf('/');
+  if (sl === -1) return { a: parseFloat(s) || null, b: null };
+  return { a: parseFloat(s.slice(0, sl)) || null, b: parseFloat(s.slice(sl + 1)) || null };
+}
 
 // ── Progress overrides storage ──────────────────────────────────────
 // { [exName]: { [sessId]: { w?: number, excl?: true } } }
@@ -2899,15 +2907,19 @@ function putProgressOverrides(o) {
 function _rawPoint(s, exName, variantIdx) {
   const ex = s.exercises.find(e => e.name === exName);
   if (!ex) return null;
-  // Filter by variant — sessions store variantIdx on each exercise
   if (variantIdx !== undefined && (ex.variantIdx ?? 0) !== variantIdx) return null;
   const doneSets = ex.sets.filter(set => set.done && set.w);
   const bwSets   = doneSets.filter(set => isBW(String(set.w)));
-  const weights  = doneSets.filter(set => !isBW(String(set.w)))
-    .map(set => parseFloat(set.w)).filter(w => !isNaN(w) && w > 0);
-  const hasBW = bwSets.length > 0;
-  if (!weights.length && !hasBW) return null;
-  return { sessId: s.id, computedMax: weights.length ? Math.max(...weights) : 0, bw: hasBW && !weights.length };
+  const hasBW    = bwSets.length > 0;
+  let maxA = null, maxB = null;
+  doneSets.filter(set => !isBW(String(set.w))).forEach(set => {
+    const { a, b } = parseSplitWeight(set.w);
+    if (a != null) maxA = maxA == null ? a : Math.max(maxA, a);
+    if (b != null) maxB = maxB == null ? b : Math.max(maxB, b);
+  });
+  if (maxA == null && maxB == null && !hasBW) return null;
+  const computedMax = Math.max(maxA ?? 0, maxB ?? 0) || 0;
+  return { sessId: s.id, maxA, maxB, computedMax, bw: hasBW && maxA == null && maxB == null };
 }
 
 // All raw data points including excluded ones — used for the edit panel
@@ -2929,46 +2941,108 @@ function getExerciseProgress(exName, variantIdx) {
     const raw = _rawPoint(s, exName, variantIdx);
     if (!raw) return null;
     const ov = ovs[s.id] || {};
-    if (ov.excl) return null;                               // excluded
-    const max = ov.w != null ? ov.w : raw.computedMax;     // use override weight if set
-    return { date: s.id, max, bw: raw.bw };
+    if (ov.excl) return null;
+    const max = ov.w != null ? ov.w : raw.computedMax;
+    return { date: s.id, max, maxA: raw.maxA, maxB: raw.maxB, bw: raw.bw };
   }).filter(Boolean);
 }
 
 function getLastUpscale(exName, variantIdx) {
   const pts = getExerciseProgress(exName, variantIdx);
-  let last = null;
-  for (let i = 1; i < pts.length; i++) {
-    if (pts[i].max > pts[i-1].max)
-      last = { date: pts[i].date, from: pts[i-1].max, to: pts[i].max };
+  const isSplit = pts.some(p => p.maxB != null);
+  if (!isSplit) {
+    // Original logic for non-split exercises
+    let last = null;
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i].max > pts[i-1].max)
+        last = { date: pts[i].date, from: pts[i-1].max, to: pts[i].max };
+    }
+    return last;
   }
-  return last;
+  // Split: track A and B independently, return the most recent improvement in either
+  let lastA = null, lastB = null, prevA = null, prevB = null;
+  for (const pt of pts) {
+    if (pt.maxA != null) {
+      if (prevA != null && pt.maxA > prevA) lastA = { date: pt.date, from: prevA, to: pt.maxA };
+      prevA = pt.maxA;
+    }
+    if (pt.maxB != null) {
+      if (prevB != null && pt.maxB > prevB) lastB = { date: pt.date, from: prevB, to: pt.maxB };
+      prevB = pt.maxB;
+    }
+  }
+  if (!lastA && !lastB) return null;
+  if (!lastA) return lastB;
+  if (!lastB) return lastA;
+  return lastA.date > lastB.date ? lastA : lastB;
 }
 
 function drawMiniChart(pts, hexColor) {
   if (pts.length < 2) return `<div class="prog-no-data">${t('not-enough-data')}</div>`;
   const W = 300, H = 72;
-  const maxW = Math.max(...pts.map(p=>p.max));
-  const minW = Math.min(...pts.map(p=>p.max));
+  const isSplit = pts.some(p => p.maxB != null);
+
+  if (!isSplit) {
+    // ── Single-machine chart (unchanged) ──
+    const maxW = Math.max(...pts.map(p=>p.max));
+    const minW = Math.min(...pts.map(p=>p.max));
+    const range = maxW - minW || 1;
+    const coords = pts.map((p,i) => ({
+      x: 8 + (i/(pts.length-1)) * (W-16),
+      y: H - 18 - ((p.max - minW)/range) * (H-30), ...p
+    }));
+    const poly = coords.map(c=>`${c.x},${c.y}`).join(' ');
+    const diff = pts[pts.length-1].max - pts[0].max;
+    const diffColor = diff > 0 ? '#34c759' : diff < 0 ? '#ff3b30' : '#636366';
+    const diffStr = diff > 0 ? `+${diff}kg 📈` : diff < 0 ? `${diff}kg 📉` : 'no change';
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">
+      <polyline points="${poly}" fill="none" stroke="${hexColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${coords.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="3.5" fill="${c.bw?'#aaa':hexColor}"/>`).join('')}
+      <text x="8" y="${H}" font-size="9" fill="#aaa">${new Date(pts[0].date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})}</text>
+      <text x="${W-8}" y="${H}" font-size="9" fill="#aaa" text-anchor="end">${new Date(pts[pts.length-1].date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})}</text>
+    </svg>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px">
+      <span style="color:var(--txt2)">${minW===0?'BW':minW+'kg'} → ${maxW}kg</span>
+      <span style="font-weight:700;color:${diffColor}">${diffStr}</span>
+      <span style="color:var(--txt2)">${pts.length} ${t('sessions-label')}</span>
+    </div>`;
+  }
+
+  // ── Two-machine split chart ──
+  const colorB = '#ff9f0a'; // amber for machine B
+  const allVals = pts.flatMap(p => [p.maxA, p.maxB].filter(v => v != null));
+  const maxW = Math.max(...allVals), minW = Math.min(...allVals);
   const range = maxW - minW || 1;
-  const coords = pts.map((p,i) => ({
-    x: 8 + (i/(pts.length-1)) * (W-16),
-    y: H - 18 - ((p.max - minW)/range) * (H-30),
-    ...p
-  }));
-  const poly = coords.map(c=>`${c.x},${c.y}`).join(' ');
-  const diff = pts[pts.length-1].max - pts[0].max;
-  const diffColor = diff > 0 ? '#34c759' : diff < 0 ? '#ff3b30' : '#636366';
-  const diffStr = diff > 0 ? `+${diff}kg 📈` : diff < 0 ? `${diff}kg 📉` : 'no change';
+  const xOf = i => +(8 + (i / (pts.length - 1)) * (W - 16)).toFixed(1);
+  const yOf = v => +(H - 18 - ((v - minW) / range) * (H - 30)).toFixed(1);
+
+  const polyA = pts.map((p,i) => p.maxA != null ? `${xOf(i)},${yOf(p.maxA)}` : null).filter(Boolean);
+  const polyB = pts.map((p,i) => p.maxB != null ? `${xOf(i)},${yOf(p.maxB)}` : null).filter(Boolean);
+  const circA = pts.map((p,i) => p.maxA != null ? `<circle cx="${xOf(i)}" cy="${yOf(p.maxA)}" r="3" fill="${hexColor}"/>` : '').join('');
+  const circB = pts.map((p,i) => p.maxB != null ? `<circle cx="${xOf(i)}" cy="${yOf(p.maxB)}" r="3" fill="${colorB}"/>` : '').join('');
+
+  const ptsWithA = pts.filter(p => p.maxA != null);
+  const ptsWithB = pts.filter(p => p.maxB != null);
+  const bestA = ptsWithA.length ? Math.max(...ptsWithA.map(p=>p.maxA)) : null;
+  const bestB = ptsWithB.length ? Math.max(...ptsWithB.map(p=>p.maxB)) : null;
+  const firstA = ptsWithA[0], lastA = ptsWithA[ptsWithA.length-1];
+  const firstB = ptsWithB[0], lastB = ptsWithB[ptsWithB.length-1];
+  const diffA = (firstA && lastA && firstA !== lastA) ? lastA.maxA - firstA.maxA : 0;
+  const diffB = (firstB && lastB && firstB !== lastB) ? lastB.maxB - firstB.maxB : 0;
+  const hasProg = diffA > 0 || diffB > 0;
+  const progStr = hasProg ? `+${Math.max(diffA, diffB)}kg 📈` : 'no change';
+
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;overflow:visible">
-    <polyline points="${poly}" fill="none" stroke="${hexColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-    ${coords.map(c=>`<circle cx="${c.x}" cy="${c.y}" r="3.5" fill="${c.bw?'#aaa':hexColor}"/>`).join('')}
+    ${polyA.length >= 2 ? `<polyline points="${polyA.join(' ')}" fill="none" stroke="${hexColor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    ${polyB.length >= 2 ? `<polyline points="${polyB.join(' ')}" fill="none" stroke="${colorB}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5,3"/>` : ''}
+    ${circA}${circB}
     <text x="8" y="${H}" font-size="9" fill="#aaa">${new Date(pts[0].date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})}</text>
     <text x="${W-8}" y="${H}" font-size="9" fill="#aaa" text-anchor="end">${new Date(pts[pts.length-1].date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})}</text>
   </svg>
-  <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px">
-    <span style="color:var(--txt2)">${minW===0?'BW':minW+'kg'} → ${maxW}kg</span>
-    <span style="font-weight:700;color:${diffColor}">${diffStr}</span>
+  <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px;gap:4px">
+    ${bestA != null ? `<span style="color:${hexColor};font-weight:600">M1: ${bestA}kg</span>` : ''}
+    ${bestB != null ? `<span style="color:${colorB};font-weight:600">M2: ${bestB}kg</span>` : ''}
+    <span style="font-weight:700;color:${hasProg?'#34c759':'#636366'};margin-left:auto">${progStr}</span>
     <span style="color:var(--txt2)">${pts.length} ${t('sessions-label')}</span>
   </div>`;
 }
@@ -3008,7 +3082,13 @@ function progressRender() {
 
       const pts    = getExerciseProgress(ex.name, vIdx);
       const lastUp = getLastUpscale(ex.name, vIdx);
+      const isSplit = pts.some(p => p.maxB != null);
       const best   = pts.length ? Math.max(...pts.map(p=>p.max)) : null;
+      const bestA  = isSplit ? (pts.filter(p=>p.maxA!=null).length ? Math.max(...pts.filter(p=>p.maxA!=null).map(p=>p.maxA)) : null) : null;
+      const bestB  = isSplit ? (pts.filter(p=>p.maxB!=null).length ? Math.max(...pts.filter(p=>p.maxB!=null).map(p=>p.maxB)) : null) : null;
+      const bestStr = isSplit
+        ? `<strong>${bestA!=null?bestA+'kg':'—'}</strong> / <strong style="color:#ff9f0a">${bestB!=null?bestB+'kg':'—'}</strong>`
+        : `<strong>${best!=null?best+'kg':'—'}</strong>`;
       const lastUpStr = lastUp
         ? `· <span style="color:var(--green);font-weight:700">${t('last-increase')} ${new Date(lastUp.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (+${lastUp.to-lastUp.from}kg)</span>`
         : '';
@@ -3030,9 +3110,12 @@ function progressRender() {
           </div>
           ${allPts.map(pt => {
             const dateStr = new Date(pt.sessId).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+            const splitNote = (pt.maxA != null && pt.maxB != null)
+              ? `<br><span style="font-size:9px;color:var(--txt2)">M1: ${pt.maxA}kg / M2: ${pt.maxB}kg</span>`
+              : (pt.maxB != null ? `<br><span style="font-size:9px;color:#ff9f0a">M2: ${pt.maxB}kg</span>` : '');
             const origNote = pt.overridden ? `<span class="prog-hist-orig">orig: ${pt.computedMax}kg</span>` : '';
             return `<div class="prog-hist-row${pt.excl?' excl':''}">
-              <span class="prog-hist-date">${dateStr}${origNote?'<br>'+origNote:''}</span>
+              <span class="prog-hist-date">${dateStr}${splitNote}${origNote?'<br>'+origNote:''}</span>
               <input class="prog-hist-w" type="number" step="0.5" value="${pt.max}"
                 ${pt.excl?'disabled':''} onchange="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)"
                 onblur="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)">
@@ -3046,7 +3129,7 @@ function progressRender() {
       return `<div class="prog-ex" id="prog-card-${rid}-${ei}">
         <div class="prog-name">${ex.key?'🔥 ':''}${tEx(displayName)}</div>
         ${variantSwitch}
-        <div class="prog-stat">${t('best')} <strong>${best!=null?best+'kg':'—'}</strong> ${lastUpStr}</div>
+        <div class="prog-stat">${t('best')} ${bestStr} ${lastUpStr}</div>
         ${drawMiniChart(pts, hexColor)}
         ${editPanel}
       </div>`;
