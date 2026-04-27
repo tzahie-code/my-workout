@@ -2309,9 +2309,6 @@ let _builderSubstIdx = null;
 let _builderVariantIdx = null;
 // _pickerExpanded: lib index of the picker card currently expanded (null = all compact)
 let _pickerExpanded = null;
-// _noSelectFocus: true while insertSlash() programmatically re-focuses an input,
-// so the onfocus handler doesn't wipe the inserted '/' with a select-all
-let _noSelectFocus = false;
 
 function openVariantPicker(rid, idx) {
   _builderPickRid = rid;
@@ -3532,12 +3529,14 @@ function buildCard(ex, i) {
             <span class="sr-num">S${si+1}</span>
             <input class="sr-w${focCls}" id="iw${i}_${si}" type="text" inputmode="decimal"
               placeholder="${t('kg-placeholder')}" value="${defW}"
-              onfocus="if(!_noSelectFocus)this.select()"
+              onpointerdown="this._t=1"
+              onfocus="if(this._t){this.select();this._t=0}"
               oninput="liveSave(${i},${si},'w',this.value)">
             <span class="sr-x">×</span>
             <input class="sr-r${focCls}" id="ir${i}_${si}" type="text" inputmode="numeric"
               placeholder="${def.r||'—'}" value="${defR}"
-              onfocus="if(!_noSelectFocus)this.select()"
+              onpointerdown="this._t=1"
+              onfocus="if(this._t){this.select();this._t=0}"
               oninput="liveSave(${i},${si},'r',this.value)">
             <input class="sr-note-inp" id="in${i}_${si}"
               value="${(set.note||def.n||'').replace(/"/g,'&quot;')}"
@@ -3558,7 +3557,7 @@ function buildCard(ex, i) {
       <div class="ec-expand open">
         ${compExBtn}
         <div class="sr-tools">
-          <button class="sr-slash" onclick="insertSlash('iw${i}_0')">/</button>
+          <button class="sr-slash" onclick="insertSlash((document.activeElement&&document.activeElement.id.startsWith('iw${i}_'))?document.activeElement.id:'iw${i}_0')">/</button>
           <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">${t('copy-first-to-all')}</button>
         </div>
         <div class="set-list">${setRows}</div>
@@ -3656,14 +3655,13 @@ function insertSlash(id) {
   const start = el.selectionStart, end = el.selectionEnd;
   const val = el.value;
   el.value = val.slice(0, start) + '/' + val.slice(end);
+  // Fire oninput so liveSave() persists the '/' immediately
+  el.dispatchEvent(new Event('input', { bubbles: true }));
   const newPos = start + 1;
-  // Suppress select-all in onfocus so the cursor lands after the '/'
-  _noSelectFocus = true;
+  // el._t is NOT set (onpointerdown didn't fire) so onfocus won't select-all
   el.focus();
-  requestAnimationFrame(() => {
-    el.setSelectionRange(newPos, newPos);
-    _noSelectFocus = false;
-  });
+  // rAF ensures cursor lands after '/' even on iOS where focus is async
+  requestAnimationFrame(() => el.setSelectionRange(newPos, newPos));
 }
 
 function liveSave(ei, si, field, val) {
