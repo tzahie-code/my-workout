@@ -3253,14 +3253,20 @@ function buildCard(ex, i) {
     const focCls = isB ? ' fb' : '';
     const setRows = ex.sets.map((def, si) => {
       const set  = ses.sets[si];
+      const isVariant = variants && variantIdx !== 0; // true when showing the substitute exercise
       const prevW = prevSetW(activeName, si, ex.name);
+      const hasOwnHistory = prevW !== null;
       const defW = set._pw !== undefined ? set._pw
                  : set.done ? (set.w||'')
-                 : (prevW!==null ? prevW : (def.w||''));
+                 : prevW !== null ? prevW
+                 : (isVariant && !hasOwnHistory) ? ''   // variant never done → empty
+                 : (def.w||'');
       const prevR = prevSetR(activeName, si, ex.name);
       const defR = set._pr !== undefined ? set._pr
                  : set.done ? (set.r||'')
-                 : (prevR !== null ? prevR : (def.r||''));
+                 : prevR !== null ? prevR
+                 : (isVariant && !hasOwnHistory) ? ''   // variant never done → empty
+                 : (def.r||'');
       const doneCls = set.done ? ' done' : '';
       const ckCls   = set.done ? ' done' : '';
       const ckIcon  = set.done ? '✓' : '○';
@@ -3346,18 +3352,15 @@ function toggleCard(i) {
 
 function prevSetW(name, idx, baseName) {
   // 'name' = active variant name (or exercise name if no variants)
-  // 'baseName' = base exercise name (same as name for non-variant exercises)
+  // Only use data specific to this exercise — never copy from the base/trade exercise
   const p = getPrefs();
   if (p.lastWeights && p.lastWeights[name] && p.lastWeights[name][idx] != null)
     return p.lastWeights[name][idx];
-  // Backward compat: also check base name (for variant exercises whose data was saved pre-variant-memory change)
-  if (baseName && baseName !== name && p.lastWeights && p.lastWeights[baseName] && p.lastWeights[baseName][idx] != null)
-    return p.lastWeights[baseName][idx];
-  // Fall back to session history — search by variant name OR base name
+  // Fall back to session history — only search by the exact exercise name
   const d = get();
   const prev = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id)[0];
   if(!prev) return null;
-  const ex = prev.exercises.find(e => e.name===name || (baseName && e.name===baseName));
+  const ex = prev.exercises.find(e => e.name === name);
   if(!ex||!ex.sets[idx]||!ex.sets[idx].done) return null;
   return ex.sets[idx].w;
 }
@@ -3373,8 +3376,6 @@ function prevSetR(name, idx, baseName) {
   const p = getPrefs();
   if (p.lastReps && p.lastReps[name] && p.lastReps[name][idx] != null)
     return p.lastReps[name][idx];
-  if (baseName && baseName !== name && p.lastReps && p.lastReps[baseName] && p.lastReps[baseName][idx] != null)
-    return p.lastReps[baseName][idx];
   return null;
 }
 
