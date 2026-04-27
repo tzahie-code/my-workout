@@ -2309,6 +2309,9 @@ let _builderSubstIdx = null;
 let _builderVariantIdx = null;
 // _pickerExpanded: lib index of the picker card currently expanded (null = all compact)
 let _pickerExpanded = null;
+// _noSelectFocus: true while insertSlash() programmatically re-focuses an input,
+// so the onfocus handler doesn't wipe the inserted '/' with a select-all
+let _noSelectFocus = false;
 
 function openVariantPicker(rid, idx) {
   _builderPickRid = rid;
@@ -3529,12 +3532,12 @@ function buildCard(ex, i) {
             <span class="sr-num">S${si+1}</span>
             <input class="sr-w${focCls}" id="iw${i}_${si}" type="text" inputmode="decimal"
               placeholder="${t('kg-placeholder')}" value="${defW}"
-              onfocus="this.select()"
+              onfocus="if(!_noSelectFocus)this.select()"
               oninput="liveSave(${i},${si},'w',this.value)">
             <span class="sr-x">×</span>
             <input class="sr-r${focCls}" id="ir${i}_${si}" type="text" inputmode="numeric"
               placeholder="${def.r||'—'}" value="${defR}"
-              onfocus="this.select()"
+              onfocus="if(!_noSelectFocus)this.select()"
               oninput="liveSave(${i},${si},'r',this.value)">
             <input class="sr-note-inp" id="in${i}_${si}"
               value="${(set.note||def.n||'').replace(/"/g,'&quot;')}"
@@ -3653,8 +3656,14 @@ function insertSlash(id) {
   const start = el.selectionStart, end = el.selectionEnd;
   const val = el.value;
   el.value = val.slice(0, start) + '/' + val.slice(end);
-  el.setSelectionRange(start + 1, start + 1);
+  const newPos = start + 1;
+  // Suppress select-all in onfocus so the cursor lands after the '/'
+  _noSelectFocus = true;
   el.focus();
+  requestAnimationFrame(() => {
+    el.setSelectionRange(newPos, newPos);
+    _noSelectFocus = false;
+  });
 }
 
 function liveSave(ei, si, field, val) {
@@ -4016,7 +4025,7 @@ function saveHistEdit(sessId) {
       const rEl = document.getElementById(`hr-${sessId}-${ei}-${j}`);
       if (wEl) {
         const v = wEl.value.trim();
-        set.w = v === '' ? null : (isNaN(parseFloat(v)) ? v : parseFloat(v));
+        set.w = v === '' ? null : v; // keep raw string — preserves '/' split-weight notation
       }
       if (rEl) {
         const v = rEl.value.trim();
