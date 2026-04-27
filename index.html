@@ -2759,6 +2759,29 @@ function toggleProgExcl(rid, ei, sessId) {
   });
 }
 
+// One-time migration: fix sessions where a variant was used but the main
+// exercise name was stored instead of the actual variant name.
+function _migrateVariantNames() {
+  if (localStorage.getItem('mwVariantNamesMigrated')) return;
+  localStorage.setItem('mwVariantNamesMigrated', '1');
+  const d = get();
+  let changed = false;
+  d.sessions.forEach(sess => {
+    const routine = ROUTINES[sess.routine];
+    if (!routine) return;
+    sess.exercises.forEach(ex => {
+      if (ex.variantIdx) {
+        const routineEx = routine.exercises.find(e => e.name === ex.name);
+        if (routineEx?.variants?.[ex.variantIdx]) {
+          ex.name = routineEx.variants[ex.variantIdx];
+          changed = true;
+        }
+      }
+    });
+  });
+  if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed variant exercise names in history.'); }
+}
+
 // One-time repair: restore set notes (n) and target reps (r) that were wiped
 // when saveBuilder() regenerated sets as blank {n:'',w:'',r:''}.
 // Matches each exercise in mwProgram against the hardcoded ROUTINES template by name
@@ -3672,6 +3695,16 @@ function finish() {
   savePendingInputs();
   clearCurrentSession();
   S.session.endTime = Date.now();
+  // Store the actual exercise name used (variant name when a variant was active)
+  // so history shows "Machine Chest Press" instead of "Smith Bench Press"
+  S.session.exercises.forEach(ses => {
+    if (ses.variantIdx) {
+      const routineEx = ROUTINES[S.rid].exercises.find(e => e.name === ses.name);
+      if (routineEx?.variants?.[ses.variantIdx]) {
+        ses.name = routineEx.variants[ses.variantIdx];
+      }
+    }
+  });
   const d = get(); d.sessions.push(S.session); put(d);
   const dur  = Math.round((S.session.endTime-S.session.startTime)/60000);
   const sets = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
@@ -4191,6 +4224,9 @@ async function _startApp() {
   } catch(e) { console.warn('Turso load error:', e); }
 
   try { await initApp(); } catch(e) { console.error('initApp error:', e); }
+
+  // One-time migration: fix variant exercise names stored incorrectly in history
+  _migrateVariantNames();
 
   // One-time repair: restore set notes + reps wiped by old saveBuilder()
   _repairRoutineSets();
