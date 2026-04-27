@@ -1747,6 +1747,7 @@ function libraryRender() {
       return nameMatch || muscleMatch;
     });
   }
+  filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
 
   const filterBtns = [
     `<button class="lib-fbtn${!_libFilter?' sel':''}" onclick="librarySetFilter(null)">${t('all')}</button>`,
@@ -2418,6 +2419,7 @@ function pickerRender() {
       return nameMatch || muscleMatch;
     });
   }
+  filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
   // Filters
   const filterHtml = [
     `<button class="lib-fbtn${!_pickerFilter?' sel':''}" onclick="pickerSetFilter(null)">${t('all')}</button>`,
