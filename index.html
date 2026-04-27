@@ -3459,12 +3459,12 @@ function buildCard(ex, i) {
             <span class="sr-num">S${si+1}</span>
             <input class="sr-w${focCls}" id="iw${i}_${si}" type="text" inputmode="decimal"
               placeholder="${t('kg-placeholder')}" value="${defW}"
-              onfocus="this.setSelectionRange(this.value.length,this.value.length)"
+              onfocus="this.select()"
               oninput="liveSave(${i},${si},'w',this.value)">
             <span class="sr-x">×</span>
             <input class="sr-r${focCls}" id="ir${i}_${si}" type="text" inputmode="numeric"
               placeholder="${def.r||'—'}" value="${defR}"
-              onfocus="this.setSelectionRange(this.value.length,this.value.length)"
+              onfocus="this.select()"
               oninput="liveSave(${i},${si},'r',this.value)">
             <input class="sr-note-inp" id="in${i}_${si}"
               value="${(set.note||def.n||'').replace(/"/g,'&quot;')}"
