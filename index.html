@@ -1087,7 +1087,9 @@ async function syncToTurso() {
       body: JSON.stringify({ data: {
         workouts:       get(),
         prefs:          getPrefs(),
-        currentSession: loadCurrentSession()
+        currentSession: loadCurrentSession(),
+        program:        getProgramData(),
+        archives:       getArchives()
       }})
     });
   } catch(e) { console.warn('Turso sync failed:', e); }
@@ -4099,6 +4101,16 @@ async function _startApp() {
       }
       if (remote.currentSession && !loadCurrentSession()) {
         localStorage.setItem('mwCurrent', JSON.stringify(remote.currentSession));
+      }
+      // Restore custom program (routines + variants) — local wins if it exists
+      if (remote.program && remote.program.routines) {
+        if (!getProgramData()) {
+          localStorage.setItem('mwProgram', JSON.stringify(remote.program));
+        }
+      }
+      // Restore archives — remote wins if local is empty
+      if (remote.archives?.length && !getArchives().length) {
+        localStorage.setItem('mwArchives', JSON.stringify(remote.archives));
       }
     }
   } catch(e) { console.warn('Turso load error:', e); }
