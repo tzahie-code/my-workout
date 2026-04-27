@@ -567,6 +567,10 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 .picker-img-ph { width:44px; height:44px; border-radius:8px; flex-shrink:0; background:#111116; }
 .picker-card-name { font-size:14px; font-weight:700; }
 .picker-card-muscles { font-size:11px; color:var(--txt2); margin-top:2px; }
+.picker-card-exp { display:block !important; background:var(--card2); border-color:var(--green); }
+.picker-card-exp:active { opacity:1; }
+.picker-img-full { width:100%; height:150px; object-fit:cover; object-position:top center;
+  border-radius:10px; margin-bottom:12px; display:block; background:#111116; }
 .picker-spacer { height:20px; }
 
   /* ── AUTH SCREEN ── */
@@ -1812,7 +1816,6 @@ function showLibDetail(idx) {
 function closeLibDetail(e) {
   if (e && e.target !== document.getElementById('lib-modal')) return;
   document.getElementById('lib-modal').style.display = 'none';
-  _pickerPreviewIdx = null;
 }
 
 // ════════════════════════════════════
@@ -2302,8 +2305,8 @@ function builderToggleKey(rid, idx) {
 let _builderSubstIdx = null;
 // _builderVariantIdx: index of exercise we're adding a variant for (null = not in variant mode)
 let _builderVariantIdx = null;
-// _pickerPreviewIdx: lib index of exercise being previewed before confirming add (null = not previewing)
-let _pickerPreviewIdx = null;
+// _pickerExpanded: lib index of the picker card currently expanded (null = all compact)
+let _pickerExpanded = null;
 
 function openVariantPicker(rid, idx) {
   _builderPickRid = rid;
@@ -2432,6 +2435,7 @@ function closeBuilderPicker(e) {
   _builderPickRid = null;
   _builderSubstIdx = null;
   _builderVariantIdx = null;
+  _pickerExpanded = null;
 }
 
 function pickerSearchInput(val) {
@@ -2469,8 +2473,23 @@ function pickerRender() {
     const idx = EXERCISE_LIBRARY.indexOf(ex);
     const imgSrc = _exImgSrc(ex.img);
     const muscles = ex.muscles.map(m => tM(m)).join(', ');
+    const muscleTags = ex.muscles.map(m => `<span class="mtag" style="background:${_mRgba(m,0.15)};color:${_mHex(m)};font-weight:700">${tM(m)}</span>`).join('');
     // In substitute mode, dim the current exercise so user knows to pick a different one
     const isCurrent = substName && ex.name === substName;
+    const isExpanded = _pickerExpanded === idx;
+
+    if (isExpanded) {
+      let addLabel = 'Add to Routine';
+      if (_builderSubstIdx !== null) addLabel = 'Use as Substitute';
+      if (_builderVariantIdx !== null) addLabel = 'Use as Trade Exercise';
+      return `<div class="picker-card picker-card-exp" onclick="pickerPreview(${idx})">
+        ${imgSrc ? `<img class="picker-img-full" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : ''}
+        <div style="font-size:16px;font-weight:800;margin-bottom:8px">${escHtml(tEx(ex.name))}</div>
+        <div class="muscle-tags" style="margin-bottom:16px">${muscleTags}</div>
+        <button onclick="event.stopPropagation();pickerConfirmAdd()" style="width:100%;padding:14px;background:var(--green);color:#000;font-weight:800;font-size:15px;border:none;border-radius:12px;cursor:pointer;font-family:inherit">${addLabel}</button>
+      </div>`;
+    }
+
     return `<div class="picker-card${isCurrent?' picker-card-dim':''}" onclick="pickerPreview(${idx})" style="${isCurrent?'opacity:.35;pointer-events:none':''}">
       ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
       <div style="flex:1">
@@ -2533,38 +2552,22 @@ function builderPickEx(libIdx) {
   builderRenderTab();
 }
 
-// ── Picker two-tap preview ─────────────────────────────────────────────────
+// ── Picker expand-in-place ─────────────────────────────────────────────────
 function pickerPreview(libIdx) {
-  // First tap: show exercise detail + "Add to Routine" button.
-  // Second tap (button): actually add.
-  const ex = EXERCISE_LIBRARY[libIdx];
-  if (!ex) return;
-  _pickerPreviewIdx = libIdx;
-  const imgSrc = _exImgSrc(ex.img);
-  const tags = ex.muscles.map(m => `<span class="mtag" style="background:${_mRgba(m,0.15)};color:${_mHex(m)};font-weight:700">${tM(m)}</span>`).join('');
-
-  // Label for the confirm button depends on current picker mode
-  let addLabel = 'Add to Routine';
-  if (_builderSubstIdx !== null) addLabel = 'Use as Substitute';
-  if (_builderVariantIdx !== null) addLabel = 'Use as Trade Exercise';
-
-  document.getElementById('lib-modal-content').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <h3 style="font-size:18px;font-weight:800;flex:1;padding-right:12px">${tEx(ex.name)}</h3>
-      ${ytBtn(ex.name)}
-      <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1;margin-left:8px">✕</button>
-    </div>
-    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:180px;object-fit:cover;object-position:top center;border-radius:12px;margin-bottom:12px;background:#1a1a2e" onerror="this.style.display='none'">` : ''}
-    <div class="muscle-tags" style="margin-bottom:20px">${tags}</div>
-    <button onclick="pickerConfirmAdd()" style="width:100%;padding:14px;background:var(--green);color:#000;font-weight:800;font-size:16px;border:none;border-radius:14px;cursor:pointer;font-family:inherit">${addLabel}</button>
-  `;
-  document.getElementById('lib-modal').style.display = 'flex';
+  // Toggle: tap to expand, tap again to collapse. Tapping a different card expands that one.
+  _pickerExpanded = (_pickerExpanded === libIdx) ? null : libIdx;
+  pickerRender();
+  if (_pickerExpanded !== null) {
+    setTimeout(() => {
+      const el = document.querySelector('.picker-card-exp');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 30);
+  }
 }
 
 function pickerConfirmAdd() {
-  const idx = _pickerPreviewIdx;
-  _pickerPreviewIdx = null;
-  document.getElementById('lib-modal').style.display = 'none';
+  const idx = _pickerExpanded;
+  _pickerExpanded = null;
   if (idx !== null) builderPickEx(idx);
 }
 
