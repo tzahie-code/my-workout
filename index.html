@@ -3267,7 +3267,6 @@ function buildCard(ex, i) {
       const defR = set._pr !== undefined ? set._pr
                  : set.done ? (set.r||'')
                  : prevR !== null ? prevR
-                 : (isVariant && !hasOwnHistory) ? ''   // variant never done → empty
                  : (def.r||'');
       const doneCls = set.done ? ' done' : '';
       const ckCls   = set.done ? ' done' : '';
