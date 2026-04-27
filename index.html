@@ -1812,6 +1812,7 @@ function showLibDetail(idx) {
 function closeLibDetail(e) {
   if (e && e.target !== document.getElementById('lib-modal')) return;
   document.getElementById('lib-modal').style.display = 'none';
+  _pickerPreviewIdx = null;
 }
 
 // ════════════════════════════════════
@@ -2301,6 +2302,8 @@ function builderToggleKey(rid, idx) {
 let _builderSubstIdx = null;
 // _builderVariantIdx: index of exercise we're adding a variant for (null = not in variant mode)
 let _builderVariantIdx = null;
+// _pickerPreviewIdx: lib index of exercise being previewed before confirming add (null = not previewing)
+let _pickerPreviewIdx = null;
 
 function openVariantPicker(rid, idx) {
   _builderPickRid = rid;
@@ -2468,7 +2471,7 @@ function pickerRender() {
     const muscles = ex.muscles.map(m => tM(m)).join(', ');
     // In substitute mode, dim the current exercise so user knows to pick a different one
     const isCurrent = substName && ex.name === substName;
-    return `<div class="picker-card${isCurrent?' picker-card-dim':''}" onclick="builderPickEx(${idx})" style="${isCurrent?'opacity:.35;pointer-events:none':''}">
+    return `<div class="picker-card${isCurrent?' picker-card-dim':''}" onclick="pickerPreview(${idx})" style="${isCurrent?'opacity:.35;pointer-events:none':''}">
       ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
       <div style="flex:1">
         <div class="picker-card-name">${escHtml(tEx(ex.name))}${isCurrent?` <span style="font-size:11px;color:var(--txt2)">${t('current-exercise')}</span>`:''}</div>
@@ -2528,6 +2531,41 @@ function builderPickEx(libIdx) {
   document.getElementById('picker-wrap').classList.remove('active');
   _builderPickRid = null;
   builderRenderTab();
+}
+
+// ── Picker two-tap preview ─────────────────────────────────────────────────
+function pickerPreview(libIdx) {
+  // First tap: show exercise detail + "Add to Routine" button.
+  // Second tap (button): actually add.
+  const ex = EXERCISE_LIBRARY[libIdx];
+  if (!ex) return;
+  _pickerPreviewIdx = libIdx;
+  const imgSrc = _exImgSrc(ex.img);
+  const tags = ex.muscles.map(m => `<span class="mtag" style="background:${_mRgba(m,0.15)};color:${_mHex(m)};font-weight:700">${tM(m)}</span>`).join('');
+
+  // Label for the confirm button depends on current picker mode
+  let addLabel = 'Add to Routine';
+  if (_builderSubstIdx !== null) addLabel = 'Use as Substitute';
+  if (_builderVariantIdx !== null) addLabel = 'Use as Trade Exercise';
+
+  document.getElementById('lib-modal-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="font-size:18px;font-weight:800;flex:1;padding-right:12px">${tEx(ex.name)}</h3>
+      ${ytBtn(ex.name)}
+      <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1;margin-left:8px">✕</button>
+    </div>
+    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:180px;object-fit:cover;object-position:top center;border-radius:12px;margin-bottom:12px;background:#1a1a2e" onerror="this.style.display='none'">` : ''}
+    <div class="muscle-tags" style="margin-bottom:20px">${tags}</div>
+    <button onclick="pickerConfirmAdd()" style="width:100%;padding:14px;background:var(--green);color:#000;font-weight:800;font-size:16px;border:none;border-radius:14px;cursor:pointer;font-family:inherit">${addLabel}</button>
+  `;
+  document.getElementById('lib-modal').style.display = 'flex';
+}
+
+function pickerConfirmAdd() {
+  const idx = _pickerPreviewIdx;
+  _pickerPreviewIdx = null;
+  document.getElementById('lib-modal').style.display = 'none';
+  if (idx !== null) builderPickEx(idx);
 }
 
 function _builderResolveSets(ex, rid) {
