@@ -4414,6 +4414,29 @@ else if (_gToken) {
 else {
   _showAuthForm();
 }
+
+// ── Scroll focused input above the keyboard on mobile ───────────────────────
+(function () {
+  function nudgeIntoView(el) {
+    if (!el || !el.matches('input, textarea, select')) return;
+    // Small delay so the keyboard has time to animate in
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+  }
+
+  // Fire when any input gains focus
+  document.addEventListener('focusin', e => nudgeIntoView(e.target));
+
+  // On iOS the visualViewport shrinks when the keyboard appears —
+  // scroll again at that moment so the element lands precisely above it
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      const el = document.activeElement;
+      nudgeIntoView(el);
+    });
+  }
+})();
 </script>
 </body>
 </html>
