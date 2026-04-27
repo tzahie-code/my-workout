@@ -14,10 +14,12 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>My Workout</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- jsPDF loaded on-demand only when user exports PDF (saves ~200KB parse on every boot) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+  <!-- Non-blocking font load — renders with system font instantly, swaps in Inter when ready -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet"></noscript>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -4153,7 +4155,16 @@ async function loadImgDataUrl(url) {
 }
 
 async function exportProgramPDF(routines, programName) {
-  if (!window.jspdf) { alert('PDF library not loaded. Please check your connection and try again.'); return; }
+  // Load jsPDF on-demand (not at startup — saves ~200KB parse time)
+  if (!window.jspdf) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    }).catch(() => { alert('PDF library failed to load. Check your connection.'); return null; });
+    if (!window.jspdf) return;
+  }
 
   // Show loading spinner
   const loader = document.createElement('div');
@@ -4340,59 +4351,112 @@ function authGoogleClick() {
 
 async function _startApp() {
   _appInited = true;
-  // Update email display
+
+  // ── Phase 1: Instant boot from local cache — no network, shows home in <50ms ──
   const emailEl = document.getElementById('auth-user-email');
   if (emailEl && _gUser) emailEl.textContent = _gUser.email || '';
 
-  // Load data from Turso, merge with local
+  loadProgram();
+  repairNullWeights();
+
+  const _savedLang = getSettings().lang || 'en';
+  if (_savedLang !== 'en') {
+    document.documentElement.dir  = 'rtl';
+    document.documentElement.lang = 'he';
+  }
+  _applyLangToDOM();
+
+  // One-time fast migrations (local only, synchronous)
+  _migrateVariantNames();
+  _repairRoutineSets();
+  _migrateProgressOverridesToSessions();
+
+  // Navigate immediately using cached data
+  const savedSession = loadCurrentSession();
+  if (savedSession) {
+    S.rid = savedSession.rid; S.session = savedSession.session; S.expanded = null;
+    show('workout'); wkRender();
+  } else {
+    homeUpdate();
+    show('home');
+  }
+
+  // ── Phase 2: Background sync — doesn't delay startup ─────────────────────
+  _bgSync().catch(e => console.warn('bg sync error:', e));
+}
+
+// Runs after home is already visible — merges remote data silently
+async function _bgSync() {
+  // ── Turso (primary sync) ─────────────────────────────────────────────────
   try {
     const remote = await loadFromTurso();
     if (remote === 'expired') { _appInited = false; _showAuthForm(); return; }
     if (remote) {
+      let changed = false;
       if (remote.workouts?.sessions) {
         const local = get();
         if (!local.sessions?.length || remote.workouts.sessions.length > local.sessions.length) {
           localStorage.setItem('mwData3', JSON.stringify(remote.workouts));
+          changed = true;
         }
       }
       if (remote.prefs) {
         putPrefs(mergePrefs(remote.prefs, getPrefs()));
+        changed = true;
       }
       if (remote.currentSession && !loadCurrentSession()) {
         localStorage.setItem('mwCurrent', JSON.stringify(remote.currentSession));
+        changed = true;
       }
-      // Restore custom program (routines + variants) — local wins if it exists
-      if (remote.program && remote.program.routines) {
-        if (!getProgramData()) {
-          localStorage.setItem('mwProgram', JSON.stringify(remote.program));
-        }
+      if (remote.program?.routines && !getProgramData()) {
+        localStorage.setItem('mwProgram', JSON.stringify(remote.program));
+        loadProgram();
+        changed = true;
       }
-      // Restore archives — remote wins if local is empty
       if (remote.archives?.length && !getArchives().length) {
         localStorage.setItem('mwArchives', JSON.stringify(remote.archives));
+        changed = true;
       }
+      if (changed) homeUpdate(); // silently refresh home with remote data
     }
   } catch(e) { console.warn('Turso load error:', e); }
 
-  try { await initApp(); } catch(e) { console.error('initApp error:', e); }
+  // ── Legacy Supabase sync (fire-and-forget) ───────────────────────────────
+  try {
+    const { data } = await getSb()
+      .from('workout_store')
+      .select('*')
+      .eq('user_id', getUserId())
+      .maybeSingle();
+    if (data) {
+      const localSessions = get();
+      const localPrefs    = getPrefs();
+      const all = [...(data.sessions_data?.sessions||[]), ...localSessions.sessions];
+      const byId = {};
+      all.forEach(s => { byId[s.id] = s; });
+      const merged = { sessions: Object.values(byId).sort((a,b)=>b.id-a.id) };
+      const mergedPrefs = mergePrefs(data.prefs_data||{}, localPrefs);
+      const localCurrent = loadCurrentSession();
+      const current = localCurrent || data.current_session || null;
+      localStorage.setItem('mwData3', JSON.stringify(merged));
+      localStorage.setItem('mwPrefs', JSON.stringify(mergedPrefs));
+      if (!localCurrent && current) localStorage.setItem('mwCurrent', JSON.stringify(current));
+      getSb().from('workout_store').upsert({
+        user_id: getUserId(), sessions_data: merged, prefs_data: mergedPrefs,
+        current_session: current, updated_at: new Date().toISOString()
+      });
+      homeUpdate();
+    } else {
+      const d = get(), p = getPrefs(), c = loadCurrentSession();
+      getSb().from('workout_store').upsert({
+        user_id: getUserId(), sessions_data: d, prefs_data: p,
+        current_session: c, updated_at: new Date().toISOString()
+      });
+    }
+  } catch(e) { console.warn('Supabase sync error:', e); }
 
-  // One-time migration: fix variant exercise names stored incorrectly in history
-  _migrateVariantNames();
-
-  // One-time repair: restore set notes + reps wiped by old saveBuilder()
-  _repairRoutineSets();
-
-  // One-time migration: copy progress overrides → session data so history matches progress
-  _migrateProgressOverridesToSessions();
-
-  // Always push local data to Turso on login (first-time upload or refresh)
+  // Push merged data back to Turso
   syncToTurso();
-
-  if (S.session) {
-    document.getElementById('screen-auth').classList.remove('active');
-  } else {
-    show('home');
-  }
 }
 
 // ── Boot sequence ──────────────────────────────────────────
