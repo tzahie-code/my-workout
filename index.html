@@ -2503,6 +2503,17 @@ function builderPickEx(libIdx) {
   builderRenderTab();
 }
 
+function _builderResolveSets(ex, rid) {
+  // Preserve existing set notes (n) and reps (r) from the current ROUTINES definition.
+  // Only generate blank sets for brand-new exercises not already in ROUTINES.
+  const existing = ROUTINES[rid]?.exercises.find(e => e.name === ex.name);
+  const count = ex.setCount || 3;
+  return Array.from({length: count}, (_, i) => {
+    const src = existing?.sets[i];
+    return { n: src?.n || '', w: '', r: src?.r || '' };
+  });
+}
+
 function saveBuilder() {
   const name = (_builderState.name||'').trim() || 'My Program';
   const routines = {
@@ -2510,13 +2521,13 @@ function saveBuilder() {
       exercises: _builderState.A.exercises.map(ex => ({
         name: ex.name, key: ex.key||false, machine: ex.machine||'', muscles: ex.muscles||[],
         img: ex.img||'', variants: ex.variants,
-        sets: Array.from({length: ex.setCount||3}, () => ({n:'',w:'',r:''}))
+        sets: _builderResolveSets(ex, 'A')
       }))},
     B: { id:'B', label: _builderState.B.label||'Routine B', locker: ROUTINES.B.locker||'',
       exercises: _builderState.B.exercises.map(ex => ({
         name: ex.name, key: ex.key||false, machine: ex.machine||'', muscles: ex.muscles||[],
         img: ex.img||'', variants: ex.variants,
-        sets: Array.from({length: ex.setCount||3}, () => ({n:'',w:'',r:''}))
+        sets: _builderResolveSets(ex, 'B')
       }))}
   };
   if (_builderTarget === 'active') {
@@ -2746,6 +2757,69 @@ function toggleProgExcl(rid, ei, sessId) {
   _applyProgOverride(rid, ei, sessId, ov => {
     if (ov.excl) delete ov.excl; else ov.excl = true;
   });
+}
+
+// One-time repair: restore set notes (n) and target reps (r) that were wiped
+// when saveBuilder() regenerated sets as blank {n:'',w:'',r:''}.
+// Matches each exercise in mwProgram against the hardcoded ROUTINES template by name
+// and fills any empty n/r from the template. Runs once.
+function _repairRoutineSets() {
+  if (localStorage.getItem('mwSetsRepaired')) return;
+  localStorage.setItem('mwSetsRepaired', '1');
+  const prog = getProgramData();
+  if (!prog || !prog.routines) return;
+
+  // Build a lookup from the hardcoded JS ROUTINES (loaded before loadProgram() overwrites it)
+  // We need the DEFAULT template — read from the hardcoded constant which was the initial value.
+  // Since ROUTINES may already be overwritten by loadProgram(), we use the hardcoded defaults
+  // embedded here directly.
+  const DEFAULTS = {
+    A: {
+      'Leg Press':                           [{n:'כבד – אנרגיה מלאה',r:'8-10'},{n:'עבודה כבדה',r:'8-10'},{n:'עבודה כבדה',r:'8-10'},{n:'עבודה עד כשל',r:'8-10'}],
+      'Bulgarian Split Squat':               [{n:'כבד – אנרגיה מלאה',r:'10'},{n:'עבודה כבדה',r:'10'},{n:'עבודה עד כשל',r:'10'}],
+      'Leg Extension':                       [{n:'עבודה עד 1 לפני כשל',r:'12'},{n:'עבודה עד כשל',r:'12'},{n:'עבודה עד כשל',r:'12'}],
+      'Leg Curl':                            [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
+      'Calf Raises':                         [{n:'עבודה עד כשל',r:'12-15'},{n:'עבודה עד כשל',r:'12-15'},{n:'עבודה עד כשל',r:'12-15'},{n:'עבודה עד כשל',r:'12-15'}],
+      'Lat Pulldown / Pull Up':              [{n:'כבד – אנרגיה מלאה',r:'6-8'},{n:'עבודה כבדה',r:'6-8'},{n:'עבודה כבדה',r:'6-8'},{n:'עבודה עד כשל',r:'6-8'}],
+      'Seated Row / Chest Supported Row':    [{n:'כבד – אנרגיה מלאה',r:'8-10'},{n:'עבודה כבדה',r:'8-10'},{n:'עבודה כבדה',r:'8-10'},{n:'עבודה עד כשל',r:'8-10'}],
+      'Back Extension':                      [{n:'עבודה עד 1 לפני כשל',r:'10-15'},{n:'עבודה עד כשל',r:'10-15'},{n:'עבודה עד כשל',r:'10-15'}],
+      'Cable Crunch':                        [{n:'עבודה עד 1 לפני כשל',r:'10-15'},{n:'עבודה עד כשל',r:'10-15'},{n:'עבודה עד כשל',r:'10-15'}],
+      'Hanging Leg Raises':                  [{n:'עבודה עד 1 לפני כשל',r:'10-15'},{n:'עבודה עד כשל',r:'10-15'},{n:'עבודה עד כשל',r:'10-15'}],
+    },
+    B: {
+      'Smith Bench Press':                   [{n:'כבד – אנרגיה מלאה',r:'6-8'},{n:'עבודה כבדה',r:'6-8'},{n:'עבודה כבדה',r:'6-8'},{n:'עבודה עד כשל',r:'6-8'}],
+      'Incline Dumbbell Press':              [{n:'כבד – אנרגיה מלאה',r:'8-10'},{n:'עבודה כבדה',r:'8-10'},{n:'עבודה עד כשל',r:'8-10'}],
+      'Pec Deck':                            [{n:'עבודה עד 1 לפני כשל',r:'10'},{n:'עבודה עד כשל',r:'10'},{n:'עבודה עד כשל',r:'10'}],
+      'Shoulder Press':                      [{n:'עבודה עד 1 לפני כשל',r:'8-10'},{n:'עבודה עד כשל',r:'8-10'},{n:'עבודה עד כשל',r:'8-10'}],
+      'Lateral Raises':                      [{n:'עבודה עד 1 לפני כשל',r:'12-15'},{n:'עבודה עד כשל',r:'12-15'},{n:'עבודה עד כשל',r:'12-15'}],
+      'Triceps Pushdown':                    [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
+      'Overhead Triceps Extension':          [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
+      'Dumbbell Curl':                       [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
+      'Hammer Curl / Cable Curl':            [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
+    }
+  };
+
+  let changed = false;
+  ['A','B'].forEach(rid => {
+    const routine = prog.routines[rid];
+    if (!routine?.exercises) return;
+    routine.exercises.forEach(ex => {
+      const tpl = DEFAULTS[rid]?.[ex.name];
+      if (!tpl) return;
+      ex.sets.forEach((set, i) => {
+        const src = tpl[i];
+        if (!src) return;
+        if (!set.n && src.n) { set.n = src.n; changed = true; }
+        if (!set.r && src.r) { set.r = src.r; changed = true; }
+      });
+    });
+  });
+
+  if (changed) {
+    putProgramData(prog);
+    ROUTINES = prog.routines;
+    console.log('[repair] Restored set notes and reps in mwProgram.');
+  }
 }
 
 // One-time migration: copy any existing progress weight overrides into session data
@@ -4116,6 +4190,9 @@ async function _startApp() {
   } catch(e) { console.warn('Turso load error:', e); }
 
   try { await initApp(); } catch(e) { console.error('initApp error:', e); }
+
+  // One-time repair: restore set notes + reps wiped by old saveBuilder()
+  _repairRoutineSets();
 
   // One-time migration: copy progress overrides → session data so history matches progress
   _migrateProgressOverridesToSessions();
