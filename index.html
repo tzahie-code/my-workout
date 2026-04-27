@@ -3657,8 +3657,9 @@ function switchVariant(ei) {
     if (!set.done) {
       // Clear pending typed values so the new variant's last weights show
       delete set._pw; delete set._pr;
+      // Inherit set notes from the main exercise when the variant has none saved
       set.note = (p.setNotes && p.setNotes[newName] && p.setNotes[newName][si] != null)
-                   ? p.setNotes[newName][si] : '';
+                   ? p.setNotes[newName][si] : (ex.sets[si]?.n || '');
     }
   });
   wkRender();
