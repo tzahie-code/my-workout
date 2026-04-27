@@ -4209,11 +4209,15 @@ async function _startApp() {
 }
 
 // ── Boot sequence ──────────────────────────────────────────
-// 1. Force-update: skip auth
+// 1. Force-update: skip auth screen, but still run full app init
 if (localStorage.getItem('mwReloading')) {
   localStorage.removeItem('mwReloading');
-  document.getElementById('screen-auth').classList.remove('active');
-  document.getElementById('screen-home').classList.add('active');
+  if (_gToken) {
+    _startApp(); // loads program (including variants) from Turso + localStorage
+  } else {
+    document.getElementById('screen-auth').classList.remove('active');
+    document.getElementById('screen-home').classList.add('active');
+  }
 }
 // 2. Stored token: go straight to app — no login screen
 else if (_gToken) {
