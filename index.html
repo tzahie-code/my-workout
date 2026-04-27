@@ -163,7 +163,7 @@
     .ec-svg-wrap { width: 78px; flex-shrink: 0; background: #111116;
       display: flex; align-items: center; justify-content: center;
       border-right: 1px solid var(--border); position: relative; overflow: hidden; }
-    .ec-svg-wrap img { width: 78px; height: 78px; object-fit: cover; object-position: top center; display: block; }
+    .ec-svg-wrap img { width: 78px; height: 78px; object-fit: contain; display: block; }
     .ec-comp-badge { position: absolute; inset: 0; background: rgba(48,209,88,.2);
       display: flex; align-items: center; justify-content: center; font-size: 26px; }
     .ec-info { flex: 1; padding: 10px 12px; display: flex;
@@ -310,7 +310,7 @@
     .pv-ex { background: var(--card); border-radius: var(--r); box-shadow: var(--sh);
       padding: 12px 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
       border: 1px solid var(--border); }
-    .pv-img { width: 56px; height: 56px; object-fit: cover; object-position: top center;
+    .pv-img { width: 56px; height: 56px; object-fit: contain;
       border-radius: 8px; flex-shrink: 0; background: #111116; }
     .pv-info { flex: 1; min-width: 0; }
     .pv-name { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
@@ -379,7 +379,7 @@
       border-radius:var(--r); box-shadow:var(--sh); padding:12px; margin-bottom:10px; cursor:pointer;
       border:1px solid var(--border); }
     .lib-card:active { opacity:.8; }
-    .lib-img { width:64px; height:64px; object-fit:cover; object-position:top center;
+    .lib-img { width:64px; height:64px; object-fit:contain;
       border-radius:10px; flex-shrink:0; background:#111116; }
     .lib-img-ph { width:64px; height:64px; border-radius:10px; flex-shrink:0; background:#111116; }
     .lib-info { flex:1; min-width:0; }
@@ -478,8 +478,8 @@
 .builder-ex-row { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
   padding:11px 12px; margin-bottom:10px; display:flex; align-items:flex-start; gap:10px;
   border:1px solid var(--border); }
-.builder-ex-img { width:48px; height:48px; border-radius:8px; object-fit:cover;
-  object-position:top center; flex-shrink:0; background:#1c1c1e; margin-top:1px; }
+.builder-ex-img { width:48px; height:48px; border-radius:8px; object-fit:contain;
+  flex-shrink:0; background:#1c1c1e; margin-top:1px; }
 .builder-ex-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:0; }
 .builder-ex-top  { display:flex; align-items:flex-start; gap:4px; }
 .builder-ex-text { flex:1; min-width:0; }
@@ -562,8 +562,8 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   border-radius:12px; padding:10px 12px; margin:8px 12px 0; cursor:pointer;
   border:1px solid var(--border); }
 .picker-card:active { opacity:.8; }
-.picker-img { width:44px; height:44px; border-radius:8px; object-fit:cover;
-  object-position:top center; flex-shrink:0; background:#111116; }
+.picker-img { width:44px; height:44px; border-radius:8px; object-fit:contain;
+  flex-shrink:0; background:#111116; }
 .picker-img-ph { width:44px; height:44px; border-radius:8px; flex-shrink:0; background:#111116; }
 .picker-card-name { font-size:14px; font-weight:700; }
 .picker-card-muscles { font-size:11px; color:var(--txt2); margin-top:2px; }
@@ -1807,7 +1807,7 @@ function showLibDetail(idx) {
       ${ytBtn(ex.name)}
       <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1;margin-left:8px">✕</button>
     </div>
-    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:180px;object-fit:cover;object-position:top center;border-radius:12px;margin-bottom:12px;background:#1a1a2e" onerror="this.style.display='none'">` : ''}
+    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:auto;max-height:260px;object-fit:contain;border-radius:12px;margin-bottom:12px;background:#111116" onerror="this.style.display='none'">` : ''}
     <div class="muscle-tags" style="margin-bottom:16px">${tags}</div>
     `;
   document.getElementById('lib-modal').style.display = 'flex';
