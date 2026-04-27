@@ -2701,22 +2701,74 @@ function _applyProgOverride(rid, ei, sessId, mutFn) {
   progressRender();
 }
 
+// Write a new max-weight back into the actual session set (progress → history sync)
+function _writeWeightToSession(sessId, exName, newWeight) {
+  const d    = get();
+  const sess = d.sessions.find(s => s.id === sessId);
+  if (!sess) return;
+  const ex = sess.exercises.find(e => e.name === exName);
+  if (!ex) return;
+  const doneSets = ex.sets.filter(s => s.done && s.w != null && !isBW(String(s.w)));
+  if (!doneSets.length) return;
+  // Update the set that currently holds the highest weight
+  const maxW = Math.max(...doneSets.map(s => parseFloat(s.w) || 0));
+  const target = doneSets.filter(s => parseFloat(s.w) === maxW);
+  target.forEach(s => { s.w = newWeight; });
+  put(d);
+  // Turso sync handled by the calling putProgressOverrides → sbSaveDebounced
+}
+
 function saveProgWeight(rid, ei, sessId, val) {
   const num = parseFloat(val);
   _applyProgOverride(rid, ei, sessId, ov => {
     if (isNaN(num) || val === '') delete ov.w;
     else ov.w = num;
   });
+  // Sync new weight back into the actual session so history shows the same value
+  if (!isNaN(num) && val !== '') {
+    _writeWeightToSession(sessId, ROUTINES[rid].exercises[ei].name, num);
+  }
 }
 
 function resetProgWeight(rid, ei, sessId) {
   _applyProgOverride(rid, ei, sessId, ov => { delete ov.w; });
+  // Override removed — progress will now re-read from session data (already in sync)
 }
 
 function toggleProgExcl(rid, ei, sessId) {
   _applyProgOverride(rid, ei, sessId, ov => {
     if (ov.excl) delete ov.excl; else ov.excl = true;
   });
+}
+
+// One-time migration: copy any existing progress weight overrides into session data
+// so history and progress agree. Runs once and sets a flag so it never runs again.
+function _migrateProgressOverridesToSessions() {
+  if (localStorage.getItem('mwProgMigrated')) return;
+  const ovs = getProgressOverrides();
+  const d   = get();
+  let dirty = false;
+  Object.keys(ovs).forEach(exName => {
+    Object.keys(ovs[exName]).forEach(sessId => {
+      const ov = ovs[exName][sessId];
+      if (ov.w == null) return;                                 // exclusion only, skip
+      const sess = d.sessions.find(s => String(s.id) === String(sessId));
+      if (!sess) return;
+      const ex = sess.exercises.find(e => e.name === exName);
+      if (!ex) return;
+      const doneSets = ex.sets.filter(s => s.done && s.w != null && !isBW(String(s.w)));
+      if (!doneSets.length) return;
+      const maxW   = Math.max(...doneSets.map(s => parseFloat(s.w) || 0));
+      const target = doneSets.filter(s => parseFloat(s.w) === maxW);
+      const alreadyMatch = target.every(s => parseFloat(s.w) === ov.w);
+      if (!alreadyMatch) {
+        target.forEach(s => { s.w = ov.w; });
+        dirty = true;
+      }
+    });
+  });
+  if (dirty) { put(d); sbSaveDebounced(); }
+  localStorage.setItem('mwProgMigrated', '1');
 }
 
 // ════════════════════════════════════
@@ -3705,6 +3757,18 @@ function saveHistEdit(sessId) {
     });
   });
   put(d);
+  // Clear weight overrides for this session's exercises so progress re-reads live values
+  const ovs = getProgressOverrides();
+  let changed = false;
+  sess.exercises.forEach(ex => {
+    if (ovs[ex.name] && ovs[ex.name][sessId] && ovs[ex.name][sessId].w != null) {
+      delete ovs[ex.name][sessId].w;
+      if (!Object.keys(ovs[ex.name][sessId]).length) delete ovs[ex.name][sessId];
+      if (!Object.keys(ovs[ex.name]).length)         delete ovs[ex.name];
+      changed = true;
+    }
+  });
+  if (changed) localStorage.setItem('mwProgOverrides', JSON.stringify(ovs));
   sbSaveDebounced();
   _editHistId = null;
   histRender();
@@ -4035,6 +4099,9 @@ async function _startApp() {
   } catch(e) { console.warn('Turso load error:', e); }
 
   try { await initApp(); } catch(e) { console.error('initApp error:', e); }
+
+  // One-time migration: copy progress overrides → session data so history matches progress
+  _migrateProgressOverridesToSessions();
 
   // Always push local data to Turso on login (first-time upload or refresh)
   syncToTurso();
