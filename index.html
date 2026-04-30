@@ -2185,15 +2185,21 @@ function builderRenderTab() {
 
   let rows;
   if (_builderReorderMode) {
-    // Simplified drag-only rows — no images, no controls
-    rows = exs.map((ex, idx) => `
-      <div class="builder-ex-row" data-idx="${idx}" style="padding:14px 12px">
+    // ▲/▼ tap buttons (reliable on mobile) + drag handle (bonus for desktop)
+    rows = exs.map((ex, idx) => {
+      const first = idx === 0, last = idx === exs.length - 1;
+      const upBtn  = `<button onclick="builderMoveEx('${rid}',${idx},-1)" style="background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:5px 11px;font-size:15px;cursor:pointer;color:var(--txt);${first?'opacity:.25;pointer-events:none':''}">▲</button>`;
+      const dnBtn  = `<button onclick="builderMoveEx('${rid}',${idx},1)"  style="background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:5px 11px;font-size:15px;cursor:pointer;color:var(--txt);${last ?'opacity:.25;pointer-events:none':''}">▼</button>`;
+      return `
+      <div class="builder-ex-row" data-idx="${idx}" style="padding:11px 12px;gap:8px">
         <span class="drag-handle"
           ontouchstart="builderDragStart(event,'${rid}',${idx})"
           onmousedown="builderDragStart(event,'${rid}',${idx})">⠿</span>
-        <span style="flex:1;font-size:15px;font-weight:700">${escHtml(ex.name)}</span>
-        <span style="font-size:12px;color:var(--txt2)">${ex.setCount||3} ${t('sets')}${ex.key?' 🔥':''}</span>
-      </div>`).join('');
+        <span style="flex:1;font-size:15px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ex.name)}</span>
+        <span style="font-size:12px;color:var(--txt2);flex-shrink:0">${ex.setCount||3} ${t('sets')}${ex.key?' 🔥':''}</span>
+        <div style="display:flex;gap:4px;flex-shrink:0">${upBtn}${dnBtn}</div>
+      </div>`;
+    }).join('');
   } else {
     rows = exs.map((ex, idx) => {
       // Fallback: look up image from EXERCISE_LIBRARY if the builder state has none
@@ -2296,6 +2302,15 @@ function builderDragEnd() {
     exs.splice(toIdx, 0, item);
     builderRenderTab();
   }
+}
+
+function builderMoveEx(rid, idx, dir) {
+  const exs = _builderState[rid].exercises;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= exs.length) return;
+  const [item] = exs.splice(idx, 1);
+  exs.splice(newIdx, 0, item);
+  builderRenderTab();
 }
 
 function builderToggleKey(rid, idx) {
