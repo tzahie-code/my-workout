@@ -1580,10 +1580,13 @@ const EX_IMGS = {
   'Cable Curl':                       _EX_BASE + 'Standing_Biceps_Cable_Curl/0.jpg',
 };
 
-function getExerciseImg(name) {
-  const src = EX_IMGS[name] || '';
+function getExerciseImg(name, fallbackImg) {
+  const src = EX_IMGS[name]                                          // 1. legacy hardcoded map
+    || _exImgSrc(EXERCISE_LIBRARY.find(e => e.name === name)?.img)  // 2. library (covers any picker exercise)
+    || _exImgSrc(fallbackImg)                                        // 3. img stored in the routine definition
+    || '';
   if (!src) return '';
-  return `<img src="${src}" loading="lazy" alt="" onerror="this.outerHTML='<div class=\'lib-img-ph\'></div>'">`;
+  return `<img src="${src}" loading="lazy" alt="" onerror="this.style.display='none'">`;
 }
 
 // ════════════════════════════════════
@@ -3492,7 +3495,7 @@ function buildCard(ex, i) {
   const otherName  = variants ? variants[1 - variantIdx] : null;
 
   // Exercise illustration + completion overlay
-  const imgHtml  = getExerciseImg(activeName);
+  const imgHtml  = getExerciseImg(activeName, ex.img);
   const compBadge = allDone ? `<div class="ec-comp-badge">✅</div>` : '';
 
   // Set dots
