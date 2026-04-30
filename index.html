@@ -4344,9 +4344,15 @@ async function exportProgramPDF(routines, programName) {
         }
 
         // Sets · reps · weight
+        // Weight: use program definition first, fall back to lastWeights prefs (from View Routine edits)
         const setsCount = ex.sets?.length || 0;
-        const repsSet = [...new Set((ex.sets||[]).map(s=>s.r).filter(Boolean))];
-        const wtSet   = [...new Set((ex.sets||[]).map(s=>s.w).filter(w=>w&&w!==''))];
+        const prefW = prefs.lastWeights && prefs.lastWeights[ex.name];
+        const prefR = prefs.lastReps    && prefs.lastReps[ex.name];
+        const repsSet = [...new Set((ex.sets||[]).map((s,si) => s.r || (prefR && prefR[si]) || '').filter(Boolean))];
+        const wtSet   = [...new Set((ex.sets||[]).map((s,si) => {
+          const v = s.w || (prefW && prefW[si]) || '';
+          return (v && v !== '') ? String(v) : '';
+        }).filter(Boolean))];
         const repsStr = repsSet.length ? repsSet.join('/') + ' reps' : '';
         const wtStr   = wtSet.length   ? wtSet.join('/') + ' kg' : '';
         const restStr = (prefs.rest && prefs.rest[ex.name]) ? `Rest ${prefs.rest[ex.name]}` : '';
@@ -4354,11 +4360,11 @@ async function exportProgramPDF(routines, programName) {
         doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(55,55,68);
         doc.text(statsArr.join('   '), tx, y + 17.5);
 
-        // Machine / notes
-        if (ex.machine) {
+        // Machine / notes — use program def or prefs (from View Routine edits)
+        const machineNote = ex.machine || (prefs.machines && prefs.machines[ex.name]) || '';
+        if (machineNote) {
           doc.setFontSize(7.5); doc.setFont('helvetica','italic'); doc.setTextColor(140,140,155);
-          const noteText = String(ex.machine).substring(0,70);
-          doc.text(noteText, tx, y + 22.5);
+          doc.text(String(machineNote).substring(0,70), tx, y + 22.5);
         }
 
         // Separator line
