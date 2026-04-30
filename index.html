@@ -3951,10 +3951,11 @@ function finish() {
 
 function confirmEnd() {
   if (S.viewing) {
-    // View/edit mode — flush all pending values to prefs, clear mwCurrent, go home
+    // View/edit mode — flush all values to prefs AND keep mwCurrent alive
+    // so reopening "View Routine" instantly restores the exact typed values
     savePendingInputs();
     _flushSessionToPrefs();
-    clearCurrentSession(); // done viewing — no need to resume later
+    saveCurrentSession(); // keep the view session in mwCurrent
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
     // Active workout — save state to mwCurrent so it can be resumed
