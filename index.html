@@ -3393,6 +3393,7 @@ function homeUpdate() {
       <div class="rc-locker">
         🔐 ${t('locker')}
         <input class="locker-inp" value="${locker.replace(/"/g,'&quot;')}"
+          inputmode="numeric" pattern="[0-9]*"
           oninput="setLocker('${r}',this.value)" onfocus="this.select()">
         ${lastTxt}
       </div>`;
