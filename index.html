@@ -1916,13 +1916,39 @@ function saveCurrentSession() {
   }
 }
 
-// Auto-save current session every 20 seconds while a workout is active
+// Auto-save every 5 seconds while a session is active
 setInterval(() => {
-  if (S.session && !S.viewing) {
+  if (S.session) {
     savePendingInputs();
-    saveCurrentSession();
+    if (!S.viewing) saveCurrentSession();
+    else _flushSessionToPrefs(); // view mode: flush to prefs
   }
-}, 20000);
+}, 5000);
+
+// Emergency save: flush everything when app goes background or closes
+function _flushSessionToPrefs() {
+  if (!S.session) return;
+  S.session.exercises.forEach((ex, ei) => {
+    const name = activeExName(ei);
+    saveLastWeights(name, ex.sets);
+    const p = getPrefs();
+    if (ex.comment != null) { if (!p.comments) p.comments = {}; p.comments[name] = ex.comment; }
+    if (ex.machine != null) { if (!p.machines) p.machines = {}; p.machines[name] = ex.machine; }
+    if (!p.setNotes) p.setNotes = {};
+    if (!p.setNotes[name]) p.setNotes[name] = {};
+    ex.sets.forEach((set, si) => { if (set.note != null) p.setNotes[name][si] = set.note; });
+    putPrefs(p);
+  });
+}
+function _emergencySave() {
+  if (!S.session) return;
+  savePendingInputs();
+  _flushSessionToPrefs();
+  if (!S.viewing) saveCurrentSession();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _emergencySave(); });
+window.addEventListener('pagehide', _emergencySave);
+window.addEventListener('beforeunload', _emergencySave);
 function clearCurrentSession() { localStorage.removeItem('mwCurrent'); sbSaveDebounced(); }
 function loadCurrentSession() { try { return JSON.parse(localStorage.getItem('mwCurrent')||'null'); } catch{ return null; } }
 
@@ -3229,6 +3255,7 @@ function progressRender() {
 function viewRoutine(rid) {
   const saved = loadCurrentSession();
   if (saved && saved.rid === rid) {
+    _reconcileSession(saved.session, rid); // merge any newly added exercises
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     S.viewing = false;
   } else {
@@ -3387,10 +3414,34 @@ function homeUpdate() {
 // ════════════════════════════════════
 // START
 // ════════════════════════════════════
+function _reconcileSession(session, rid) {
+  // Add any exercises in ROUTINES that are missing from the saved session
+  // (e.g. user added an exercise via builder while a session was in progress)
+  const p = getPrefs();
+  ROUTINES[rid].exercises.forEach(ex => {
+    const already = session.exercises.find(e => e.name === ex.name);
+    if (already) return; // already in session
+    const vIdx  = ex.variants ? getVariantIdx(ex.name) : undefined;
+    const aName = ex.variants ? ex.variants[vIdx||0] : ex.name;
+    session.exercises.push({
+      name: ex.name,
+      machine:    (p.machines  && p.machines[aName])  || ex.machine || '',
+      comment:    (p.comments  && p.comments[aName])  || '',
+      variantIdx: vIdx,
+      sets: ex.sets.map((def,si) => ({
+        w: null, r: null, done: false,
+        note: (p.setNotes && p.setNotes[aName] && p.setNotes[aName][si] != null)
+                ? p.setNotes[aName][si] : (def.n||'')
+      }))
+    });
+  });
+}
+
 function startWorkout(rid) {
   const saved = loadCurrentSession();
   // Resume same routine
   if (saved && saved.rid === rid) {
+    _reconcileSession(saved.session, rid); // merge any newly added exercises
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     S.viewing = false;
     show('workout'); wkRender();
@@ -3756,6 +3807,7 @@ function saveSetNote(ei, si, val) {
   if (!p.setNotes[key]) p.setNotes[key] = {};
   p.setNotes[key][si] = val;
   putPrefs(p);
+  if (!S.viewing) saveCurrentSession(); // persist to mwCurrent immediately
 }
 
 function toggleSet(ei, si) {
@@ -3906,6 +3958,7 @@ function confirmEnd() {
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
     savePendingInputs();
+    _flushSessionToPrefs(); // save weights/comments/notes to prefs as safety net
     saveCurrentSession();
     S.session=null; homeUpdate(); show('home');
   }
