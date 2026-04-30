@@ -1902,12 +1902,10 @@ function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"ses
 function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); sbSaveDebounced(); }
 function saveCurrentSession() {
   if (!S.session) return;
-  if (!S.viewing) {
-    // Real workout — persist to mwCurrent
-    localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid, session:S.session}));
-    sbSaveDebounced();
-  }
-  // Flash "✓ Saved" indicator in both real and edit mode
+  // Always persist to mwCurrent — view mode sessions are tagged with viewing:true
+  localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid, session:S.session, viewing:S.viewing||false}));
+  sbSaveDebounced();
+  // Flash "✓ Saved" indicator
   const el = document.getElementById('wk-saved');
   if (el) {
     el.classList.add('show');
@@ -1920,8 +1918,8 @@ function saveCurrentSession() {
 setInterval(() => {
   if (S.session) {
     savePendingInputs();
-    if (!S.viewing) saveCurrentSession();
-    else _flushSessionToPrefs(); // view mode: flush to prefs
+    _flushSessionToPrefs(); // always flush to prefs
+    saveCurrentSession();   // always persist to mwCurrent (view + active)
   }
 }, 5000);
 
@@ -1944,7 +1942,7 @@ function _emergencySave() {
   if (!S.session) return;
   savePendingInputs();
   _flushSessionToPrefs();
-  if (!S.viewing) saveCurrentSession();
+  saveCurrentSession(); // always save (both view and active modes)
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _emergencySave(); });
 window.addEventListener('pagehide', _emergencySave);
@@ -3257,7 +3255,7 @@ function viewRoutine(rid) {
   if (saved && saved.rid === rid) {
     _reconcileSession(saved.session, rid); // merge any newly added exercises
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
-    S.viewing = false;
+    S.viewing = saved.viewing || false; // restore correct mode (view or active)
   } else {
     S.rid = rid; S.expanded = null; S.viewing = true;
     S.session = {
@@ -3398,11 +3396,11 @@ function homeUpdate() {
           oninput="setLocker('${r}',this.value)" onfocus="this.select()">
         ${lastTxt}
       </div>`;
-    // Resume button if session in progress for this routine
+    // Resume button if an ACTIVE (non-view) session is in progress for this routine
     const saved = loadCurrentSession();
     const btn = document.getElementById('rc-btn-'+r.toLowerCase());
     if (btn) {
-      if (saved && saved.rid === r) {
+      if (saved && saved.rid === r && !saved.viewing) {
         btn.textContent = t('resume-routine-' + r.toLowerCase());
       } else {
         btn.textContent = t('start-routine-' + r.toLowerCase());
@@ -3439,22 +3437,26 @@ function _reconcileSession(session, rid) {
 
 function startWorkout(rid) {
   const saved = loadCurrentSession();
-  // Resume same routine
-  if (saved && saved.rid === rid) {
+  // Resume an active (non-view) session for the same routine
+  if (saved && saved.rid === rid && !saved.viewing) {
     _reconcileSession(saved.session, rid); // merge any newly added exercises
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     S.viewing = false;
     show('workout'); wkRender();
     return;
   }
-  // Block starting a different routine while one is already in progress
-  if (saved && saved.rid !== rid) {
+  // Block starting a different routine while an ACTIVE workout is already in progress
+  if (saved && saved.rid !== rid && !saved.viewing) {
     alert(
       'Routine ' + saved.rid + ' is already in progress.\n\n' +
       'Go back into Routine ' + saved.rid + ' and finish it (or use ← Back to save it) before starting Routine ' + rid + '.\n\n' +
       'Starting a new routine while one is active would overwrite your current session.'
     );
     return;
+  }
+  // If a view session exists for this routine, discard it and start fresh workout
+  if (saved && saved.rid === rid && saved.viewing) {
+    clearCurrentSession();
   }
   // Add today if not already selected (don't toggle off)
   const _today = DAYS[new Date().getDay()];
@@ -3807,7 +3809,7 @@ function saveSetNote(ei, si, val) {
   if (!p.setNotes[key]) p.setNotes[key] = {};
   p.setNotes[key][si] = val;
   putPrefs(p);
-  if (!S.viewing) saveCurrentSession(); // persist to mwCurrent immediately
+  saveCurrentSession(); // persist to mwCurrent immediately (both active + view)
 }
 
 function toggleSet(ei, si) {
@@ -3949,16 +3951,15 @@ function finish() {
 
 function confirmEnd() {
   if (S.viewing) {
-    // Edit mode — flush all pending DOM values to prefs then discard the temp session.
-    // Do NOT write to history or mwCurrent.
+    // View/edit mode — flush all pending values to prefs, clear mwCurrent, go home
     savePendingInputs();
-    S.session.exercises.forEach((ex, ei) => {
-      saveLastWeights(activeExName(ei), ex.sets);
-    });
+    _flushSessionToPrefs();
+    clearCurrentSession(); // done viewing — no need to resume later
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
+    // Active workout — save state to mwCurrent so it can be resumed
     savePendingInputs();
-    _flushSessionToPrefs(); // save weights/comments/notes to prefs as safety net
+    _flushSessionToPrefs(); // safety net: also write to prefs
     saveCurrentSession();
     S.session=null; homeUpdate(); show('home');
   }
@@ -4452,7 +4453,9 @@ async function _startApp() {
   // Navigate immediately using cached data
   const savedSession = loadCurrentSession();
   if (savedSession) {
+    _reconcileSession(savedSession.session, savedSession.rid);
     S.rid = savedSession.rid; S.session = savedSession.session; S.expanded = null;
+    S.viewing = savedSession.viewing || false;
     show('workout'); wkRender();
   } else {
     homeUpdate();
