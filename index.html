@@ -3720,45 +3720,50 @@ function activeExName(ei) {
 // ════════════════════════════════════
 // SET TOGGLE + SAVE HELPERS
 // ════════════════════════════════════
+// Track last focused weight/reps input — because tapping the button blurs
+// the input before onclick fires, so document.activeElement is the button itself
+let _lastSepInput = null; // { id, char }
+document.addEventListener('focusin', e => {
+  const id = e.target?.id || '';
+  if (id.startsWith('iw')) _lastSepInput = { id, char: '/' };
+  else if (id.startsWith('ir')) _lastSepInput = { id, char: '-' };
+  _updateSepBtn();
+});
+document.addEventListener('focusout', e => {
+  // Small delay so _lastSepInput is still set when the button's onclick fires
+  setTimeout(_updateSepBtn, 50);
+});
+
+function _updateSepBtn() {
+  const btns = document.querySelectorAll('.sr-slash');
+  const label = _lastSepInput ? _lastSepInput.char : '/ −';
+  btns.forEach(b => b.textContent = label);
+}
+
 function insertSeparator(cardIdx) {
-  const ae = document.activeElement;
+  // Use the tracked last-focused input (not activeElement — that's the button now)
   let char = '/';
   let targetId = 'iw' + cardIdx + '_0'; // default: first weight input
-  if (ae && ae.id) {
-    if (ae.id.startsWith('ir')) { char = '-'; targetId = ae.id; }
-    else if (ae.id.startsWith('iw')) { char = '/'; targetId = ae.id; }
+  if (_lastSepInput) {
+    // Only use tracked input if it belongs to this card
+    const m = _lastSepInput.id.match(/^i[wr](\d+)_/);
+    if (m && parseInt(m[1], 10) === cardIdx) {
+      char = _lastSepInput.char;
+      targetId = _lastSepInput.id;
+    }
   }
   const el = document.getElementById(targetId);
   if (!el) return;
   const start = el.selectionStart ?? el.value.length;
   const end   = el.selectionEnd   ?? el.value.length;
-  const val = el.value;
-  el.value = val.slice(0, start) + char + val.slice(end);
+  el.value = el.value.slice(0, start) + char + el.value.slice(end);
   el.dispatchEvent(new Event('input', { bubbles: true }));
   const newPos = start + 1;
   el.focus();
   requestAnimationFrame(() => el.setSelectionRange(newPos, newPos));
 }
-// Keep old name as alias so any cached references still work
-function insertSlash(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  insertSeparator(parseInt((id.match(/^i[wr](\d+)_/)||[])[1], 10) || 0);
-}
-
-// Update separator button label when focus moves between weight / reps inputs
-function _updateSepBtn() {
-  const ae = document.activeElement;
-  const btns = document.querySelectorAll('.sr-slash');
-  let label = '/ −';
-  if (ae && ae.id) {
-    if (ae.id.startsWith('iw')) label = '/';
-    else if (ae.id.startsWith('ir')) label = '−';
-  }
-  btns.forEach(b => { b.textContent = label; });
-}
-document.addEventListener('focusin',  _updateSepBtn);
-document.addEventListener('focusout', _updateSepBtn);
+// Keep old name as alias
+function insertSlash(id) { insertSeparator(parseInt((id.match(/^i[wr](\d+)_/)||[])[1], 10) || 0); }
 
 function liveSave(ei, si, field, val) {
   if (!S.session) return;
