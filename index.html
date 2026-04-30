@@ -3682,26 +3682,47 @@ function prevSetW(name, idx, baseName) {
   const p = getPrefs();
   if (p.lastWeights && p.lastWeights[name] && p.lastWeights[name][idx] != null)
     return p.lastWeights[name][idx];
-  // Fall back to session history — only search by the exact exercise name
+  // Fall back to session history — scan ALL recent sessions, not just the latest
   const d = get();
-  const prev = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id)[0];
-  if(!prev) return null;
-  const ex = prev.exercises.find(e => e.name === name);
-  if(!ex||!ex.sets[idx]||!ex.sets[idx].done) return null;
-  return ex.sets[idx].w;
+  const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
+  for (const sess of sessions) {
+    const ex = sess.exercises.find(e => e.name === name);
+    if (ex && ex.sets[idx] && ex.sets[idx].done && ex.sets[idx].w != null)
+      return ex.sets[idx].w;
+  }
+  return null;
 }
 function saveLastWeights(exName, sets) {
   const p = getPrefs();
   if (!p.lastWeights) p.lastWeights = {};
   if (!p.lastReps)    p.lastReps    = {};
-  p.lastWeights[exName] = sets.map(s => s._pw || s.w || null);
-  p.lastReps[exName]    = sets.map(s => s._pr || s.r || null);
+  const prevW = p.lastWeights[exName] || [];
+  const prevR = p.lastReps[exName]    || [];
+  // Preserve existing prefs values for sets the user hasn't touched yet
+  p.lastWeights[exName] = sets.map((s, i) => {
+    if (s.done)              return s.w  ?? null;
+    if (s._pw !== undefined) return s._pw;
+    return prevW[i] ?? null;   // untouched set — keep what was there before
+  });
+  p.lastReps[exName] = sets.map((s, i) => {
+    if (s.done)              return s.r  ?? null;
+    if (s._pr !== undefined) return s._pr;
+    return prevR[i] ?? null;
+  });
   putPrefs(p);
 }
 function prevSetR(name, idx, baseName) {
   const p = getPrefs();
   if (p.lastReps && p.lastReps[name] && p.lastReps[name][idx] != null)
     return p.lastReps[name][idx];
+  // Also scan session history for reps
+  const d = get();
+  const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
+  for (const sess of sessions) {
+    const ex = sess.exercises.find(e => e.name === name);
+    if (ex && ex.sets[idx] && ex.sets[idx].done && ex.sets[idx].r != null)
+      return ex.sets[idx].r;
+  }
   return null;
 }
 
