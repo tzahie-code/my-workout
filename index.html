@@ -3397,14 +3397,16 @@ function homeUpdate() {
           oninput="setLocker('${r}',this.value)" onfocus="this.select()">
         ${lastTxt}
       </div>`;
-    // Resume button if an ACTIVE (non-view) session is in progress for this routine
+    // Show "Resume" if an active (non-view) session exists for this routine
     const saved = loadCurrentSession();
     const btn = document.getElementById('rc-btn-'+r.toLowerCase());
     if (btn) {
       if (saved && saved.rid === r && !saved.viewing) {
-        btn.textContent = t('resume-routine-' + r.toLowerCase());
+        btn.textContent = getLang()==='he' ? `▶ המשך אימון ${r}` : `▶ Resume Routine ${r}`;
+        btn.style.opacity = '0.85';
       } else {
-        btn.textContent = t('start-routine-' + r.toLowerCase());
+        btn.textContent = getLang()==='he' ? `התחל אימון ${r}` : `Start Routine ${r}`;
+        btn.style.opacity = '';
       }
     }
   });
@@ -4511,19 +4513,10 @@ async function _startApp() {
   _repairRoutineSets();
   _migrateProgressOverridesToSessions();
 
-  // Navigate immediately using cached data
-  // Only auto-restore ACTIVE (non-view) sessions — view sessions stay in mwCurrent
-  // for when the user taps "View Routine" but must never hijack app startup.
-  const savedSession = loadCurrentSession();
-  if (savedSession && !savedSession.viewing) {
-    _reconcileSession(savedSession.session, savedSession.rid);
-    S.rid = savedSession.rid; S.session = savedSession.session; S.expanded = null;
-    S.viewing = false;
-    show('workout'); wkRender();
-  } else {
-    homeUpdate();
-    show('home');
-  }
+  // Always start at home — active sessions are resumed via the "Resume" button
+  // on the home card. Never auto-jump into a workout on cold start.
+  homeUpdate();
+  show('home');
 
   // ── Phase 2: Background sync — doesn't delay startup ─────────────────────
   _bgSync().catch(e => console.warn('bg sync error:', e));
