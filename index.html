@@ -3681,8 +3681,8 @@ function prevSetW(name, idx, baseName) {
   // 'name' = active variant name (or exercise name if no variants)
   // Only use data specific to this exercise — never copy from the base/trade exercise
   const p = getPrefs();
-  if (p.lastWeights && p.lastWeights[name] && p.lastWeights[name][idx] != null)
-    return p.lastWeights[name][idx];
+  const _pw = p.lastWeights?.[name]?.[idx];
+  if (_pw != null && _pw !== '') return _pw;
   // Fall back to session history — scan ALL recent sessions, not just the latest
   const d = get();
   const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
@@ -3699,23 +3699,25 @@ function saveLastWeights(exName, sets) {
   if (!p.lastReps)    p.lastReps    = {};
   const prevW = p.lastWeights[exName] || [];
   const prevR = p.lastReps[exName]    || [];
-  // Preserve existing prefs values for sets the user hasn't touched yet
+  // Preserve existing prefs values for sets the user hasn't touched yet.
+  // Treat _pw/'' (empty string) same as undefined — savePendingInputs sets _pw=''
+  // for expanded-but-untouched inputs, which must NOT clobber historical values.
   p.lastWeights[exName] = sets.map((s, i) => {
-    if (s.done)              return s.w  ?? null;
-    if (s._pw !== undefined) return s._pw;
-    return prevW[i] ?? null;   // untouched set — keep what was there before
+    if (s.done)                          return s.w  ?? null;
+    if (s._pw != null && s._pw !== '')   return s._pw;
+    return prevW[i] ?? null;   // untouched or empty — keep previous
   });
   p.lastReps[exName] = sets.map((s, i) => {
-    if (s.done)              return s.r  ?? null;
-    if (s._pr !== undefined) return s._pr;
+    if (s.done)                          return s.r  ?? null;
+    if (s._pr != null && s._pr !== '')   return s._pr;
     return prevR[i] ?? null;
   });
   putPrefs(p);
 }
 function prevSetR(name, idx, baseName) {
   const p = getPrefs();
-  if (p.lastReps && p.lastReps[name] && p.lastReps[name][idx] != null)
-    return p.lastReps[name][idx];
+  const _pr = p.lastReps?.[name]?.[idx];
+  if (_pr != null && _pr !== '') return _pr;
   // Also scan session history for reps
   const d = get();
   const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
@@ -4510,11 +4512,13 @@ async function _startApp() {
   _migrateProgressOverridesToSessions();
 
   // Navigate immediately using cached data
+  // Only auto-restore ACTIVE (non-view) sessions — view sessions stay in mwCurrent
+  // for when the user taps "View Routine" but must never hijack app startup.
   const savedSession = loadCurrentSession();
-  if (savedSession) {
+  if (savedSession && !savedSession.viewing) {
     _reconcileSession(savedSession.session, savedSession.rid);
     S.rid = savedSession.rid; S.session = savedSession.session; S.expanded = null;
-    S.viewing = savedSession.viewing || false;
+    S.viewing = false;
     show('workout'); wkRender();
   } else {
     homeUpdate();
