@@ -156,12 +156,15 @@
 
     /* Card top */
     .ec-top { display: flex; align-items: stretch; cursor: pointer; }
+    .ec-quick-wrap { display:flex; flex-direction:column; align-items:center; gap:3px;
+      flex-shrink:0; margin: auto 10px auto 0; }
     .ec-quick-ck { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border);
-      background: var(--card2); font-size: 15px; cursor: pointer; flex-shrink: 0;
-      margin: auto 10px auto 0; color: var(--txt2);
+      background: var(--card2); font-size: 15px; cursor: pointer;
+      color: var(--txt2);
       display: flex; align-items: center; justify-content: center; transition: all .2s; }
     .ec-quick-ck.done { background: var(--green); border-color: var(--green); color: white; }
     .ec-quick-ck:active { opacity: .7; transform: scale(.88); }
+    .ec-quick-lbl { font-size: 9px; font-weight: 700; color: var(--txt2); letter-spacing: .2px; }
     .ec-svg-wrap { width: 78px; flex-shrink: 0; background: #111116;
       display: flex; align-items: center; justify-content: center;
       border-right: 1px solid var(--border); position: relative; overflow: hidden; }
@@ -248,12 +251,6 @@
       display: flex; align-items: center; justify-content: center; transition: all .15s; }
     .set-ck:active { opacity: .7; }
     .set-ck.done { background: var(--green); border-color: var(--green); color: white; }
-    /* Complete-exercise button */
-    .complete-ex-btn { width: 100%; border: none; border-radius: 10px; padding: 11px;
-      font-size: 13px; font-weight: 700; color: white; cursor: pointer; margin-bottom: 10px;
-      font-family: inherit; letter-spacing: -.1px; }
-    .complete-ex-btn:active { opacity: .75; }
-
     /* Inline exercise note */
     .ec-note-inp { width: 100%; font-size: 11px; color: var(--txt2);
       background: transparent; border: none; border-bottom: 1px dashed transparent;
@@ -3778,15 +3775,8 @@ function buildCard(ex, i) {
         </div>`;
     }).join('');
 
-    const allExDone = ses.sets.every(s=>s.done);
-    const compExBtn = S.viewing ? '' : (allExDone
-      ? `<button class="complete-ex-btn" style="background:var(--card2);color:var(--txt2);border:1px solid var(--border)"
-           onclick="undoExercise(${i})">${t('undo-exercise')}</button>`
-      : `<button class="complete-ex-btn" style="background:${color}"
-           onclick="completeExercise(${i})">${t('mark-all-done')}</button>`);
     expandHtml = `
       <div class="ec-expand open">
-        ${compExBtn}
         <div class="sr-tools">
           <button class="sr-slash" onclick="insertSeparator(${i})">/ −</button>
           <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">${t('copy-first-to-all')}</button>
@@ -3819,7 +3809,10 @@ function buildCard(ex, i) {
           oninput="saveComment(${i},this.value)">
         <div class="ec-row">${dots}${inProgress && !isExp ? `<span class="ec-prog-badge"><span class="ec-prog-dot"></span>${doneCnt}/${ses.sets.length}</span>` : ''}</div>
       </div>
-      ${S.viewing ? '' : `<button class="ec-quick-ck${qkCls}" onclick="event.stopPropagation();quickToggleExercise(${i})">${qkIcon}</button>`}
+      ${S.viewing ? '' : `<div class="ec-quick-wrap" onclick="event.stopPropagation()">
+        <button class="ec-quick-ck${qkCls}" onclick="quickToggleExercise(${i})">${qkIcon}</button>
+        <span class="ec-quick-lbl">${getLang()==='he'?'כל הסטים':'all sets'}</span>
+      </div>`}
     </div>
     ${expandHtml}
   </div>`;
