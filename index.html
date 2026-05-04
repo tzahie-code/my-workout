@@ -2901,15 +2901,16 @@ function _writeWeightToSession(sessId, exName, newWeight) {
 
 function saveProgWeight(rid, ei, sessId, val) {
   const str = String(val ?? '').trim();
-  // Support "x/y" format — use the max of the two values for the chart override
   const { a, b } = parseSplitWeight(str);
-  const num = (a != null || b != null) ? Math.max(a ?? 0, b ?? 0) : NaN;
+  const hasB = b != null;
+  const num  = (a != null || b != null) ? Math.max(a ?? 0, b ?? 0) : NaN;
   _applyProgOverride(rid, ei, sessId, ov => {
     if (isNaN(num) || str === '') delete ov.w;
-    else ov.w = num;
+    else if (hasB) ov.w = str;  // Store "a/b" as a string so both sides are preserved
+    else           ov.w = num;  // Plain number override
   });
-  // Sync new weight back into the actual session so history shows the same value
-  if (!isNaN(num) && str !== '') {
+  // Sync back to actual session only for plain-number overrides
+  if (!isNaN(num) && str !== '' && !hasB) {
     _writeWeightToSession(sessId, ROUTINES[rid].exercises[ei].name, num);
   }
 }
@@ -3112,6 +3113,19 @@ function _rawPoint(s, exName, variantIdx) {
   return { sessId: s.id, maxA, maxB, computedMax, bw: hasBW && maxA == null && maxB == null };
 }
 
+// Resolve an override value (number or "a/b" string) against a raw point.
+// Returns { maxA, maxB, max } with override applied.
+function _applyOverrideToRaw(raw, ovW) {
+  if (ovW == null) return { maxA: raw.maxA, maxB: raw.maxB, max: raw.computedMax };
+  const ovStr = String(ovW);
+  if (ovStr.includes('/')) {
+    const { a, b } = parseSplitWeight(ovStr);
+    return { maxA: a, maxB: b, max: Math.max(a ?? 0, b ?? 0) };
+  }
+  const num = typeof ovW === 'number' ? ovW : parseFloat(ovW);
+  return { maxA: raw.maxA, maxB: raw.maxB, max: isNaN(num) ? raw.computedMax : num };
+}
+
 // All raw data points including excluded ones — used for the edit panel
 function getAllProgressRawPoints(exName, variantIdx) {
   const d   = get();
@@ -3119,8 +3133,14 @@ function getAllProgressRawPoints(exName, variantIdx) {
   return d.sessions.sort((a,b) => a.id - b.id).map(s => {
     const raw = _rawPoint(s, exName, variantIdx);
     if (!raw) return null;
-    const ov = ovs[s.id] || {};
-    return { ...raw, max: ov.w != null ? ov.w : raw.computedMax, excl: !!ov.excl, overridden: ov.w != null };
+    const ov  = ovs[s.id] || {};
+    const { maxA, maxB, max } = _applyOverrideToRaw(raw, ov.w ?? null);
+    return {
+      ...raw, maxA, maxB, max,
+      excl: !!ov.excl,
+      overridden: ov.w != null,
+      ovW: ov.w != null ? ov.w : undefined   // raw override value shown in the input
+    };
   }).filter(Boolean);
 }
 
@@ -3132,8 +3152,8 @@ function getExerciseProgress(exName, variantIdx) {
     if (!raw) return null;
     const ov = ovs[s.id] || {};
     if (ov.excl) return null;
-    const max = ov.w != null ? ov.w : raw.computedMax;
-    return { date: s.id, max, maxA: raw.maxA, maxB: raw.maxB, bw: raw.bw };
+    const { maxA, maxB, max } = _applyOverrideToRaw(raw, ov.w ?? null);
+    return { date: s.id, max, maxA, maxB, bw: raw.bw };
   }).filter(Boolean);
 }
 
@@ -3306,10 +3326,11 @@ function progressRender() {
             const origNote = pt.overridden ? `<span class="prog-hist-orig">orig: ${pt.computedMax}kg</span>` : '';
             return `<div class="prog-hist-row${pt.excl?' excl':''}">
               <span class="prog-hist-date">${dateStr}${splitNote}${origNote?'<br>'+origNote:''}</span>
-              <input class="prog-hist-w" id="phw-${pt.sessId}-${ei}" type="text" inputmode="decimal" value="${pt.max}"
-                ${pt.excl?'disabled':''} oninput="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)"
+              <input class="prog-hist-w" id="phw-${pt.sessId}-${ei}" type="text" inputmode="decimal"
+                value="${pt.ovW ?? pt.computedMax}"
+                ${pt.excl?'disabled':''} onchange="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)"
                 onblur="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)">
-              <button class="hi-slash-btn" ${pt.excl?'disabled':''} onclick="insertCharInto('phw-${pt.sessId}-${ei}','/')">/</button>
+              <button class="hi-slash-btn" ${pt.excl?'disabled':''} onpointerdown="event.preventDefault()" onclick="insertCharInto('phw-${pt.sessId}-${ei}','/')">/</button>
               ${pt.overridden ? `<button class="prog-hist-reset" title="Reset to original" onclick="resetProgWeight('${rid}',${ei},${pt.sessId})">↩</button>` : '<span style="width:24px"></span>'}
               <button class="prog-hist-excl${pt.excl?' excl':''}" onclick="toggleProgExcl('${rid}',${ei},${pt.sessId})">
                 ${pt.excl ? t('excluded') : t('exclude')}
@@ -3891,16 +3912,14 @@ function insertSeparator(cardIdx) {
 function insertSlash(id) { insertSeparator(parseInt((id.match(/^i[wr](\d+)_/)||[])[1], 10) || 0); }
 
 // Generic char-insert for history / progress inputs.
-// Uses the saved cursor position from _lastSepInput (set on focusout) so the
-// character lands at the right place even after the tap blurs the input.
+// The button uses onpointerdown="event.preventDefault()" to keep the input focused,
+// so el.selectionStart is still valid when onclick fires — same mechanism as the workout sr-slash.
 function insertCharInto(id, char) {
   const el = document.getElementById(id);
   if (!el || el.disabled) return;
-  const saved = (_lastSepInput?.id === id);
-  const start = saved && _lastSepInput.selStart != null ? _lastSepInput.selStart : (el.selectionStart ?? el.value.length);
-  const end   = saved && _lastSepInput.selEnd   != null ? _lastSepInput.selEnd   : (el.selectionEnd   ?? start);
+  const start = el.selectionStart ?? el.value.length;
+  const end   = el.selectionEnd   ?? el.value.length;
   el.value = el.value.slice(0, start) + char + el.value.slice(end);
-  el.dispatchEvent(new Event('input', { bubbles: true }));
   const newPos = start + 1;
   el.focus();
   requestAnimationFrame(() => { try { el.setSelectionRange(newPos, newPos); } catch(e){} });
@@ -4201,7 +4220,7 @@ function _sessDetailHtml(s) {
           <span class="hi-edit-lbl">${t('set-num')} ${j+1}</span>
           <input class="hi-edit-inp" id="hw-${sessId}-${ei}-${j}" type="text"
             inputmode="decimal" value="${x.w!=null?x.w:''}" placeholder="kg">
-          <button class="hi-slash-btn" onclick="insertCharInto('hw-${sessId}-${ei}-${j}','/')">/</button>
+          <button class="hi-slash-btn" onpointerdown="event.preventDefault()" onclick="insertCharInto('hw-${sessId}-${ei}-${j}','/')">/</button>
           <span class="hi-edit-sep">×</span>
           <input class="hi-edit-inp" id="hr-${sessId}-${ei}-${j}" type="text"
             inputmode="numeric" value="${x.r!=null?x.r:''}" placeholder="reps">
