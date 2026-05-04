@@ -1,17 +1,17 @@
-// Service Worker — caches the app so it loads from local storage even with no internet.
-// Bump CACHE_VER whenever index.html is deployed to force a refresh.
+// Service Worker — caches the app shell so it loads even with no/bad internet.
+// API calls (Turso sync, Supabase, Google auth) are NEVER intercepted — they
+// go directly to the network so your workout data always syncs normally.
 const CACHE_VER = 'mw-v1';
-const CACHE_URLS = ['/', '/index.html'];
+const APP_SHELL = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_VER).then(cache => cache.addAll(CACHE_URLS))
+    caches.open(CACHE_VER).then(cache => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting(); // activate immediately
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
-  // Delete old cache versions
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_VER).map(k => caches.delete(k)))
@@ -23,13 +23,19 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Only cache-intercept same-origin requests (not fonts, Google APIs, etc.)
+  // Pass through: non-GET, API routes, external origins (Turso, Supabase, Google, etc.)
+  if (e.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
 
-  // Cache-first for the app shell, network-update in background (stale-while-revalidate)
+  // Only intercept the app shell (/ and /index.html)
+  if (!APP_SHELL.includes(url.pathname)) return;
+
+  // Serve from cache immediately; update cache in background
   e.respondWith(
     caches.open(CACHE_VER).then(async cache => {
       const cached = await cache.match(e.request);
+      // Always fetch fresh copy in background to keep cache up to date
       const networkFetch = fetch(e.request).then(res => {
         if (res && res.status === 200) cache.put(e.request, res.clone());
         return res;
