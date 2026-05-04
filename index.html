@@ -3096,7 +3096,18 @@ function putProgressOverrides(o) {
 // Compute raw data for one exercise session (no override applied yet)
 // variantIdx: if provided, only match sessions where that variant was used
 function _rawPoint(s, exName, variantIdx) {
-  const ex = s.exercises.find(e => e.name === exName);
+  let ex = s.exercises.find(e => e.name === exName);
+  // Fallback: _migrateVariantNamesV2 renamed exercises to their variant names
+  // (e.g. "Lat Pulldown / Pull Up" → "Lat Pulldown"), so also search by variant names.
+  if (!ex) {
+    for (const rid of Object.keys(ROUTINES)) {
+      const routineEx = ROUTINES[rid].exercises.find(e => e.name === exName);
+      if (routineEx?.variants) {
+        ex = s.exercises.find(e => routineEx.variants.includes(e.name));
+        if (ex) break;
+      }
+    }
+  }
   if (!ex) return null;
   if (variantIdx !== undefined && (ex.variantIdx ?? 0) !== variantIdx) return null;
   const doneSets = ex.sets.filter(set => set.done && set.w);
@@ -3281,11 +3292,23 @@ function progressRender() {
     const cards = ROUTINES[rid].exercises.map((ex, ei) => {
       const editKey = `${rid}-${ei}`;
 
-      // For variant exercises, determine which variant to show
-      // Default to the last-used one (stored in prefs), overridden by _progVariantView
+      // For variant exercises, determine which variant to show.
+      // Explicit user toggle (_progVariantView) wins; otherwise prefer whichever
+      // variant has ≥2 data points — so switching to the alternative during a
+      // workout doesn't wipe the main exercise's progress chart.
       const hasVariants = !!(ex.variants && ex.variants.length === 2);
       const vIdx = hasVariants
-        ? (_progVariantView[editKey] !== undefined ? _progVariantView[editKey] : getVariantIdx(ex.name))
+        ? (_progVariantView[editKey] !== undefined
+            ? _progVariantView[editKey]   // explicit user choice in this session
+            : (() => {
+                const preferred = getVariantIdx(ex.name); // last-used variant
+                const other     = 1 - preferred;
+                const ptsPreferred = getExerciseProgress(ex.name, preferred);
+                if (ptsPreferred.length >= 2) return preferred; // has data → use it
+                const ptsOther = getExerciseProgress(ex.name, other);
+                if (ptsOther.length >= 2) return other;         // other has data → use it
+                return preferred; // neither has data yet — show preferred
+              })())
         : undefined;
       const displayName = hasVariants ? ex.variants[vIdx] : ex.name;
       const otherName   = hasVariants ? ex.variants[1 - vIdx] : null;
