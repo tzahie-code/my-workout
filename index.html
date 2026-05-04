@@ -659,28 +659,35 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   html[dir="rtl"] .pv-info { text-align: right; }
   /* ── Calendar History View ───────────────────── */
   .cal-wrap { margin:-16px; padding-bottom:40px; }
-  .cal-nav { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 12px; }
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; padding:18px 16px 14px; }
   .cal-nav-arrow { background:var(--card2); border:1px solid var(--border); color:var(--txt);
-    border-radius:50%; width:36px; height:36px; font-size:22px; cursor:pointer;
+    border-radius:50%; width:36px; height:36px; font-size:20px; cursor:pointer;
     display:flex; align-items:center; justify-content:center; font-family:inherit; flex-shrink:0; }
   .cal-nav-lbl { font-weight:800; font-size:20px; letter-spacing:-.4px; }
-  .cal-dow { display:grid; grid-template-columns:repeat(7,1fr); padding:0 8px 6px; }
-  .cal-dow-cell { text-align:center; font-size:11px; color:var(--txt2); font-weight:600; padding:0; letter-spacing:.3px; }
-  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); padding:0 4px; }
+  /* Card wraps the whole grid — contained, polished */
+  .cal-card { background:var(--card); border:1px solid var(--border); border-radius:20px;
+    margin:0 12px; overflow:hidden; }
+  .cal-dow { display:grid; grid-template-columns:repeat(7,1fr);
+    padding:10px 4px 8px; border-bottom:1px solid var(--border); }
+  .cal-dow-cell { text-align:center; font-size:11px; color:var(--txt2); font-weight:600; letter-spacing:.3px; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); padding:6px 4px 8px; gap:2px; }
   .cal-cell { display:flex; flex-direction:column; align-items:center;
-    padding:3px 2px 6px; cursor:default; border-radius:10px; min-height:54px; }
+    padding:5px 1px 6px; cursor:default; border-radius:10px; min-height:58px; }
   .cal-cell.has-sess { cursor:pointer; }
   .cal-cell.has-sess:active { background:rgba(255,255,255,.07); }
-  .cal-cell.sel { background:rgba(255,255,255,.08); }
-  .cal-num-wrap { width:34px; height:34px; display:flex; align-items:center;
+  .cal-cell.sel { background:rgba(255,255,255,.09); }
+  .cal-num-wrap { width:32px; height:32px; display:flex; align-items:center;
     justify-content:center; border-radius:50%; flex-shrink:0; }
-  .cal-num { font-size:15px; font-weight:500; color:var(--txt); line-height:1; }
-  .cal-cell.out-month .cal-num { opacity:.2; }
-  .cal-cell.today .cal-num-wrap { background:var(--a); }
-  .cal-cell.today .cal-num { color:#fff; font-weight:800; }
-  .cal-cell.sel:not(.today) .cal-num-wrap { background:rgba(255,255,255,.18); }
-  .cal-dots { display:flex; gap:3px; justify-content:center; margin-top:4px; min-height:16px; align-items:center; }
-  .cal-mark { border-radius:4px; font-size:9px; font-weight:900; padding:2px 4px; color:#fff; line-height:1.1; letter-spacing:.2px; }
+  /* Out-of-month days are dimmed; current-month days are full brightness */
+  .cal-num { font-size:14px; font-weight:600; color:var(--txt); line-height:1; }
+  .cal-cell.out-month .cal-num { opacity:.18; }
+  /* Today: white circle — completely neutral, never confused with a routine color */
+  .cal-cell.today .cal-num-wrap { background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.35); }
+  .cal-cell.today .cal-num { color:#0d0d0f; font-weight:800; }
+  /* Selected (non-today): softly lit circle */
+  .cal-cell.sel:not(.today) .cal-num-wrap { background:rgba(255,255,255,.2); }
+  .cal-dots { display:flex; gap:3px; justify-content:center; margin-top:5px; min-height:16px; align-items:center; }
+  .cal-mark { border-radius:5px; font-size:9px; font-weight:900; padding:2px 5px; color:#fff; line-height:1.2; letter-spacing:.2px; }
   .cal-mark-a { background:var(--a); }
   .cal-mark-b { background:var(--b); }
   /* This Week section */
@@ -4451,8 +4458,10 @@ function histRender() {
       <span class="cal-nav-lbl">${monthLbl}</span>
       <button class="cal-nav-arrow" onclick="calNavMonth(1)">&#8250;</button>
     </div>
-    <div class="cal-dow">${dowHtml}</div>
-    <div class="cal-grid">${cells}</div>
+    <div class="cal-card">
+      <div class="cal-dow">${dowHtml}</div>
+      <div class="cal-grid">${cells}</div>
+    </div>
     ${detailHtml}
     ${weekHtml}
   </div>`;
