@@ -3252,10 +3252,12 @@ function progressRender() {
 
 function viewRoutine(rid) {
   const saved = loadCurrentSession();
-  if (saved && saved.rid === rid) {
+  // Only restore a saved VIEW session — never restore an active workout here.
+  // Active sessions are resumed only via the "Resume" button on the home card.
+  if (saved && saved.rid === rid && saved.viewing) {
     _reconcileSession(saved.session, rid); // merge any newly added exercises
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
-    S.viewing = saved.viewing || false; // restore correct mode (view or active)
+    S.viewing = true;
   } else {
     S.rid = rid; S.expanded = null; S.viewing = true;
     S.session = {
@@ -4003,6 +4005,10 @@ function finish() {
     <div class="d-row"><span class="d-lbl">${t('exercises-label')}</span><span class="d-val">${S.session.exercises.length}</span></div>
     <div class="d-row"><span class="d-lbl">${t('sets-logged')}</span><span class="d-val">${sets}</span></div>`;
   show('done');
+  // Must null S.session AFTER show('done') so the 5-second auto-save timer
+  // cannot re-save the just-finished (all-done) session back into mwCurrent.
+  S.session = null;
+  homeUpdate();
 }
 
 function confirmEnd() {
