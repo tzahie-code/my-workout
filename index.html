@@ -3350,7 +3350,7 @@ function progressRender() {
             return `<div class="prog-hist-row${pt.excl?' excl':''}">
               <span class="prog-hist-date">${dateStr}${splitNote}${origNote?'<br>'+origNote:''}</span>
               <input class="prog-hist-w" id="phw-${pt.sessId}-${ei}" type="text" inputmode="decimal"
-                value="${pt.ovW ?? pt.computedMax}"
+                value="${pt.ovW != null ? pt.ovW : (pt.maxA != null && pt.maxB != null ? pt.maxA+'/'+pt.maxB : pt.computedMax)}"
                 ${pt.excl?'disabled':''} onchange="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)"
                 onblur="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)">
               <button class="hi-slash-btn" ${pt.excl?'disabled':''} onpointerdown="event.preventDefault()" onclick="insertCharInto('phw-${pt.sessId}-${ei}','/')">/</button>
