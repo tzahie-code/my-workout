@@ -296,8 +296,7 @@
     .prog-hist-orig { font-size:10px; color:#555; }
     .prog-hist-w { width:58px; font-size:13px; font-weight:700; text-align:center;
       border:1.5px solid var(--border); border-radius:8px; padding:5px 4px;
-      background:var(--card); color:var(--txt); -moz-appearance:textfield; font-family:inherit; }
-    .prog-hist-w::-webkit-inner-spin-button { -webkit-appearance:none; }
+      background:var(--card); color:var(--txt); font-family:inherit; }
     .prog-hist-w:focus { border-color:var(--b); outline:none; }
     .prog-hist-reset { font-size:14px; background:none; border:none; cursor:pointer;
       color:var(--txt2); padding:2px 4px; }
@@ -368,9 +367,13 @@
     .hi-edit-ex { margin-bottom:12px; }
     .hi-edit-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
     .hi-edit-lbl { min-width:44px; font-size:12px; color:var(--txt2); }
-    .hi-edit-inp { width:68px; padding:5px 8px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13px; text-align:center; font-family:inherit; }
+    .hi-edit-inp { width:58px; padding:5px 6px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13px; text-align:center; font-family:inherit; }
     .hi-edit-inp:focus { border-color:var(--a); outline:none; }
     .hi-edit-sep { font-size:13px; color:var(--txt2); }
+    .hi-slash-btn { font-size:12px; font-weight:700; background:var(--card2); color:var(--txt2);
+      border:1px solid var(--border); border-radius:8px; padding:5px 8px; cursor:pointer; font-family:inherit; }
+    .hi-slash-btn:active { opacity:.6; }
+    .hi-slash-btn:disabled { opacity:.3; cursor:default; }
     .hi-edit-actions { display:flex; gap:8px; margin-bottom:14px; }
     .hi-edit-save { flex:1; padding:7px 12px; background:var(--a); color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
     .hi-edit-save:active { opacity:.8; }
@@ -2897,13 +2900,16 @@ function _writeWeightToSession(sessId, exName, newWeight) {
 }
 
 function saveProgWeight(rid, ei, sessId, val) {
-  const num = parseFloat(val);
+  const str = String(val ?? '').trim();
+  // Support "x/y" format — use the max of the two values for the chart override
+  const { a, b } = parseSplitWeight(str);
+  const num = (a != null || b != null) ? Math.max(a ?? 0, b ?? 0) : NaN;
   _applyProgOverride(rid, ei, sessId, ov => {
-    if (isNaN(num) || val === '') delete ov.w;
+    if (isNaN(num) || str === '') delete ov.w;
     else ov.w = num;
   });
   // Sync new weight back into the actual session so history shows the same value
-  if (!isNaN(num) && val !== '') {
+  if (!isNaN(num) && str !== '') {
     _writeWeightToSession(sessId, ROUTINES[rid].exercises[ei].name, num);
   }
 }
@@ -3300,9 +3306,10 @@ function progressRender() {
             const origNote = pt.overridden ? `<span class="prog-hist-orig">orig: ${pt.computedMax}kg</span>` : '';
             return `<div class="prog-hist-row${pt.excl?' excl':''}">
               <span class="prog-hist-date">${dateStr}${splitNote}${origNote?'<br>'+origNote:''}</span>
-              <input class="prog-hist-w" type="number" step="0.5" value="${pt.max}"
-                ${pt.excl?'disabled':''} onchange="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)"
+              <input class="prog-hist-w" id="phw-${pt.sessId}-${ei}" type="text" inputmode="decimal" value="${pt.max}"
+                ${pt.excl?'disabled':''} oninput="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)"
                 onblur="saveProgWeight('${rid}',${ei},${pt.sessId},this.value)">
+              <button class="hi-slash-btn" ${pt.excl?'disabled':''} onclick="insertCharInto('phw-${pt.sessId}-${ei}','/')">/</button>
               ${pt.overridden ? `<button class="prog-hist-reset" title="Reset to original" onclick="resetProgWeight('${rid}',${ei},${pt.sessId})">↩</button>` : '<span style="width:24px"></span>'}
               <button class="prog-hist-excl${pt.excl?' excl':''}" onclick="toggleProgExcl('${rid}',${ei},${pt.sessId})">
                 ${pt.excl ? t('excluded') : t('exclude')}
@@ -3833,12 +3840,21 @@ function activeExName(ei) {
 // the input before onclick fires, so document.activeElement is the button itself
 let _lastSepInput = null; // { id, char }
 document.addEventListener('focusin', e => {
-  const id = e.target?.id || '';
-  if (id.startsWith('iw')) _lastSepInput = { id, char: '/' };
-  else if (id.startsWith('ir')) _lastSepInput = { id, char: '-' };
+  const id  = e.target?.id || '';
+  const cls = e.target?.className || '';
+  if      (id.startsWith('iw'))   _lastSepInput = { id, char: '/' };
+  else if (id.startsWith('ir'))   _lastSepInput = { id, char: '-' };
+  else if (id.startsWith('hw-') || id.startsWith('hr-') ||
+           id.startsWith('phw-') || cls.includes('prog-hist-w'))
+    _lastSepInput = { id, char: '/' };
   _updateSepBtn();
 });
 document.addEventListener('focusout', e => {
+  // Save cursor position so the '/' button can insert at the right spot after blur
+  if (_lastSepInput && _lastSepInput.id === (e.target?.id || '')) {
+    _lastSepInput.selStart = e.target.selectionStart ?? null;
+    _lastSepInput.selEnd   = e.target.selectionEnd   ?? null;
+  }
   // Small delay so _lastSepInput is still set when the button's onclick fires
   setTimeout(_updateSepBtn, 50);
 });
@@ -3873,6 +3889,22 @@ function insertSeparator(cardIdx) {
 }
 // Keep old name as alias
 function insertSlash(id) { insertSeparator(parseInt((id.match(/^i[wr](\d+)_/)||[])[1], 10) || 0); }
+
+// Generic char-insert for history / progress inputs.
+// Uses the saved cursor position from _lastSepInput (set on focusout) so the
+// character lands at the right place even after the tap blurs the input.
+function insertCharInto(id, char) {
+  const el = document.getElementById(id);
+  if (!el || el.disabled) return;
+  const saved = (_lastSepInput?.id === id);
+  const start = saved && _lastSepInput.selStart != null ? _lastSepInput.selStart : (el.selectionStart ?? el.value.length);
+  const end   = saved && _lastSepInput.selEnd   != null ? _lastSepInput.selEnd   : (el.selectionEnd   ?? start);
+  el.value = el.value.slice(0, start) + char + el.value.slice(end);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  const newPos = start + 1;
+  el.focus();
+  requestAnimationFrame(() => { try { el.setSelectionRange(newPos, newPos); } catch(e){} });
+}
 
 function liveSave(ei, si, field, val) {
   if (!S.session) return;
@@ -4168,10 +4200,11 @@ function _sessDetailHtml(s) {
         <div class="hi-edit-row">
           <span class="hi-edit-lbl">${t('set-num')} ${j+1}</span>
           <input class="hi-edit-inp" id="hw-${sessId}-${ei}-${j}" type="text"
-            inputmode="text" value="${x.w!=null?x.w:''}" placeholder="kg or x/y">
+            inputmode="decimal" value="${x.w!=null?x.w:''}" placeholder="kg">
+          <button class="hi-slash-btn" onclick="insertCharInto('hw-${sessId}-${ei}-${j}','/')">/</button>
           <span class="hi-edit-sep">×</span>
           <input class="hi-edit-inp" id="hr-${sessId}-${ei}-${j}" type="text"
-            inputmode="text" value="${x.r!=null?x.r:''}" placeholder="reps">
+            inputmode="numeric" value="${x.r!=null?x.r:''}" placeholder="reps">
         </div>`).join('');
       return `<div class="hi-edit-ex">
         <div class="hi-en he" style="margin-bottom:6px">${ex.name}</div>${rows}</div>`;
