@@ -2883,21 +2883,43 @@ function _applyProgOverride(rid, ei, sessId, mutFn) {
   progressRender();
 }
 
-// Write a new max-weight back into the actual session set (progress → history sync)
-function _writeWeightToSession(sessId, exName, newWeight) {
+// Find the routine base-exercise name for any session exercise name.
+// Handles post-migration variant names ("Lat Pulldown" → "Lat Pulldown / Pull Up").
+// Also used as the key for progress overrides.
+function _findBaseExName(exName) {
+  for (const rid of Object.keys(ROUTINES)) {
+    for (const re of ROUTINES[rid].exercises) {
+      if (re.name === exName || re.variants?.includes(exName)) return re.name;
+    }
+  }
+  return exName; // not a variant — use as-is
+}
+
+// Write a corrected weight back into the session set so history stays in sync
+// with progress edits.  Handles plain numbers and "a/b" split strings.
+// Also handles post-migration sessions where the exercise is stored under its
+// variant name instead of the routine base name.
+function _writeWeightToSession(sessId, exName, newWeightStr) {
   const d    = get();
   const sess = d.sessions.find(s => s.id === sessId);
   if (!sess) return;
-  const ex = sess.exercises.find(e => e.name === exName);
+  // Find by base name OR variant name
+  let ex = sess.exercises.find(e => e.name === exName);
+  if (!ex) {
+    for (const rid of Object.keys(ROUTINES)) {
+      const re = ROUTINES[rid].exercises.find(e => e.name === exName);
+      if (re?.variants) { ex = sess.exercises.find(e => re.variants.includes(e.name)); if (ex) break; }
+    }
+  }
   if (!ex) return;
   const doneSets = ex.sets.filter(s => s.done && s.w != null && !isBW(String(s.w)));
   if (!doneSets.length) return;
-  // Update the set that currently holds the highest weight
-  const maxW = Math.max(...doneSets.map(s => parseFloat(s.w) || 0));
-  const target = doneSets.filter(s => parseFloat(s.w) === maxW);
-  target.forEach(s => { s.w = newWeight; });
+  // Helper: numeric max of a weight value (handles "a/b" split strings)
+  const maxOf = w => { const { a, b } = parseSplitWeight(String(w)); return Math.max(a ?? 0, b ?? 0); };
+  const maxCur = Math.max(...doneSets.map(s => maxOf(s.w)));
+  // Update the set(s) that hold the current max weight
+  doneSets.filter(s => maxOf(s.w) === maxCur).forEach(s => { s.w = String(newWeightStr).trim(); });
   put(d);
-  // Turso sync handled by the calling putProgressOverrides → sbSaveDebounced
 }
 
 function saveProgWeight(rid, ei, sessId, val) {
@@ -2907,12 +2929,12 @@ function saveProgWeight(rid, ei, sessId, val) {
   const num  = (a != null || b != null) ? Math.max(a ?? 0, b ?? 0) : NaN;
   _applyProgOverride(rid, ei, sessId, ov => {
     if (isNaN(num) || str === '') delete ov.w;
-    else if (hasB) ov.w = str;  // Store "a/b" as a string so both sides are preserved
-    else           ov.w = num;  // Plain number override
+    else if (hasB) ov.w = str;  // Store "a/b" string so both sides are preserved
+    else           ov.w = num;
   });
-  // Sync back to actual session only for plain-number overrides
-  if (!isNaN(num) && str !== '' && !hasB) {
-    _writeWeightToSession(sessId, ROUTINES[rid].exercises[ei].name, num);
+  // Always sync to session (plain number OR split) so history reflects the change
+  if (!isNaN(num) && str !== '') {
+    _writeWeightToSession(sessId, ROUTINES[rid].exercises[ei].name, str);
   }
 }
 
@@ -4402,14 +4424,17 @@ function saveHistEdit(sessId) {
     });
   });
   put(d);
-  // Clear weight overrides for this session's exercises so progress re-reads live values
+  // Clear weight overrides for this session's exercises so progress re-reads live values.
+  // Use _findBaseExName because overrides are keyed by the routine base name
+  // ("Lat Pulldown / Pull Up") not the post-migration variant name ("Lat Pulldown").
   const ovs = getProgressOverrides();
   let changed = false;
   sess.exercises.forEach(ex => {
-    if (ovs[ex.name] && ovs[ex.name][sessId] && ovs[ex.name][sessId].w != null) {
-      delete ovs[ex.name][sessId].w;
-      if (!Object.keys(ovs[ex.name][sessId]).length) delete ovs[ex.name][sessId];
-      if (!Object.keys(ovs[ex.name]).length)         delete ovs[ex.name];
+    const key = _findBaseExName(ex.name);
+    if (ovs[key] && ovs[key][sessId] && ovs[key][sessId].w != null) {
+      delete ovs[key][sessId].w;
+      if (!Object.keys(ovs[key][sessId]).length) delete ovs[key][sessId];
+      if (!Object.keys(ovs[key]).length)         delete ovs[key];
       changed = true;
     }
   });
