@@ -2942,6 +2942,30 @@ function _migrateVariantNames() {
   if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed variant exercise names in history.'); }
 }
 
+// One-time migration: fix variant-0 exercises stored under their base name
+// (e.g. 'Hammer Curl / Cable Curl' → 'Hammer Curl').
+// The original _migrateVariantNames only fixed variantIdx > 0; this fixes idx=0.
+function _migrateVariantNamesV2() {
+  if (localStorage.getItem('mwVariantNamesV2')) return;
+  localStorage.setItem('mwVariantNamesV2', '1');
+  const d = get();
+  let changed = false;
+  d.sessions.forEach(sess => {
+    const routine = ROUTINES[sess.routine];
+    if (!routine) return;
+    sess.exercises.forEach(ex => {
+      // Find the routine definition whose base name matches the stored name
+      const routineEx = routine.exercises.find(e => e.name === ex.name);
+      if (routineEx?.variants && !(ex.variantIdx)) {
+        // variantIdx is 0 or undefined — rename to variants[0]
+        ex.name = routineEx.variants[0];
+        changed = true;
+      }
+    });
+  });
+  if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed variant-0 exercise names in history (V2).'); }
+}
+
 // One-time repair: restore set notes (n) and target reps (r) that were wiped
 // when saveBuilder() regenerated sets as blank {n:'',w:'',r:''}.
 // Matches each exercise in mwProgram against the hardcoded ROUTINES template by name
@@ -3740,15 +3764,15 @@ function toggleCard(i) {
 
 function prevSetW(name, idx, baseName) {
   // 'name' = active variant name (or exercise name if no variants)
-  // Only use data specific to this exercise — never copy from the base/trade exercise
   const p = getPrefs();
   const _pw = p.lastWeights?.[name]?.[idx];
   if (_pw != null && _pw !== '') return _pw;
-  // Fall back to session history — scan ALL recent sessions, not just the latest
+  // Fall back to session history — scan ALL recent sessions, not just the latest.
+  // Also check the base name as a safety net for any pre-migration history entries.
   const d = get();
   const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
   for (const sess of sessions) {
-    const ex = sess.exercises.find(e => e.name === name);
+    const ex = sess.exercises.find(e => e.name === name || (baseName && e.name === baseName));
     if (ex && ex.sets[idx] && ex.sets[idx].done && ex.sets[idx].w != null)
       return ex.sets[idx].w;
   }
@@ -3779,11 +3803,11 @@ function prevSetR(name, idx, baseName) {
   const p = getPrefs();
   const _pr = p.lastReps?.[name]?.[idx];
   if (_pr != null && _pr !== '') return _pr;
-  // Also scan session history for reps
+  // Also scan session history for reps; check base name too for pre-migration safety.
   const d = get();
   const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
   for (const sess of sessions) {
-    const ex = sess.exercises.find(e => e.name === name);
+    const ex = sess.exercises.find(e => e.name === name || (baseName && e.name === baseName));
     if (ex && ex.sets[idx] && ex.sets[idx].done && ex.sets[idx].r != null)
       return ex.sets[idx].r;
   }
@@ -4042,14 +4066,16 @@ function finish() {
   savePendingInputs();
   clearCurrentSession();
   S.session.endTime = Date.now();
-  // Store the actual exercise name used (variant name when a variant was active)
-  // so history shows "Machine Chest Press" instead of "Smith Bench Press"
+  // Store the actual variant name used — always rename, including variantIdx=0.
+  // Without this, Hammer Curl (variantIdx=0) stays as 'Hammer Curl / Cable Curl'
+  // in history, which never matches the 'Hammer Curl' key used in prevSetW/prefs.
   S.session.exercises.forEach(ses => {
-    if (ses.variantIdx) {
-      const routineEx = ROUTINES[S.rid].exercises.find(e => e.name === ses.name);
-      if (routineEx?.variants?.[ses.variantIdx]) {
-        ses.name = routineEx.variants[ses.variantIdx];
-      }
+    // Find the routine exercise by base name OR by variant name (in case already renamed)
+    const routineEx = ROUTINES[S.rid]?.exercises.find(e =>
+      e.name === ses.name || (e.variants && e.variants.includes(ses.name))
+    );
+    if (routineEx?.variants) {
+      ses.name = routineEx.variants[ses.variantIdx ?? 0];
     }
   });
   const d = get(); d.sessions.push(S.session); put(d);
@@ -4634,6 +4660,7 @@ async function _startApp() {
 
   // One-time fast migrations (local only, synchronous)
   _migrateVariantNames();
+  _migrateVariantNamesV2();
   _repairRoutineSets();
   _migrateProgressOverridesToSessions();
 
