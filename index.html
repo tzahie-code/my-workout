@@ -3252,10 +3252,17 @@ function progressRender() {
 
 function viewRoutine(rid) {
   const saved = loadCurrentSession();
-  // Only restore a saved VIEW session — never restore an active workout here.
-  // Active sessions are resumed only via the "Resume" button on the home card.
+  // If this routine has an ACTIVE workout in progress, go straight back into it
+  if (saved && saved.rid === rid && !saved.viewing) {
+    _reconcileSession(saved.session, rid);
+    S.rid = saved.rid; S.session = saved.session; S.expanded = null;
+    S.viewing = false;
+    show('workout'); wkRender();
+    return;
+  }
+  // Restore a saved VIEW session for this routine if one exists
   if (saved && saved.rid === rid && saved.viewing) {
-    _reconcileSession(saved.session, rid); // merge any newly added exercises
+    _reconcileSession(saved.session, rid);
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     S.viewing = true;
   } else {
