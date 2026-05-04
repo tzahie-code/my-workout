@@ -679,10 +679,10 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   .cal-cell.today .cal-num-wrap { background:var(--a); }
   .cal-cell.today .cal-num { color:#fff; font-weight:800; }
   .cal-cell.sel:not(.today) .cal-num-wrap { background:rgba(255,255,255,.18); }
-  .cal-dots { display:flex; gap:4px; justify-content:center; margin-top:4px; min-height:8px; }
-  .cal-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-  .cal-dot-a { background:var(--a); }
-  .cal-dot-b { background:var(--b); }
+  .cal-dots { display:flex; gap:3px; justify-content:center; margin-top:4px; min-height:16px; align-items:center; }
+  .cal-mark { border-radius:4px; font-size:9px; font-weight:900; padding:2px 4px; color:#fff; line-height:1.1; letter-spacing:.2px; }
+  .cal-mark-a { background:var(--a); }
+  .cal-mark-b { background:var(--b); }
   /* This Week section */
   .cal-week-section { margin:20px 12px 0; }
   .cal-week-sep { height:1px; background:var(--border); margin:0 0 20px; }
@@ -4246,7 +4246,12 @@ function calNavMonth(delta) {
   histRender();
 }
 function calSelectDay(key) {
-  _calState.selKey = (_calState.selKey === key) ? null : key;
+  _calState.selKey = key;  // always open; close by tapping the detail header
+  _editHistId = null;
+  histRender();
+}
+function calCloseDay() {
+  _calState.selKey = null;
   _editHistId = null;
   histRender();
 }
@@ -4333,13 +4338,13 @@ function _sessDetailHtml(s) {
   }
 
   return `<div class="cal-det">
-    <div class="cal-det-hd">
+    <div class="cal-det-hd" onclick="calCloseDay()" style="cursor:pointer">
       <div>
-        <div class="cal-det-title" style="color:${color}">${t('routine-'+s.routine.toLowerCase())}</div>
+        <div class="cal-det-title" style="color:${color}">${t('routine-'+s.routine.toLowerCase())} <span style="font-size:11px;opacity:.5;font-weight:400">▾</span></div>
         <div class="cal-det-sub">${subTxt}</div>
       </div>
-      <div class="cal-det-acts">
-        ${!editing?`<button class="hi-edit-btn" onclick="calEditSess(${sessId})">✏️</button>`:''} 
+      <div class="cal-det-acts" onclick="event.stopPropagation()">
+        ${!editing?`<button class="hi-edit-btn" onclick="calEditSess(${sessId})">✏️</button>`:''}
         <button class="hi-del" onclick="deleteSession(${sessId})">🗑</button>
       </div>
     </div>
@@ -4383,12 +4388,12 @@ function histRender() {
     const hasB = sess.some(s=>s.routine==='B');
     const isToday = key===today;
     const isSel   = key===selKey;
-    const dots    = (hasA?'<span class="cal-dot cal-dot-a"></span>':'')
-                  + (hasB?'<span class="cal-dot cal-dot-b"></span>':'');
+    const marks   = (hasA?'<span class="cal-mark cal-mark-a">A</span>':'')
+                  + (hasB?'<span class="cal-mark cal-mark-b">B</span>':'');
     const cls     = ['cal-cell', sess.length?'has-sess':'', isToday?'today':'', isSel?'sel':''].filter(Boolean).join(' ');
     cells += `<div class="${cls}"${sess.length?` onclick="calSelectDay('${key}')"`:''}>`
            + `<div class="cal-num-wrap"><span class="cal-num">${day}</span></div>`
-           + `<div class="cal-dots">${dots}</div>`
+           + `<div class="cal-dots">${marks}</div>`
            + `</div>`;
   }
 
@@ -4396,45 +4401,49 @@ function histRender() {
   const selSessions = selKey ? (dayMap[selKey]||[]) : [];
   const detailHtml  = selSessions.map(_sessDetailHtml).join('');
 
-  // ── This Week section ─────────────────────────────
-  const nowDate  = new Date();
-  const weekDow  = nowDate.getDay(); // 0=Sun
-  const wkStart  = new Date(nowDate);
-  wkStart.setDate(nowDate.getDate() - weekDow);
-  wkStart.setHours(0,0,0,0);
-  const wkEnd    = new Date(wkStart);
-  wkEnd.setDate(wkStart.getDate() + 7);
+  // ── This Week section (only on current month view) ───
+  const nowDate       = new Date();
+  const isCurrentMonth = (year === nowDate.getFullYear() && month === nowDate.getMonth());
+  let weekHtml = '';
+  if (isCurrentMonth) {
+    const weekDow = nowDate.getDay(); // 0=Sun
+    const wkStart = new Date(nowDate);
+    wkStart.setDate(nowDate.getDate() - weekDow);
+    wkStart.setHours(0,0,0,0);
+    const wkEnd   = new Date(wkStart);
+    wkEnd.setDate(wkStart.getDate() + 7);
 
-  const weekSessions = all.filter(s => {
-    const dt = new Date(s.id);
-    return dt >= wkStart && dt < wkEnd;
-  });
+    const weekSessions = all.filter(s => {
+      const dt = new Date(s.id);
+      return dt >= wkStart && dt < wkEnd;
+    });
 
-  const weekLabel = isHe ? 'השבוע' : 'This Week';
-  const noWeekLabel = isHe ? 'אין אימונים השבוע עדיין' : 'No workouts this week yet';
+    const weekLabel   = isHe ? 'השבוע' : 'This Week';
+    const noWeekLabel = isHe ? 'אין אימונים השבוע עדיין' : 'No workouts this week yet';
 
-  const weekItemsHtml = weekSessions.length
-    ? weekSessions.map(s => {
-        const tot    = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
-        const durMin = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
-        const dayLbl = new Date(s.id).toLocaleDateString(locale,{weekday:'long',month:'short',day:'numeric'});
-        const meta   = `${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
-        const dayKey = _dateKey(s.id);
-        return `<div class="cal-week-item" onclick="calGotoDay('${dayKey}')">
-          <div class="cal-week-badge cal-week-badge-${s.routine.toLowerCase()}">${s.routine}</div>
-          <div class="cal-week-info">
-            <div class="cal-week-day">${dayLbl}</div>
-            <div class="cal-week-meta">${meta}</div>
-          </div>
-        </div>`;
-      }).join('')
-    : `<div class="cal-week-empty">${noWeekLabel}</div>`;
+    const weekItemsHtml = weekSessions.length
+      ? weekSessions.map(s => {
+          const tot    = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
+          const durMin = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
+          const dayLbl = new Date(s.id).toLocaleDateString(locale,{weekday:'long',month:'short',day:'numeric'});
+          const meta   = `${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
+          const dayKey = _dateKey(s.id);
+          return `<div class="cal-week-item" onclick="calGotoDay('${dayKey}')">
+            <div class="cal-week-badge cal-week-badge-${s.routine.toLowerCase()}">${s.routine}</div>
+            <div class="cal-week-info">
+              <div class="cal-week-day">${dayLbl}</div>
+              <div class="cal-week-meta">${meta}</div>
+            </div>
+          </div>`;
+        }).join('')
+      : `<div class="cal-week-empty">${noWeekLabel}</div>`;
 
-  const weekHtml = `<div class="cal-week-section">
-    <div class="cal-week-sep"></div>
-    <div class="cal-week-title">${weekLabel}</div>
-    ${weekItemsHtml}
-  </div>`;
+    weekHtml = `<div class="cal-week-section">
+      <div class="cal-week-sep"></div>
+      <div class="cal-week-title">${weekLabel}</div>
+      ${weekItemsHtml}
+    </div>`;
+  }
 
   el.innerHTML = `<div class="cal-wrap">
     <div class="cal-nav">
