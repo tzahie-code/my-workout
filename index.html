@@ -370,6 +370,7 @@
     .hi-edit-inp { width:58px; padding:5px 6px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13px; text-align:center; font-family:inherit; }
     .hi-edit-inp:focus { border-color:var(--a); outline:none; }
     .hi-edit-sep { font-size:13px; color:var(--txt2); }
+    .hi-split-note { font-size:11px; font-weight:700; margin-bottom:4px; }
     .hi-slash-btn { font-size:12px; font-weight:700; background:var(--card2); color:var(--txt2);
       border:1px solid var(--border); border-radius:8px; padding:5px 8px; cursor:pointer; font-family:inherit; }
     .hi-slash-btn:active { opacity:.6; }
@@ -3935,13 +3936,17 @@ function insertSeparator(cardIdx) {
 function insertSlash(id) { insertSeparator(parseInt((id.match(/^i[wr](\d+)_/)||[])[1], 10) || 0); }
 
 // Generic char-insert for history / progress inputs.
-// The button uses onpointerdown="event.preventDefault()" to keep the input focused,
-// so el.selectionStart is still valid when onclick fires — same mechanism as the workout sr-slash.
+// Primary: onpointerdown=preventDefault() on the button keeps the input focused so
+// selectionStart is still live. Backup: focusout saves cursor into _lastSepInput so
+// we can recover even if the browser blurred the input before the click fired.
 function insertCharInto(id, char) {
   const el = document.getElementById(id);
   if (!el || el.disabled) return;
-  const start = el.selectionStart ?? el.value.length;
-  const end   = el.selectionEnd   ?? el.value.length;
+  const saved = _lastSepInput?.id === id;
+  const start = (saved && _lastSepInput.selStart != null) ? _lastSepInput.selStart
+              : (el.selectionStart ?? el.value.length);
+  const end   = (saved && _lastSepInput.selEnd   != null) ? _lastSepInput.selEnd
+              : (el.selectionEnd   ?? start);
   el.value = el.value.slice(0, start) + char + el.value.slice(end);
   const newPos = start + 1;
   el.focus();
@@ -4266,8 +4271,19 @@ function _sessDetailHtml(s) {
     bodyHtml = s.exercises.map(ex=>{
       const ds = ex.sets.filter(set=>set.done);
       if (!ds.length) return '';
+      // Compute M1/M2 split summary from set weights
+      let maxA = null, maxB = null;
+      ds.filter(x => x.w && !isBW(String(x.w))).forEach(x => {
+        const { a, b } = parseSplitWeight(x.w);
+        if (a != null) maxA = maxA == null ? a : Math.max(maxA, a);
+        if (b != null) maxB = maxB == null ? b : Math.max(maxB, b);
+      });
+      const splitLine = (maxA != null && maxB != null)
+        ? `<div class="hi-split-note"><span style="color:var(--b)">M1: ${maxA}kg</span> · <span style="color:#ff9f0a">M2: ${maxB}kg</span></div>`
+        : '';
       return `<div class="hi-ex">
         <div class="hi-en he">${ex.name}</div>
+        ${splitLine}
         <div class="hi-sets">${ds.map((x,j)=>{
           const wDisp = displayWeight(x.w)||'?';
           return `<span class="hi-pill">${t('set-num')} ${j+1}: ${wDisp}×${x.r||'?'}</span>`;
