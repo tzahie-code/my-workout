@@ -658,36 +658,47 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   html[dir="rtl"] .picker-body-wrap { direction: rtl; }
   html[dir="rtl"] .pv-info { text-align: right; }
   /* ── Calendar History View ───────────────────── */
-  .cal-wrap { margin:-16px; padding-bottom:32px; }
-  .cal-nav { display:flex; align-items:center; justify-content:space-between; padding:18px 20px 14px; }
+  .cal-wrap { margin:-16px; padding-bottom:40px; }
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 12px; }
   .cal-nav-arrow { background:var(--card2); border:1px solid var(--border); color:var(--txt);
     border-radius:50%; width:36px; height:36px; font-size:22px; cursor:pointer;
     display:flex; align-items:center; justify-content:center; font-family:inherit; flex-shrink:0; }
-  .cal-nav-lbl { font-weight:800; font-size:22px; letter-spacing:-.5px; }
-  .cal-dow { display:grid; grid-template-columns:repeat(7,1fr);
-    border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--card); }
-  .cal-dow-cell { text-align:center; font-size:11px; color:var(--txt2);
-    font-weight:700; padding:7px 0; letter-spacing:.3px; }
-  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows:minmax(82px,1fr); }
+  .cal-nav-lbl { font-weight:800; font-size:20px; letter-spacing:-.4px; }
+  .cal-dow { display:grid; grid-template-columns:repeat(7,1fr); padding:0 8px 6px; }
+  .cal-dow-cell { text-align:center; font-size:11px; color:var(--txt2); font-weight:600; padding:0; letter-spacing:.3px; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); padding:0 4px; }
   .cal-cell { display:flex; flex-direction:column; align-items:center;
-    padding:10px 3px 6px; cursor:default;
-    border-right:1px solid var(--border); border-bottom:1px solid var(--border); box-sizing:border-box; }
-  .cal-cell:nth-child(7n) { border-right:none; }
+    padding:3px 2px 6px; cursor:default; border-radius:10px; min-height:54px; }
   .cal-cell.has-sess { cursor:pointer; }
-  .cal-cell.has-sess:active { background:rgba(255,255,255,.05); }
-  .cal-cell.sel { background:rgba(255,255,255,.06); }
-  .cal-num-wrap { width:32px; height:32px; display:flex; align-items:center;
-    justify-content:center; border-radius:50%; margin-bottom:5px; flex-shrink:0; }
-  .cal-num { font-size:17px; font-weight:600; color:var(--txt); line-height:1; }
-  .cal-cell.out-month .cal-num { opacity:.22; }
-  .cal-cell.today .cal-num-wrap { background:#fff; }
-  .cal-cell.today .cal-num { color:#000; font-weight:800; }
-  .cal-cell.sel .cal-num-wrap { outline:2px solid var(--txt2); outline-offset:1px; }
-  .cal-badges { display:flex; flex-direction:column; gap:3px; width:82%; }
-  .cal-badge { border-radius:4px; font-size:10px; font-weight:800;
-    text-align:center; padding:2px 0; letter-spacing:.4px; }
-  .cal-badge-a { background:var(--a); color:#fff; }
-  .cal-badge-b { background:var(--b); color:#fff; }
+  .cal-cell.has-sess:active { background:rgba(255,255,255,.07); }
+  .cal-cell.sel { background:rgba(255,255,255,.08); }
+  .cal-num-wrap { width:34px; height:34px; display:flex; align-items:center;
+    justify-content:center; border-radius:50%; flex-shrink:0; }
+  .cal-num { font-size:15px; font-weight:500; color:var(--txt); line-height:1; }
+  .cal-cell.out-month .cal-num { opacity:.2; }
+  .cal-cell.today .cal-num-wrap { background:var(--a); }
+  .cal-cell.today .cal-num { color:#fff; font-weight:800; }
+  .cal-cell.sel:not(.today) .cal-num-wrap { background:rgba(255,255,255,.18); }
+  .cal-dots { display:flex; gap:4px; justify-content:center; margin-top:4px; min-height:8px; }
+  .cal-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .cal-dot-a { background:var(--a); }
+  .cal-dot-b { background:var(--b); }
+  /* This Week section */
+  .cal-week-section { margin:20px 12px 0; }
+  .cal-week-sep { height:1px; background:var(--border); margin:0 0 20px; }
+  .cal-week-title { font-size:11px; font-weight:700; color:var(--txt2); letter-spacing:.9px;
+    text-transform:uppercase; margin-bottom:10px; padding:0 2px; }
+  .cal-week-empty { font-size:13px; color:var(--txt2); text-align:center; padding:14px 0; }
+  .cal-week-item { background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+  .cal-week-item:active { opacity:.75; }
+  .cal-week-badge { width:38px; height:38px; border-radius:12px; display:flex; align-items:center;
+    justify-content:center; font-size:16px; font-weight:900; color:#fff; flex-shrink:0; }
+  .cal-week-badge-a { background:linear-gradient(135deg,#ff8a60,#ff5722); }
+  .cal-week-badge-b { background:linear-gradient(135deg,#64a8ff,#3b82f6); }
+  .cal-week-info { flex:1; min-width:0; }
+  .cal-week-day { font-size:14px; font-weight:700; color:var(--txt); }
+  .cal-week-meta { font-size:12px; color:var(--txt2); margin-top:2px; }
   /* Detail panel */
   .cal-det { margin:12px 12px 0; border-radius:var(--r); overflow:hidden;
     border:1px solid var(--border); background:var(--card); }
@@ -4239,6 +4250,19 @@ function calSelectDay(key) {
   _editHistId = null;
   histRender();
 }
+function calGotoDay(key) {
+  // Used by "This Week" items — navigates to the correct month and selects the day
+  const parts = key.split('-');
+  const yr = parseInt(parts[0]);
+  const mo = parseInt(parts[1]) - 1;
+  if (yr !== _calState.year || mo !== _calState.month) {
+    _calState.year = yr;
+    _calState.month = mo;
+  }
+  _calState.selKey = key;
+  _editHistId = null;
+  histRender();
+}
 function calEditSess(sessId) {
   _editHistId = sessId;
   histRender();
@@ -4331,6 +4355,7 @@ function histRender() {
 
   const { year, month, selKey } = _calState;
   const locale   = getLang()==='he' ? 'he-IL' : 'en-US';
+  const isHe     = getLang()==='he';
   const monthLbl = new Date(year,month,1).toLocaleDateString(locale,{month:'long',year:'numeric'});
 
   // Map every session to its date key
@@ -4341,11 +4366,11 @@ function histRender() {
     dayMap[k].push(s);
   });
 
-  // Build calendar grid
+  // ── Calendar grid ──────────────────────────────────
   const today       = _dateKey(Date.now());
   const firstDow    = new Date(year,month,1).getDay();  // 0=Sun
   const daysInMonth = new Date(year,month+1,0).getDate();
-  const DOW         = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const DOW         = isHe ? ['א','ב','ג','ד','ה','ו','ש'] : ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
   const dowHtml = DOW.map(d=>`<div class="cal-dow-cell">${d}</div>`).join('');
   let cells = '';
@@ -4358,18 +4383,58 @@ function histRender() {
     const hasB = sess.some(s=>s.routine==='B');
     const isToday = key===today;
     const isSel   = key===selKey;
-    const badges  = (hasA?'<div class="cal-badge cal-badge-a">A</div>':'')
-                  + (hasB?'<div class="cal-badge cal-badge-b">B</div>':'');
+    const dots    = (hasA?'<span class="cal-dot cal-dot-a"></span>':'')
+                  + (hasB?'<span class="cal-dot cal-dot-b"></span>':'');
     const cls     = ['cal-cell', sess.length?'has-sess':'', isToday?'today':'', isSel?'sel':''].filter(Boolean).join(' ');
     cells += `<div class="${cls}"${sess.length?` onclick="calSelectDay('${key}')"`:''}>`
            + `<div class="cal-num-wrap"><span class="cal-num">${day}</span></div>`
-           + (badges?`<div class="cal-badges">${badges}</div>`:'')
+           + `<div class="cal-dots">${dots}</div>`
            + `</div>`;
   }
 
   // Detail panels for selected day
   const selSessions = selKey ? (dayMap[selKey]||[]) : [];
   const detailHtml  = selSessions.map(_sessDetailHtml).join('');
+
+  // ── This Week section ─────────────────────────────
+  const nowDate  = new Date();
+  const weekDow  = nowDate.getDay(); // 0=Sun
+  const wkStart  = new Date(nowDate);
+  wkStart.setDate(nowDate.getDate() - weekDow);
+  wkStart.setHours(0,0,0,0);
+  const wkEnd    = new Date(wkStart);
+  wkEnd.setDate(wkStart.getDate() + 7);
+
+  const weekSessions = all.filter(s => {
+    const dt = new Date(s.id);
+    return dt >= wkStart && dt < wkEnd;
+  });
+
+  const weekLabel = isHe ? 'השבוע' : 'This Week';
+  const noWeekLabel = isHe ? 'אין אימונים השבוע עדיין' : 'No workouts this week yet';
+
+  const weekItemsHtml = weekSessions.length
+    ? weekSessions.map(s => {
+        const tot    = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
+        const durMin = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
+        const dayLbl = new Date(s.id).toLocaleDateString(locale,{weekday:'long',month:'short',day:'numeric'});
+        const meta   = `${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
+        const dayKey = _dateKey(s.id);
+        return `<div class="cal-week-item" onclick="calGotoDay('${dayKey}')">
+          <div class="cal-week-badge cal-week-badge-${s.routine.toLowerCase()}">${s.routine}</div>
+          <div class="cal-week-info">
+            <div class="cal-week-day">${dayLbl}</div>
+            <div class="cal-week-meta">${meta}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="cal-week-empty">${noWeekLabel}</div>`;
+
+  const weekHtml = `<div class="cal-week-section">
+    <div class="cal-week-sep"></div>
+    <div class="cal-week-title">${weekLabel}</div>
+    ${weekItemsHtml}
+  </div>`;
 
   el.innerHTML = `<div class="cal-wrap">
     <div class="cal-nav">
@@ -4380,6 +4445,7 @@ function histRender() {
     <div class="cal-dow">${dowHtml}</div>
     <div class="cal-grid">${cells}</div>
     ${detailHtml}
+    ${weekHtml}
   </div>`;
 }
 function cancelHistEdit() {
