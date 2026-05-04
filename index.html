@@ -656,6 +656,37 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   html[dir="rtl"] .builder-ex-text { text-align: right; }
   html[dir="rtl"] .picker-body-wrap { direction: rtl; }
   html[dir="rtl"] .pv-info { text-align: right; }
+  /* ── Calendar History View ───────────────────── */
+  .cal-wrap { padding: 0 0 24px; }
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; }
+  .cal-nav-arrow { background:var(--card2); border:1px solid var(--border); color:var(--txt);
+    border-radius:10px; width:38px; height:38px; font-size:22px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-family:inherit; }
+  .cal-nav-lbl { font-weight:700; font-size:17px; }
+  .cal-dow { display:grid; grid-template-columns:repeat(7,1fr); padding:0 10px 4px; }
+  .cal-dow-cell { text-align:center; font-size:11px; color:var(--txt2); font-weight:600; padding:4px 0; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:0 10px; }
+  .cal-cell { min-height:50px; border-radius:10px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:3px; padding:6px 2px 5px; cursor:default; }
+  .cal-cell.has-sess { cursor:pointer; }
+  .cal-cell.sel { background:rgba(255,255,255,.08); }
+  .cal-num { font-size:14px; font-weight:600; color:var(--txt); line-height:1; }
+  .cal-cell.out-month .cal-num { opacity:.3; }
+  .cal-cell.today .cal-num { background:var(--card2); border-radius:50%;
+    width:28px; height:28px; display:flex; align-items:center; justify-content:center; }
+  .cal-dots { display:flex; gap:3px; }
+  .cal-dot-a { width:8px; height:8px; border-radius:50%; background:var(--a); }
+  .cal-dot-b { width:8px; height:8px; border-radius:50%; background:var(--b); }
+  /* Detail panel below calendar */
+  .cal-det { margin:12px 10px 0; border-radius:var(--r); overflow:hidden;
+    border:1px solid var(--border); background:var(--card); }
+  .cal-det + .cal-det { margin-top:8px; }
+  .cal-det-hd { display:flex; align-items:flex-start; justify-content:space-between;
+    padding:12px 14px 10px; border-bottom:1px solid var(--border); gap:8px; }
+  .cal-det-title { font-size:15px; font-weight:700; }
+  .cal-det-sub { font-size:12px; color:var(--txt2); margin-top:3px; }
+  .cal-det-acts { display:flex; gap:6px; flex-shrink:0; margin-top:2px; }
+  .cal-det-body { padding:12px 14px 14px; }
   </style>
 </head>
 <body>
@@ -1894,6 +1925,7 @@ let ROUTINES = {
 // ════════════════════════════════════
 let S = { rid:null, session:null, expanded:null, viewing:false };
 let _editHistId = null;
+let _calState = { year: new Date().getFullYear(), month: new Date().getMonth(), selKey: null };
 
 // ════════════════════════════════════
 // STORAGE
@@ -1982,7 +2014,13 @@ function forceUpdate() {
       .then(clearSW).catch(clearSW);
   } else { clearSW(); }
 }
-function showHistory() { histRender(); show('history'); }
+function showHistory() {
+  const now = new Date();
+  _calState = { year: now.getFullYear(), month: now.getMonth(), selKey: null };
+  _editHistId = null;
+  histRender();
+  show('history');
+}
 
 // ════════════════════════════════════
 // PROGRAMS & ARCHIVES
@@ -4051,93 +4089,153 @@ function completeAllAndFinish() {
 }
 
 // ════════════════════════════════════
-// HISTORY
+// HISTORY — Calendar view
 // ════════════════════════════════════
+function _dateKey(ts) {
+  const d = new Date(ts);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function calNavMonth(delta) {
+  _calState.month += delta;
+  if (_calState.month > 11) { _calState.month = 0; _calState.year++; }
+  if (_calState.month <  0) { _calState.month = 11; _calState.year--; }
+  _calState.selKey = null; _editHistId = null;
+  histRender();
+}
+function calSelectDay(key) {
+  _calState.selKey = (_calState.selKey === key) ? null : key;
+  _editHistId = null;
+  histRender();
+}
+function calEditSess(sessId) {
+  _editHistId = sessId;
+  histRender();
+}
+function _sessDetailHtml(s) {
+  const sessId = s.id;
+  const editing = _editHistId === sessId;
+  const locale  = getLang()==='he' ? 'he-IL' : 'en-US';
+  const durMin  = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
+  const tot     = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
+  const color   = s.routine==='A' ? 'var(--a)' : 'var(--b)';
+  const dateStr = new Date(s.id).toLocaleDateString(locale,{weekday:'short',month:'short',day:'numeric'});
+  const subTxt  = `${dateStr} · ${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
+
+  let bodyHtml;
+  if (editing) {
+    const exInputs = s.exercises.map((ex,ei)=>{
+      const ds = ex.sets.filter(set=>set.done);
+      if (!ds.length) return '';
+      const rows = ds.map((x,j)=>`
+        <div class="hi-edit-row">
+          <span class="hi-edit-lbl">${t('set-num')} ${j+1}</span>
+          <input class="hi-edit-inp" id="hw-${sessId}-${ei}-${j}" type="text"
+            inputmode="decimal" value="${x.w!=null?x.w:''}" placeholder="kg">
+          <span class="hi-edit-sep">×</span>
+          <input class="hi-edit-inp" id="hr-${sessId}-${ei}-${j}" type="text"
+            inputmode="numeric" value="${x.r!=null?x.r:''}" placeholder="reps">
+        </div>`).join('');
+      return `<div class="hi-edit-ex">
+        <div class="hi-en he" style="margin-bottom:6px">${ex.name}</div>${rows}</div>`;
+    }).join('');
+    bodyHtml = `
+      <div class="hi-edit-actions">
+        <button class="hi-edit-save" onclick="saveHistEdit(${sessId})">✓ ${t('saved')}</button>
+        <button class="hi-edit-cancel" onclick="cancelHistEdit()">✕</button>
+      </div>
+      <div class="hi-edit-dur-row">
+        <span>${t('duration')}</span>
+        <input id="hdur-${sessId}" type="number" inputmode="numeric"
+          value="${durMin||''}" placeholder="min" min="1" max="600">
+        <span>min</span>
+      </div>${exInputs}`;
+  } else {
+    bodyHtml = s.exercises.map(ex=>{
+      const ds = ex.sets.filter(set=>set.done);
+      if (!ds.length) return '';
+      return `<div class="hi-ex">
+        <div class="hi-en he">${ex.name}</div>
+        <div class="hi-sets">${ds.map((x,j)=>{
+          const wDisp = displayWeight(x.w)||'?';
+          return `<span class="hi-pill">${t('set-num')} ${j+1}: ${wDisp}×${x.r||'?'}</span>`;
+        }).join('')}</div>
+        ${ex.comment?`<div class="hi-comment">💬 ${ex.comment}</div>`:''}
+      </div>`;
+    }).join('');
+  }
+
+  return `<div class="cal-det">
+    <div class="cal-det-hd">
+      <div>
+        <div class="cal-det-title" style="color:${color}">${t('routine-'+s.routine.toLowerCase())}</div>
+        <div class="cal-det-sub">${subTxt}</div>
+      </div>
+      <div class="cal-det-acts">
+        ${!editing?`<button class="hi-edit-btn" onclick="calEditSess(${sessId})">✏️</button>`:''} 
+        <button class="hi-del" onclick="deleteSession(${sessId})">🗑</button>
+      </div>
+    </div>
+    <div class="cal-det-body">${bodyHtml}</div>
+  </div>`;
+}
+
 function histRender() {
-  const d = get();
+  const d   = get();
   const all = [...d.sessions].sort((a,b)=>b.id-a.id);
   const el  = document.getElementById('hist-body');
   if (!all.length) { el.innerHTML=`<div class="no-hist">${t('no-workouts')}<br>${t('start-first')}</div>`; return; }
-  el.innerHTML = all.map((s,i)=>{
-    const date   = new Date(s.id).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
-    const durMin = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
-    const durTxt = durMin ? durMin+' '+t('min') : '—';
-    const tot    = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
-    const sessId = s.id;
-    const editing = _editHistId === sessId;
 
-    let detailHtml;
-    if (editing) {
-      // ── Edit mode ──
-      const exInputs = s.exercises.map((ex,ei)=>{
-        const ds = ex.sets.filter(set=>set.done);
-        if (!ds.length) return '';
-        const rows = ds.map((x,j)=>`
-          <div class="hi-edit-row">
-            <span class="hi-edit-lbl">${t('set-num')} ${j+1}</span>
-            <input class="hi-edit-inp" id="hw-${sessId}-${ei}-${j}" type="text"
-              inputmode="decimal" value="${x.w!=null?x.w:''}" placeholder="kg">
-            <span class="hi-edit-sep">×</span>
-            <input class="hi-edit-inp" id="hr-${sessId}-${ei}-${j}" type="text"
-              inputmode="numeric" value="${x.r!=null?x.r:''}" placeholder="reps">
-          </div>`).join('');
-        return `<div class="hi-edit-ex">
-          <div class="hi-en he" style="margin-bottom:6px">${ex.name}</div>
-          ${rows}
-        </div>`;
-      }).join('');
-      detailHtml = `
-        <div class="hi-edit-actions">
-          <button class="hi-edit-save" onclick="saveHistEdit(${sessId})">✓ ${t('saved')}</button>
-          <button class="hi-edit-cancel" onclick="cancelHistEdit()">✕</button>
-        </div>
-        <div class="hi-edit-dur-row">
-          <span>${t('duration')}</span>
-          <input id="hdur-${sessId}" type="number" inputmode="numeric"
-            value="${durMin||''}" placeholder="min" min="1" max="600">
-          <span>min</span>
-        </div>
-        ${exInputs}`;
-    } else {
-      // ── Read mode ──
-      detailHtml = s.exercises.map((ex,ei)=>{
-        const ds = ex.sets.filter(set=>set.done);
-        if (!ds.length) return '';
-        return `<div class="hi-ex">
-          <div class="hi-en he">${ex.name}</div>
-          <div class="hi-sets">${ds.map((x,j)=>{
-            const wDisp = displayWeight(x.w)||'?';
-            return `<span class="hi-pill">${t('set-num')} ${j+1}: ${wDisp} \u00d7 ${x.r||'?'}</span>`;
-          }).join('')}</div>
-          ${ex.comment ? `<div class="hi-comment">💬 ${ex.comment}</div>` : ''}
-        </div>`;
-      }).join('');
-    }
+  const { year, month, selKey } = _calState;
+  const locale   = getLang()==='he' ? 'he-IL' : 'en-US';
+  const monthLbl = new Date(year,month,1).toLocaleDateString(locale,{month:'long',year:'numeric'});
 
-    return `<div class="si">
-      <div class="si-top" onclick="${editing?'':('toggleHist('+i+')')}">
-        <span class="si-r">${t('routine-'+s.routine.toLowerCase())}</span>
-        <span style="display:flex;align-items:center;gap:4px">
-          <span class="si-dt">${date}</span>
-          <button class="hi-edit-btn" onclick="event.stopPropagation();editHist(${sessId},${i})" title="Edit session">✏️</button>
-          <button class="hi-del" onclick="event.stopPropagation();deleteSession(${sessId})">🗑</button>
-        </span>
-      </div>
-      <div class="si-m">${tot} ${t('sets')} · ${durTxt}</div>
-      <div class="si-detail${editing?' open':''}" id="hd${i}">${detailHtml}</div>
-    </div>`;
-  }).join('');
-}
-function toggleHist(i) {
-  const el = document.getElementById('hd'+i);
-  if (el) el.classList.toggle('open');
-}
-function editHist(sessId, idx) {
-  _editHistId = sessId;
-  histRender();
-  // ensure detail is open
-  const el = document.getElementById('hd'+idx);
-  if (el) el.classList.add('open');
+  // Map every session to its date key
+  const dayMap = {};
+  all.forEach(s => {
+    const k = _dateKey(s.id);
+    if (!dayMap[k]) dayMap[k] = [];
+    dayMap[k].push(s);
+  });
+
+  // Build calendar grid
+  const today       = _dateKey(Date.now());
+  const firstDow    = new Date(year,month,1).getDay();  // 0=Sun
+  const daysInMonth = new Date(year,month+1,0).getDate();
+  const DOW         = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  const dowHtml = DOW.map(d=>`<div class="cal-dow-cell">${d}</div>`).join('');
+  let cells = '';
+  for (let i=0;i<firstDow;i++) cells+=`<div class="cal-cell"></div>`;
+
+  for (let day=1; day<=daysInMonth; day++) {
+    const key  = year+'-'+String(month+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const sess = dayMap[key]||[];
+    const hasA = sess.some(s=>s.routine==='A');
+    const hasB = sess.some(s=>s.routine==='B');
+    const isToday = key===today;
+    const isSel   = key===selKey;
+    const dots    = (hasA?'<div class="cal-dot-a"></div>':'')+( hasB?'<div class="cal-dot-b"></div>':''  );
+    const cls     = ['cal-cell', sess.length?'has-sess':'', isToday?'today':'', isSel?'sel':''].filter(Boolean).join(' ');
+    cells += `<div class="${cls}"${sess.length?` onclick="calSelectDay('${key}')"`:''}>`
+           + `<span class="cal-num">${day}</span>`
+           + (dots?`<div class="cal-dots">${dots}</div>`:'')
+           + `</div>`;
+  }
+
+  // Detail panels for selected day
+  const selSessions = selKey ? (dayMap[selKey]||[]) : [];
+  const detailHtml  = selSessions.map(_sessDetailHtml).join('');
+
+  el.innerHTML = `<div class="cal-wrap">
+    <div class="cal-nav">
+      <button class="cal-nav-arrow" onclick="calNavMonth(-1)">&#8249;</button>
+      <span class="cal-nav-lbl">${monthLbl}</span>
+      <button class="cal-nav-arrow" onclick="calNavMonth(1)">&#8250;</button>
+    </div>
+    <div class="cal-dow">${dowHtml}</div>
+    <div class="cal-grid">${cells}</div>
+    ${detailHtml}
+  </div>`;
 }
 function cancelHistEdit() {
   _editHistId = null;
