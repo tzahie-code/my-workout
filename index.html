@@ -3641,13 +3641,15 @@ function buildCard(ex, i) {
       const isVariant = variants && variantIdx !== 0; // true when showing the substitute exercise
       const prevW = prevSetW(activeName, si, ex.name);
       const hasOwnHistory = prevW !== null;
-      const defW = set._pw !== undefined ? set._pw
+      // Treat _pw='' same as undefined — savePendingInputs sets '' for untouched inputs,
+      // which must NOT hide the historical weight when the card is re-expanded.
+      const defW = (set._pw !== undefined && set._pw !== '') ? set._pw
                  : set.done ? (set.w||'')
                  : prevW !== null ? prevW
                  : (isVariant && !hasOwnHistory) ? ''   // variant never done → empty
                  : (def.w||'');
       const prevR = prevSetR(activeName, si, ex.name);
-      const defR = set._pr !== undefined ? set._pr
+      const defR = (set._pr !== undefined && set._pr !== '') ? set._pr
                  : set.done ? (set.r||'')
                  : prevR !== null ? prevR
                  : (def.r||'');
@@ -4140,10 +4142,10 @@ function _sessDetailHtml(s) {
         <div class="hi-edit-row">
           <span class="hi-edit-lbl">${t('set-num')} ${j+1}</span>
           <input class="hi-edit-inp" id="hw-${sessId}-${ei}-${j}" type="text"
-            inputmode="decimal" value="${x.w!=null?x.w:''}" placeholder="kg">
+            inputmode="text" value="${x.w!=null?x.w:''}" placeholder="kg or x/y">
           <span class="hi-edit-sep">×</span>
           <input class="hi-edit-inp" id="hr-${sessId}-${ei}-${j}" type="text"
-            inputmode="numeric" value="${x.r!=null?x.r:''}" placeholder="reps">
+            inputmode="text" value="${x.r!=null?x.r:''}" placeholder="reps">
         </div>`).join('');
       return `<div class="hi-edit-ex">
         <div class="hi-en he" style="margin-bottom:6px">${ex.name}</div>${rows}</div>`;
