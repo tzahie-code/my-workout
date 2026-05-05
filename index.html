@@ -927,18 +927,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         </div>
         <div class="settings-row">
           <button class="settings-btn" onclick="forceUpdate()" data-t="update-btn">↻ Update App</button>
-          <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
-          <script>
-            (function(){
-              var d = document.lastModified ? new Date(document.lastModified) : new Date();
-              document.getElementById('app-version').textContent =
-                'v' + d.getFullYear() + '.' +
-                String(d.getMonth()+1).padStart(2,'0') + '.' +
-                String(d.getDate()).padStart(2,'0') +
-                ' ' + String(d.getHours()).padStart(2,'0') + ':' +
-                String(d.getMinutes()).padStart(2,'0');
-            })();
-          </script>
+          <div style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5">__BUILD_DATE__</div>
         </div>
       </div>
     </div>
@@ -4253,7 +4242,8 @@ function calNavMonth(delta) {
   histRender();
 }
 function calSelectDay(key) {
-  _calState.selKey = key;  // always open; close by tapping the detail header
+  // toggle: tapping the same day again collapses back to general view
+  _calState.selKey = (_calState.selKey === key) ? null : key;
   _editHistId = null;
   histRender();
 }
