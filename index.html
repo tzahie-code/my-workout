@@ -927,7 +927,17 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         </div>
         <div class="settings-row">
           <button class="settings-btn" onclick="forceUpdate()" data-t="update-btn">↻ Update App</button>
-          <div style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5">__BUILD_DATE__</div>
+          <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
+          <script>
+            (function(){
+              var d = new Date('__BUILD_DATE__');
+              if (isNaN(d)) return;
+              var pad = function(n){ return String(n).padStart(2,'0'); };
+              document.getElementById('app-version').textContent =
+                'v' + d.getFullYear() + '.' + pad(d.getMonth()+1) + '.' + pad(d.getDate()) +
+                ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            })();
+          </script>
         </div>
       </div>
     </div>

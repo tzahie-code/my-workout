@@ -3,13 +3,8 @@
 const fs = require('fs');
 
 const now = new Date();
-const pad = n => String(n).padStart(2, '0');
-const stamp =
-  'v' + now.getUTCFullYear() + '.' +
-  pad(now.getUTCMonth() + 1) + '.' +
-  pad(now.getUTCDate()) +
-  ' ' + pad(now.getUTCHours()) + ':' +
-  pad(now.getUTCMinutes()) + ' UTC';
+// Inject raw ISO string — the browser converts to the user's local timezone at runtime
+const stamp = now.toISOString();
 
 let html = fs.readFileSync('index.html', 'utf8');
 if (!html.includes('__BUILD_DATE__')) {
