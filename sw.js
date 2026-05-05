@@ -1,8 +1,10 @@
 // Service Worker — caches the app shell so it loads even with no/bad internet.
 // API calls (Turso sync, Supabase, Google auth) are NEVER intercepted — they
 // go directly to the network so your workout data always syncs normally.
-const CACHE_VER = 'mw-v1';
-const APP_SHELL = ['/', '/index.html'];
+// CACHE_VER is replaced at build time by build.js — changes on every deploy
+// so stale content is never served after an update.
+const CACHE_VER = '__CACHE_VER__';
+const APP_SHELL = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
