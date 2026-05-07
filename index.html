@@ -202,6 +202,17 @@
       flex: 1; min-width: 0; padding: 1px 0; color: var(--txt2); }
     .ec-machine-inp:focus { border-bottom-color: var(--border); color: var(--txt); }
     .ec-machine-inp::placeholder { color: #3a3a42; font-weight: 400; }
+    /* Multi-machine mode */
+    .ec-mach-multi { flex-wrap: wrap; gap: 5px; }
+    .ec-m-slot { display: flex; align-items: center; gap: 2px; }
+    .ec-m-sep-slash { color: var(--border); font-size: 13px; margin: 0 1px; }
+    .ec-add-m { background: none; border: 1px solid var(--border); color: var(--txt2);
+      border-radius: 5px; font-size: 10px; font-weight: 700; padding: 1px 6px; cursor: pointer;
+      font-family: inherit; line-height: 1.5; flex-shrink: 0; touch-action: manipulation; }
+    .ec-add-m:active { opacity: .6; }
+    /* Machine legend bar inside expanded card */
+    .sr-mach-bar { display: flex; align-items: center; gap: 4px; padding: 0 0 8px;
+      font-size: 10px; font-weight: 700; flex-wrap: wrap; }
     .ec-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 
     /* Muscle tags */
@@ -3748,15 +3759,39 @@ function buildCard(ex, i) {
       : `<span class="sdot">${si+1}</span>`
   ).join('');
 
-  // Machine editable input (always shown)
+  // Machine section — single input or multi-machine row based on stored labels
+  const machineLabels = getMachineLabels(activeName);
+  const isMultiMach   = machineLabels.length >= 2;
   const machVal = (ses.machine||'').replace(/"/g,'&quot;');
-  const mach = `<div class="ec-machine">
-    <span style="font-size:11px">📍</span>
-    <input class="ec-machine-inp" id="mx${i}" style="color:${color}"
-      value="${machVal}" placeholder="${t('machine-placeholder')}"
-      onclick="event.stopPropagation()"
-      oninput="saveMachine(${i},this.value)">
-  </div>`;
+  const _mColors = ['var(--b)', '#ff9f0a', 'var(--green)', 'var(--a)'];
+
+  let mach;
+  if (isMultiMach) {
+    const slots = machineLabels.map((lbl, mi) => {
+      const c = _mColors[mi] || 'var(--txt2)';
+      return `<span class="ec-m-slot">
+        <span style="font-size:10px;font-weight:800;color:${c}">M${mi+1}</span>
+        <input class="ec-machine-inp" style="width:62px;color:${c}"
+          value="${lbl.replace(/"/g,'&quot;')}" placeholder="loc ${mi+1}"
+          onclick="event.stopPropagation()"
+          oninput="saveMachineLabel(${i},${mi},this.value)">
+      </span>`;
+    }).join('<span class="ec-m-sep-slash">/</span>');
+    mach = `<div class="ec-machine ec-mach-multi">
+      <span style="font-size:11px">📍</span>
+      ${slots}
+      ${S.viewing ? '' : `<button class="ec-add-m" onclick="event.stopPropagation();addMachineSlot(${i})">+M${machineLabels.length+1}</button>`}
+    </div>`;
+  } else {
+    mach = `<div class="ec-machine">
+      <span style="font-size:11px">📍</span>
+      <input class="ec-machine-inp" id="mx${i}" style="color:${color}"
+        value="${machVal}" placeholder="${t('machine-placeholder')}"
+        onclick="event.stopPropagation()"
+        oninput="saveMachine(${i},this.value)">
+      ${S.viewing ? '' : `<button class="ec-add-m" onclick="event.stopPropagation();addMachineSlot(${i})" title="Add machine split">+M</button>`}
+    </div>`;
+  }
   const keyBadge = ex.key ? `<span class="mtag-key">${t('key-badge')}</span>` : '';
   const tags = (ex.muscles||[]).map(m =>
     `<span class="mtag">${tM(m)}</span>`
@@ -3807,9 +3842,31 @@ function buildCard(ex, i) {
               oninput="saveSetNote(${i},${si},this.value)">
             ${S.viewing ? '' : `<button class="set-ck${ckCls}" onclick="toggleSet(${i},${si})">${ckIcon}</button>`}
           </div>
-          ${!set.done && lastW!==null ? `<div class="sr-prev">${t('last-label')} <strong>${displayWeight(lastW)}${!isBW(String(lastW))?' kg':''}</strong></div>` : ''}
+          ${(() => {
+            if (!lastW) return '';
+            const parts = String(lastW).split('/').map(p => p.trim());
+            let lastHtml;
+            if (parts.length >= 2 && machineLabels.length >= 2) {
+              lastHtml = parts.map((p, pi) => {
+                const lbl = machineLabels[pi] || `M${pi+1}`;
+                const c   = _mColors[pi] || 'var(--txt2)';
+                return `<span style="color:${c}">${lbl}: ${displayWeight(p)}${!isBW(p)?' kg':''}</span>`;
+              }).join(' <span style="opacity:.4">/</span> ');
+            } else {
+              lastHtml = `<strong>${displayWeight(lastW)}${!isBW(String(lastW))?' kg':''}</strong>`;
+            }
+            return `<div class="sr-prev">${t('last-label')} ${lastHtml}</div>`;
+          })()}
         </div>`;
     }).join('');
+
+    // Legend bar: shows M1=name / M2=name above the set list when multi-machine
+    const machBarHtml = isMultiMach ? `<div class="sr-mach-bar">
+      ${machineLabels.map((lbl, mi) => {
+        const c = _mColors[mi] || 'var(--txt2)';
+        return `<span style="color:${c}">M${mi+1}${lbl ? ': ' + lbl : ''}</span>`;
+      }).join('<span style="color:var(--border);padding:0 2px">/</span>')}
+    </div>` : '';
 
     expandHtml = `
       <div class="ec-expand open">
@@ -3817,6 +3874,7 @@ function buildCard(ex, i) {
           <button class="sr-slash" onclick="insertSeparator(${i})">/ −</button>
           <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">${t('copy-first-to-all')}</button>
         </div>
+        ${machBarHtml}
         <div class="set-list">${setRows}</div>
       </div>`;
   }
@@ -4081,6 +4139,37 @@ function saveMachine(ei, val) {
   p.machines[activeExName(ei)] = val;
   putPrefs(p);
   saveCurrentSession();
+}
+
+// ── Multi-machine labels ─────────────────────────────────────────────────────
+// Stored in mwPrefs as machineLabels[exName] = ['Cable', 'Pulley', ...]
+// Index maps directly to the '/' split: M1=before first '/', M2=after, etc.
+function getMachineLabels(exName) {
+  return getPrefs().machineLabels?.[exName] || [];
+}
+function saveMachineLabel(ei, idx, val) {
+  const exName = activeExName(ei);
+  const p = getPrefs();
+  if (!p.machineLabels) p.machineLabels = {};
+  if (!p.machineLabels[exName]) p.machineLabels[exName] = [];
+  p.machineLabels[exName][idx] = val;
+  putPrefs(p);
+}
+function addMachineSlot(ei) {
+  if (!S.session) return;
+  const exName = activeExName(ei);
+  const p = getPrefs();
+  if (!p.machineLabels) p.machineLabels = {};
+  const labels = p.machineLabels[exName] || [];
+  if (labels.length < 2) {
+    // First split: migrate existing single machine text → M1, add blank M2
+    const existing = S.session.exercises[ei]?.machine || p.machines?.[exName] || '';
+    p.machineLabels[exName] = [existing, ''];
+  } else {
+    p.machineLabels[exName] = [...labels, ''];
+  }
+  putPrefs(p);
+  wkRender();
 }
 
 function saveSetNote(ei, si, val) {
