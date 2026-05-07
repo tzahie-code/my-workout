@@ -206,7 +206,7 @@
     .ec-mach-multi { flex-wrap: nowrap; gap: 6px; }
     .ec-m-slots { display: flex; align-items: center; gap: 4px; }
     .ec-m-slot { display: flex; align-items: center; gap: 2px; }
-    .ec-mach-multi .ec-machine-inp { flex: none; width: 50px; field-sizing: content; min-width: 28px; max-width: 120px; }
+    .ec-mach-multi .ec-machine-inp { flex: none; min-width: 28px; max-width: 120px; }
     .ec-m-sep-slash { color: var(--border); font-size: 13px; margin: 0 1px; }
     .ec-add-m { background: none; border: 1px solid var(--border); color: var(--txt2);
       border-radius: 5px; font-size: 10px; font-weight: 700; padding: 1px 6px; cursor: pointer;
@@ -3732,9 +3732,15 @@ function wkRender() {
 }
 
 function _fitMachInputs() {
-  // Fallback for browsers without field-sizing:content support
-  document.querySelectorAll('.ec-mach-multi .ec-machine-inp').forEach(el => {
-    el.style.width = Math.max(28, Math.min(120, el.value.length * 9 + 10)) + 'px';
+  // Each machine row: measure all inputs, set every one to the widest value
+  // so M1 and M2 are always the same length with '/' centred between them.
+  document.querySelectorAll('.ec-m-slots').forEach(slots => {
+    const inputs = Array.from(slots.querySelectorAll('.ec-machine-inp'));
+    if (!inputs.length) return;
+    const maxW = Math.max(...inputs.map(el =>
+      Math.max(28, Math.min(120, el.value.length * 8 + 14))
+    ));
+    inputs.forEach(el => el.style.width = maxW + 'px');
   });
 }
 
