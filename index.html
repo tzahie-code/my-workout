@@ -3732,16 +3732,14 @@ function wkRender() {
 }
 
 function _fitMachInputs() {
-  // Each machine row: measure all inputs, set every one to the widest value
-  // so M1 and M2 are always the same length with '/' centred between them.
-  document.querySelectorAll('.ec-m-slots').forEach(slots => {
-    const inputs = Array.from(slots.querySelectorAll('.ec-machine-inp'));
-    if (!inputs.length) return;
-    const maxW = Math.max(...inputs.map(el =>
-      Math.max(28, Math.min(120, el.value.length * 8 + 14))
-    ));
-    inputs.forEach(el => el.style.width = maxW + 'px');
-  });
+  // Find the longest label across ALL exercises' M1/M2 inputs,
+  // then apply that same width to every one — consistent, balanced layout.
+  const all = Array.from(document.querySelectorAll('.ec-mach-multi .ec-machine-inp'));
+  if (!all.length) return;
+  const maxW = Math.max(...all.map(el =>
+    Math.max(28, Math.min(120, el.value.length * 8 + 14))
+  ));
+  all.forEach(el => el.style.width = maxW + 'px');
 }
 
 function buildCard(ex, i) {
