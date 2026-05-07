@@ -206,7 +206,7 @@
     .ec-mach-multi { flex-wrap: nowrap; gap: 6px; }
     .ec-m-slots { display: flex; align-items: center; gap: 4px; }
     .ec-m-slot { display: flex; align-items: center; gap: 2px; }
-    .ec-mach-multi .ec-machine-inp { flex: none; min-width: 28px; max-width: 120px; }
+    .ec-mach-multi .ec-machine-inp { flex: none; width: 82px; }
     .ec-m-sep-slash { color: var(--border); font-size: 13px; margin: 0 1px; }
     .ec-add-m { background: none; border: 1px solid var(--border); color: var(--txt2);
       border-radius: 5px; font-size: 10px; font-weight: 700; padding: 1px 6px; cursor: pointer;
@@ -3728,18 +3728,6 @@ function wkRender() {
   document.getElementById('wk-fill').style.width = S.viewing ? '0%' : (total?done/total*100:0)+'%';
   document.getElementById('wk-body').innerHTML =
     rt.exercises.map((ex,i) => buildCard(ex,i)).join('');
-  _fitMachInputs();
-}
-
-function _fitMachInputs() {
-  // Find the longest label across ALL exercises' M1/M2 inputs,
-  // then apply that same width to every one — consistent, balanced layout.
-  const all = Array.from(document.querySelectorAll('.ec-mach-multi .ec-machine-inp'));
-  if (!all.length) return;
-  const maxW = Math.max(...all.map(el =>
-    Math.max(28, Math.min(120, el.value.length * 8 + 14))
-  ));
-  all.forEach(el => el.style.width = maxW + 'px');
 }
 
 function buildCard(ex, i) {
@@ -3788,7 +3776,7 @@ function buildCard(ex, i) {
         <input class="ec-machine-inp" style="color:${c}"
           value="${lbl.replace(/"/g,'&quot;')}" placeholder="loc ${mi+1}"
           onclick="event.stopPropagation()"
-          oninput="saveMachineLabel(${i},${mi},this.value);_fitMachInputs()">
+          oninput="saveMachineLabel(${i},${mi},this.value)">
       </span>`;
     }).join('<span class="ec-m-sep-slash">/</span>');
     mach = `<div class="ec-machine ec-mach-multi">
