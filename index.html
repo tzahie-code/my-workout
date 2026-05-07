@@ -3861,21 +3861,12 @@ function buildCard(ex, i) {
         </div>`;
     }).join('');
 
-    // Legend bar: shows M1=name / M2=name above the set list when multi-machine
-    const machBarHtml = isMultiMach ? `<div class="sr-mach-bar">
-      ${machineLabels.map((lbl, mi) => {
-        const c = _mColors[mi] || 'var(--txt2)';
-        return `<span style="color:${c}">M${mi+1}${lbl ? ': ' + lbl : ''}</span>`;
-      }).join('<span style="color:var(--border);padding:0 2px">/</span>')}
-    </div>` : '';
-
     expandHtml = `
       <div class="ec-expand open">
         <div class="sr-tools">
           <button class="sr-slash" onclick="insertSeparator(${i})">/ −</button>
           <button class="sr-copy-w" onclick="copyWeightToAll(${i},0)">${t('copy-first-to-all')}</button>
         </div>
-        ${machBarHtml}
         <div class="set-list">${setRows}</div>
       </div>`;
   }
