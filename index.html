@@ -951,6 +951,13 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         </div>
       </div>
       <div class="settings-section">
+        <div class="settings-title">Reports</div>
+        <div class="settings-row">
+          <button class="settings-btn" onclick="openReportModal()">📊 Progress Report</button>
+          <span style="font-size:12px;color:var(--txt2)">CSV · Text</span>
+        </div>
+      </div>
+      <div class="settings-section">
         <div class="settings-title" data-t="account-data">Account &amp; Data</div>
         <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:2px">
           <span id="auth-user-email" style="font-size:12px;color:var(--txt2)"></span>
@@ -971,6 +978,31 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           </script>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- REPORT MODAL -->
+  <div id="report-modal" class="lib-modal-wrap" onclick="closeReportModal(event)">
+    <div class="lib-modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-size:17px;font-weight:800">📊 Progress Report</span>
+        <button onclick="closeReportModal()" style="background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
+      </div>
+      <p style="font-size:12px;color:var(--txt2);margin-bottom:18px;line-height:1.5">
+        Your full workout history — every exercise, every session.<br>
+        Copy and paste into Excel, Google Sheets, Notes, or any app.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <button onclick="exportReport('csv')" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;color:var(--txt);font-size:14px;font-weight:700;padding:13px 16px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">
+          ⬇️ Copy as CSV
+          <div style="font-size:11px;font-weight:400;color:var(--txt2);margin-top:2px">Best for Excel / Google Sheets</div>
+        </button>
+        <button onclick="exportReport('text')" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;color:var(--txt);font-size:14px;font-weight:700;padding:13px 16px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">
+          📋 Copy as Text
+          <div style="font-size:11px;font-weight:400;color:var(--txt2);margin-top:2px">Readable summary grouped by exercise</div>
+        </button>
+      </div>
+      <div id="report-feedback" style="font-size:13px;min-height:24px"></div>
     </div>
   </div>
 
@@ -2053,6 +2085,113 @@ function goHome() {
   _editHistId = null;
   homeUpdate(); show('home');
 }
+// ── Progress Report ──────────────────────────────────────────────────────────
+function openReportModal() {
+  document.getElementById('report-feedback').textContent = '';
+  document.getElementById('report-modal').style.display = 'flex';
+}
+function closeReportModal(e) {
+  if (!e || e.target === document.getElementById('report-modal'))
+    document.getElementById('report-modal').style.display = 'none';
+}
+
+function _reportSessions() {
+  return [...get().sessions].sort((a, b) => a.id - b.id);
+}
+
+function generateReportCSV() {
+  const rows = ['Date,Routine,Exercise,Sets Done,Best Weight (kg),M1 Max (kg),M2 Max (kg),Avg Reps'];
+  _reportSessions().forEach(s => {
+    const date = new Date(s.id).toLocaleDateString('en-CA'); // YYYY-MM-DD
+    s.exercises.forEach(ex => {
+      const done = ex.sets.filter(x => x.done);
+      if (!done.length) return;
+      let maxA = null, maxB = null, totalReps = 0, repCount = 0;
+      done.forEach(x => {
+        if (x.r) { totalReps += parseInt(x.r) || 0; repCount++; }
+        if (x.w && !isBW(String(x.w))) {
+          const { a, b } = parseSplitWeight(x.w);
+          if (a != null) maxA = maxA == null ? a : Math.max(maxA, a);
+          if (b != null) maxB = maxB == null ? b : Math.max(maxB, b);
+        }
+      });
+      const best = maxA != null && maxB != null ? maxA + '/' + maxB : (maxA != null ? maxA : '');
+      const avgReps = repCount ? Math.round(totalReps / repCount) : '';
+      rows.push([
+        date, s.routine,
+        '"' + ex.name.replace(/"/g, '""') + '"',
+        done.length, best,
+        maxA != null ? maxA : '',
+        maxB != null ? maxB : '',
+        avgReps
+      ].join(','));
+    });
+  });
+  return rows.join('\n');
+}
+
+function generateReportText() {
+  const byRoutine = {};
+  _reportSessions().forEach(s => {
+    if (!byRoutine[s.routine]) byRoutine[s.routine] = {};
+    s.exercises.forEach(ex => {
+      const done = ex.sets.filter(x => x.done);
+      if (!done.length) return;
+      let maxA = null, maxB = null, totalReps = 0, repCount = 0;
+      done.forEach(x => {
+        if (x.r) { totalReps += parseInt(x.r) || 0; repCount++; }
+        if (x.w && !isBW(String(x.w))) {
+          const { a, b } = parseSplitWeight(x.w);
+          if (a != null) maxA = maxA == null ? a : Math.max(maxA, a);
+          if (b != null) maxB = maxB == null ? b : Math.max(maxB, b);
+        }
+      });
+      const dateStr = new Date(s.id).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const avgReps = repCount ? Math.round(totalReps / repCount) : '?';
+      const wStr = maxA != null && maxB != null ? `M1: ${maxA} kg / M2: ${maxB} kg`
+                 : maxA != null ? `${maxA} kg` : 'BW';
+      const line = `  • ${dateStr.padEnd(16)}${done.length} sets   ${wStr.padEnd(26)}${avgReps} reps`;
+      if (!byRoutine[s.routine][ex.name]) byRoutine[s.routine][ex.name] = [];
+      byRoutine[s.routine][ex.name].push(line);
+    });
+  });
+  const sep = '─'.repeat(52);
+  const lines = [
+    'MY WORKOUT — Progress Report',
+    `Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
+    '═'.repeat(52), ''
+  ];
+  Object.keys(byRoutine).sort().forEach(rid => {
+    lines.push(`ROUTINE ${rid}`);
+    lines.push(sep);
+    Object.keys(byRoutine[rid]).sort().forEach(exName => {
+      lines.push('');
+      lines.push(exName);
+      byRoutine[rid][exName].forEach(l => lines.push(l));
+    });
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+async function exportReport(format) {
+  const text = format === 'csv' ? generateReportCSV() : generateReportText();
+  const fb = document.getElementById('report-feedback');
+  try {
+    await navigator.clipboard.writeText(text);
+    fb.style.color = 'var(--green)';
+    fb.textContent = format === 'csv' ? '✅ CSV copied — paste into Excel or Google Sheets'
+                                      : '✅ Text copied — paste anywhere';
+    setTimeout(() => { fb.textContent = ''; }, 4000);
+  } catch(e) {
+    // Clipboard blocked — show inline textarea for manual copy
+    fb.innerHTML = `<div style="font-size:12px;color:var(--txt2);margin-bottom:6px">Clipboard blocked — select all and copy manually:</div>
+      <textarea style="width:100%;height:130px;background:var(--card2);border:1px solid var(--border);
+        border-radius:8px;color:var(--txt);font-size:10px;padding:8px;font-family:monospace;resize:none"
+        readonly onclick="this.select()">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>`;
+  }
+}
+
 function forceUpdate() {
   localStorage.setItem('mwReloading', '1'); // tells init to skip auth screen
   clearCurrentSession();
