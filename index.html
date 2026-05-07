@@ -984,25 +984,37 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <!-- REPORT MODAL -->
   <div id="report-modal" class="lib-modal-wrap" onclick="closeReportModal(event)">
     <div class="lib-modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span style="font-size:17px;font-weight:800">📊 Progress Report</span>
         <button onclick="closeReportModal()" style="background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
       </div>
-      <p style="font-size:12px;color:var(--txt2);margin-bottom:18px;line-height:1.5">
-        Your full workout history — every exercise, every session.<br>
-        Copy and paste into Excel, Google Sheets, Notes, or any app.
-      </p>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-        <button onclick="exportReport('csv')" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;color:var(--txt);font-size:14px;font-weight:700;padding:13px 16px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">
-          ⬇️ Copy as CSV
-          <div style="font-size:11px;font-weight:400;color:var(--txt2);margin-top:2px">Best for Excel / Google Sheets</div>
+
+      <!-- Preview tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="rpt-tab-text" onclick="switchReportTab('text')"
+          style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--a);color:#fff;touch-action:manipulation">
+          📋 Text
         </button>
-        <button onclick="exportReport('text')" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;color:var(--txt);font-size:14px;font-weight:700;padding:13px 16px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">
-          📋 Copy as Text
-          <div style="font-size:11px;font-weight:400;color:var(--txt2);margin-top:2px">Readable summary grouped by exercise</div>
+        <button id="rpt-tab-csv" onclick="switchReportTab('csv')"
+          style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--card2);color:var(--txt2);touch-action:manipulation">
+          ⬇️ CSV
         </button>
       </div>
-      <div id="report-feedback" style="font-size:13px;min-height:24px"></div>
+
+      <!-- Preview box -->
+      <textarea id="report-preview" readonly onclick="this.select()"
+        style="width:100%;height:220px;background:var(--card2);border:1px solid var(--border);
+          border-radius:10px;color:var(--txt);font-size:10px;padding:10px;
+          font-family:monospace;resize:none;line-height:1.6;margin-bottom:12px"></textarea>
+
+      <!-- Copy button -->
+      <button id="rpt-copy-btn" onclick="exportReport(_rptTab)"
+        style="width:100%;padding:13px;border-radius:12px;border:none;
+          font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;
+          touch-action:manipulation;background:var(--a);color:#fff">
+        Copy to Clipboard
+      </button>
+      <div id="report-feedback" style="font-size:13px;min-height:24px;margin-top:10px;text-align:center"></div>
     </div>
   </div>
 
@@ -2086,13 +2098,29 @@ function goHome() {
   homeUpdate(); show('home');
 }
 // ── Progress Report ──────────────────────────────────────────────────────────
+var _rptTab = 'text';
 function openReportModal() {
   document.getElementById('report-feedback').textContent = '';
   document.getElementById('report-modal').style.display = 'flex';
+  _rptTab = 'text';
+  _refreshReportPreview();
 }
 function closeReportModal(e) {
   if (!e || e.target === document.getElementById('report-modal'))
     document.getElementById('report-modal').style.display = 'none';
+}
+function switchReportTab(tab) {
+  _rptTab = tab;
+  const ac = tab === 'text' ? ['rpt-tab-text','rpt-tab-csv'] : ['rpt-tab-csv','rpt-tab-text'];
+  document.getElementById(ac[0]).style.background = 'var(--a)';
+  document.getElementById(ac[0]).style.color = '#fff';
+  document.getElementById(ac[1]).style.background = 'var(--card2)';
+  document.getElementById(ac[1]).style.color = 'var(--txt2)';
+  _refreshReportPreview();
+}
+function _refreshReportPreview() {
+  document.getElementById('report-preview').value =
+    _rptTab === 'csv' ? generateReportCSV() : generateReportText();
 }
 
 function _reportSessions() {
@@ -2175,7 +2203,7 @@ function generateReportText() {
 }
 
 async function exportReport(format) {
-  const text = format === 'csv' ? generateReportCSV() : generateReportText();
+  const text = document.getElementById('report-preview').value;
   const fb = document.getElementById('report-feedback');
   try {
     await navigator.clipboard.writeText(text);
@@ -2184,11 +2212,9 @@ async function exportReport(format) {
                                       : '✅ Text copied — paste anywhere';
     setTimeout(() => { fb.textContent = ''; }, 4000);
   } catch(e) {
-    // Clipboard blocked — show inline textarea for manual copy
-    fb.innerHTML = `<div style="font-size:12px;color:var(--txt2);margin-bottom:6px">Clipboard blocked — select all and copy manually:</div>
-      <textarea style="width:100%;height:130px;background:var(--card2);border:1px solid var(--border);
-        border-radius:8px;color:var(--txt);font-size:10px;padding:8px;font-family:monospace;resize:none"
-        readonly onclick="this.select()">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>`;
+    // Clipboard blocked — preview is already selectable, just tell them
+    fb.style.color = 'var(--txt2)';
+    fb.textContent = 'Tap the preview above → Select All → Copy';
   }
 }
 
