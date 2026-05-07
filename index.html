@@ -204,7 +204,7 @@
     .ec-machine-inp::placeholder { color: #3a3a42; font-weight: 400; }
     /* Multi-machine mode */
     .ec-mach-multi { flex-wrap: wrap; gap: 5px; }
-    .ec-m-slot { display: flex; align-items: center; gap: 2px; }
+    .ec-m-slot { display: flex; align-items: center; gap: 2px; flex: 1; }
     .ec-m-sep-slash { color: var(--border); font-size: 13px; margin: 0 1px; }
     .ec-add-m { background: none; border: 1px solid var(--border); color: var(--txt2);
       border-radius: 5px; font-size: 10px; font-weight: 700; padding: 1px 6px; cursor: pointer;
@@ -3408,10 +3408,11 @@ function progressRender() {
             ${getLang()==='he' ? 'ערוך משקל או לחץ <strong>הסר</strong> להסתרת סשן מהגרף.' : 'Edit a weight or tap <strong>Exclude</strong> to hide a session from the chart.'}
           </div>
           ${allPts.map(pt => {
+            const _pML = getMachineLabels(displayName);
             const dateStr = new Date(pt.sessId).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
             const splitNote = (pt.maxA != null && pt.maxB != null)
-              ? `<br><span style="font-size:9px;color:var(--txt2)">M1: ${pt.maxA}kg / M2: ${pt.maxB}kg</span>`
-              : (pt.maxB != null ? `<br><span style="font-size:9px;color:#ff9f0a">M2: ${pt.maxB}kg</span>` : '');
+              ? `<br><span style="font-size:9px;color:var(--txt2)">M1: ${_pML[0] ? _pML[0]+' · ' : ''}${pt.maxA}kg / M2: ${_pML[1] ? _pML[1]+' · ' : ''}${pt.maxB}kg</span>`
+              : (pt.maxB != null ? `<br><span style="font-size:9px;color:#ff9f0a">M2: ${_pML[1] ? _pML[1]+' · ' : ''}${pt.maxB}kg</span>` : '');
             const origNote = pt.overridden ? `<span class="prog-hist-orig">orig: ${pt.computedMax}kg</span>` : '';
             return `<div class="prog-hist-row${pt.excl?' excl':''}">
               <span class="prog-hist-date">${dateStr}${splitNote}${origNote?'<br>'+origNote:''}</span>
@@ -3770,8 +3771,8 @@ function buildCard(ex, i) {
     const slots = machineLabels.map((lbl, mi) => {
       const c = _mColors[mi] || 'var(--txt2)';
       return `<span class="ec-m-slot">
-        <span style="font-size:10px;font-weight:800;color:${c}">M${mi+1}</span>
-        <input class="ec-machine-inp" style="width:62px;color:${c}"
+        <span style="font-size:10px;font-weight:800;color:${c};white-space:nowrap">M${mi+1}:</span>
+        <input class="ec-machine-inp" style="color:${c}"
           value="${lbl.replace(/"/g,'&quot;')}" placeholder="loc ${mi+1}"
           onclick="event.stopPropagation()"
           oninput="saveMachineLabel(${i},${mi},this.value)">
@@ -3848,9 +3849,9 @@ function buildCard(ex, i) {
             let lastHtml;
             if (parts.length >= 2 && machineLabels.length >= 2) {
               lastHtml = parts.map((p, pi) => {
-                const lbl = machineLabels[pi] || `M${pi+1}`;
+                const lbl = machineLabels[pi] || '';
                 const c   = _mColors[pi] || 'var(--txt2)';
-                return `<span style="color:${c}">${lbl}: ${displayWeight(p)}${!isBW(p)?' kg':''}</span>`;
+                return `<span style="color:${c}">M${pi+1}: ${lbl ? lbl+' · ' : ''}${displayWeight(p)}${!isBW(p)?' kg':''}</span>`;
               }).join(' <span style="opacity:.4">/</span> ');
             } else {
               lastHtml = `<strong>${displayWeight(lastW)}${!isBW(String(lastW))?' kg':''}</strong>`;
@@ -4450,8 +4451,9 @@ function _sessDetailHtml(s) {
         if (a != null) maxA = maxA == null ? a : Math.max(maxA, a);
         if (b != null) maxB = maxB == null ? b : Math.max(maxB, b);
       });
+      const _mL = getMachineLabels(ex.name);
       const splitLine = (maxA != null && maxB != null)
-        ? `<div class="hi-split-note"><span style="color:var(--b)">M1: ${maxA}kg</span> · <span style="color:#ff9f0a">M2: ${maxB}kg</span></div>`
+        ? `<div class="hi-split-note"><span style="color:var(--b)">M1: ${_mL[0] ? _mL[0]+' · ' : ''}${maxA}kg</span> · <span style="color:#ff9f0a">M2: ${_mL[1] ? _mL[1]+' · ' : ''}${maxB}kg</span></div>`
         : '';
       return `<div class="hi-ex">
         <div class="hi-en he">${ex.name}</div>
