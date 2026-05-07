@@ -3780,7 +3780,7 @@ function buildCard(ex, i) {
     mach = `<div class="ec-machine ec-mach-multi">
       <span style="font-size:11px">📍</span>
       ${slots}
-      ${S.viewing ? '' : `<button class="ec-add-m" onclick="event.stopPropagation();addMachineSlot(${i})">+M${machineLabels.length+1}</button>`}
+      <button class="ec-add-m" onclick="event.stopPropagation();addMachineSlot(${i})">+M${machineLabels.length+1}</button>
     </div>`;
   } else {
     mach = `<div class="ec-machine">
@@ -3789,7 +3789,7 @@ function buildCard(ex, i) {
         value="${machVal}" placeholder="${t('machine-placeholder')}"
         onclick="event.stopPropagation()"
         oninput="saveMachine(${i},this.value)">
-      ${S.viewing ? '' : `<button class="ec-add-m" onclick="event.stopPropagation();addMachineSlot(${i})" title="Add machine split">+M</button>`}
+      <button class="ec-add-m" onclick="event.stopPropagation();addMachineSlot(${i})" title="Add machine split">+M</button>
     </div>`;
   }
   const keyBadge = ex.key ? `<span class="mtag-key">${t('key-badge')}</span>` : '';
@@ -4156,14 +4156,13 @@ function saveMachineLabel(ei, idx, val) {
   putPrefs(p);
 }
 function addMachineSlot(ei) {
-  if (!S.session) return;
   const exName = activeExName(ei);
   const p = getPrefs();
   if (!p.machineLabels) p.machineLabels = {};
   const labels = p.machineLabels[exName] || [];
   if (labels.length < 2) {
     // First split: migrate existing single machine text → M1, add blank M2
-    const existing = S.session.exercises[ei]?.machine || p.machines?.[exName] || '';
+    const existing = (S.session && S.session.exercises[ei]?.machine) || p.machines?.[exName] || '';
     p.machineLabels[exName] = [existing, ''];
   } else {
     p.machineLabels[exName] = [...labels, ''];
