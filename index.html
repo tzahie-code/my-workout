@@ -3769,7 +3769,8 @@ function buildCard(ex, i) {
     const setRows = ex.sets.map((def, si) => {
       const set  = ses.sets[si];
       const isVariant = variants && variantIdx !== 0; // true when showing the substitute exercise
-      const prevW = prevSetW(activeName, si, ex.name);
+      const prevW = prevSetW(activeName, si, ex.name);   // for input pre-fill (includes pending)
+      const lastW = lastDoneW(activeName, si, ex.name);  // for "Last:" display (history only)
       const hasOwnHistory = prevW !== null;
       // Treat _pw='' same as undefined — savePendingInputs sets '' for untouched inputs,
       // which must NOT hide the historical weight when the card is re-expanded.
@@ -3806,7 +3807,7 @@ function buildCard(ex, i) {
               oninput="saveSetNote(${i},${si},this.value)">
             ${S.viewing ? '' : `<button class="set-ck${ckCls}" onclick="toggleSet(${i},${si})">${ckIcon}</button>`}
           </div>
-          ${!set.done && prevW!==null ? `<div class="sr-prev">${t('last-label')} <strong>${displayWeight(prevW)}${!isBW(String(prevW))?' kg':''}</strong></div>` : ''}
+          ${!set.done && lastW!==null ? `<div class="sr-prev">${t('last-label')} <strong>${displayWeight(lastW)}${!isBW(String(lastW))?' kg':''}</strong></div>` : ''}
         </div>`;
     }).join('');
 
@@ -3865,12 +3866,26 @@ function toggleCard(i) {
 }
 
 function prevSetW(name, idx, baseName) {
+  // Used for INPUT PRE-FILL only — includes pending (_pw) values from current session.
   // 'name' = active variant name (or exercise name if no variants)
   const p = getPrefs();
   const _pw = p.lastWeights?.[name]?.[idx];
   if (_pw != null && _pw !== '') return _pw;
   // Fall back to session history — scan ALL recent sessions, not just the latest.
   // Also check the base name as a safety net for any pre-migration history entries.
+  const d = get();
+  const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
+  for (const sess of sessions) {
+    const ex = sess.exercises.find(e => e.name === name || (baseName && e.name === baseName));
+    if (ex && ex.sets[idx] && ex.sets[idx].done && ex.sets[idx].w != null)
+      return ex.sets[idx].w;
+  }
+  return null;
+}
+function lastDoneW(name, idx, baseName) {
+  // Used for the "Last: X kg" DISPLAY only — reads from session history, never
+  // from pending inputs. This way typing or "Copy first to all" never corrupts
+  // the "Last" label, which should always reflect the previous completed session.
   const d = get();
   const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
   for (const sess of sessions) {
