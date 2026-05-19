@@ -4220,7 +4220,8 @@ function prevSetR(name, idx, baseName) {
 function activeExName(ei) {
   if (!S.session) return '';
   const ses = S.session.exercises[ei];
-  const ex  = ROUTINES[S.rid].exercises[ei];
+  const ex  = ROUTINES[S.rid] && ROUTINES[S.rid].exercises[ei];
+  if (!ex) return ses ? ses.name : '';  // exercise was removed from routine — use session name
   if (!ex.variants) return ex.name;
   return ex.variants[ses.variantIdx || 0];
 }
