@@ -2035,17 +2035,21 @@ let _calState = { year: new Date().getFullYear(), month: new Date().getMonth(), 
 // ════════════════════════════════════
 function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
 function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); sbSaveDebounced(); }
+let _lastSavedSnapshot = null;
 function saveCurrentSession() {
   if (!S.session) return;
-  // Always persist to mwCurrent — view mode sessions are tagged with viewing:true
-  localStorage.setItem('mwCurrent', JSON.stringify({rid:S.rid, session:S.session, viewing:S.viewing||false}));
+  const snapshot = JSON.stringify({rid:S.rid, session:S.session, viewing:S.viewing||false});
+  localStorage.setItem('mwCurrent', snapshot);
   sbSaveDebounced();
-  // Flash "✓ Saved" indicator
-  const el = document.getElementById('wk-saved');
-  if (el) {
-    el.classList.add('show');
-    clearTimeout(el._t);
-    el._t = setTimeout(() => el.classList.remove('show'), 1800);
+  // Flash "✓ Saved" only when something actually changed
+  if (snapshot !== _lastSavedSnapshot) {
+    _lastSavedSnapshot = snapshot;
+    const el = document.getElementById('wk-saved');
+    if (el) {
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('show'), 1800);
+    }
   }
 }
 
