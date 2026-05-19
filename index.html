@@ -2046,14 +2046,30 @@ let _calState = { year: new Date().getFullYear(), month: new Date().getMonth(), 
 function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
 function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); sbSaveDebounced(); }
 let _lastSavedSnapshot = null;
+// Build a snapshot that excludes _pw/_pr staging values — these are just pending
+// input buffer values that get re-initialized from the DOM on every auto-save,
+// so comparing them would cause false "Saved" flashes on mere card taps/expands.
+function _meaningfulSnap() {
+  if (!S.session) return null;
+  return JSON.stringify({
+    rid: S.rid,
+    viewing: S.viewing || false,
+    exs: S.session.exercises.map(ex => ({
+      name: ex.name, machine: ex.machine, comment: ex.comment,
+      variantIdx: ex.variantIdx,
+      sets: ex.sets.map(s => ({w:s.w, r:s.r, done:s.done, note:s.note}))
+    }))
+  });
+}
 function saveCurrentSession() {
   if (!S.session) return;
   const snapshot = JSON.stringify({rid:S.rid, session:S.session, viewing:S.viewing||false});
   localStorage.setItem('mwCurrent', snapshot);
   sbSaveDebounced();
-  // Flash "✓ Saved" only when something actually changed
-  if (snapshot !== _lastSavedSnapshot) {
-    _lastSavedSnapshot = snapshot;
+  // Flash "✓ Saved" only when meaningful data actually changed (ignores _pw/_pr staging)
+  const meaningful = _meaningfulSnap();
+  if (meaningful !== _lastSavedSnapshot) {
+    _lastSavedSnapshot = meaningful;
     const el = document.getElementById('wk-saved');
     if (el) {
       el.classList.add('show');
