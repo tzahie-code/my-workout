@@ -1659,7 +1659,9 @@ async function initApp() {
   _applyLangToDOM();
   homeUpdate();
   const saved = loadCurrentSession();
-  if (saved) {
+  if (saved && !saved.viewing) {
+    // Only auto-resume ACTIVE workouts on startup.
+    // View sessions are restored by viewRoutine() when the user taps the card.
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     show('workout'); wkRender();
   }
