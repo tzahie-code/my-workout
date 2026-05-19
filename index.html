@@ -309,6 +309,14 @@
     .prog-stat { font-size: 11px; color: var(--txt2); margin-bottom: 8px; line-height: 1.6; }
     .prog-no-data { font-size: 12px; color: var(--txt2); padding: 4px 0 2px; }
     .prog-section-lbl { font-size: 13px; font-weight: 800; padding: 10px 0 6px; }
+    .prog-retired-hd { display:flex; align-items:center; justify-content:space-between;
+      padding:10px 0 6px; cursor:pointer; user-select:none; }
+    .prog-retired-hd-lbl { font-size:12px; font-weight:700; color:var(--txt2); }
+    .prog-retired-hd-arrow { font-size:11px; color:var(--txt2); transition:transform .2s; }
+    .prog-retired-hd.open .prog-retired-hd-arrow { transform:rotate(180deg); }
+    .prog-retired-list { display:none; }
+    .prog-retired-list.open { display:block; }
+    .prog-ex.retired { opacity:.55; }
     .prog-edit-toggle { font-size:11px; font-weight:700; background:none; border:1px solid var(--border);
       border-radius:6px; color:var(--txt2); padding:3px 9px; cursor:pointer; margin-top:8px;
       font-family:inherit; }
@@ -3507,6 +3515,11 @@ function drawMiniChart(pts, hexColor) {
 
 let _openProgEdits  = new Set(); // tracks which exercise edit panels are open
 let _progVariantView = {};        // { 'A-3': 0|1, ... } — which variant shown in progress
+let _retiredOpen = {};            // { 'A': true/false, 'B': true/false }
+function toggleRetired(rid) {
+  _retiredOpen[rid] = !_retiredOpen[rid];
+  progressRender();
+}
 
 function switchProgVariant(rid, ei) {
   const key = `${rid}-${ei}`;
@@ -3606,7 +3619,54 @@ function progressRender() {
         ${editPanel}
       </div>`;
     }).join('');
-    return `<div class="prog-section-lbl" style="color:${color}">${t('routine-'+rid.toLowerCase())}</div>${cards}`;
+    // ── Retired exercises ────────────────────────────────────────────────────
+    // Find all exercise names that appeared in this routine's sessions
+    // but are no longer in the current routine definition.
+    const activeNames = new Set();
+    ROUTINES[rid].exercises.forEach(ex => {
+      activeNames.add(ex.name);
+      if (ex.variants) ex.variants.forEach(v => activeNames.add(v));
+    });
+    const retiredNames = [];
+    const seen = new Set();
+    d.sessions.filter(s => s.routine === rid).forEach(s => {
+      s.exercises.forEach(ex => {
+        if (!activeNames.has(ex.name) && !seen.has(ex.name) && ex.sets.some(x => x.done)) {
+          seen.add(ex.name);
+          retiredNames.push(ex.name);
+        }
+      });
+    });
+
+    let retiredSection = '';
+    if (retiredNames.length) {
+      const isOpen = !!_retiredOpen[rid];
+      const retiredCards = retiredNames.map(name => {
+        const pts  = getExerciseProgress(name);
+        if (!pts.length) return '';
+        const isSplit = pts.some(p => p.maxB != null);
+        const best  = Math.max(...pts.map(p => p.max));
+        const bestA = isSplit ? Math.max(...pts.filter(p=>p.maxA!=null).map(p=>p.maxA)) : null;
+        const bestB = isSplit ? Math.max(...pts.filter(p=>p.maxB!=null).map(p=>p.maxB)) : null;
+        const bestStr = isSplit
+          ? `<strong>${bestA}kg</strong> / <strong style="color:#ff9f0a">${bestB}kg</strong>`
+          : `<strong>${best}kg</strong>`;
+        return `<div class="prog-ex retired">
+          <div class="prog-name">${tEx(name)}</div>
+          <div class="prog-stat">${t('best')} ${bestStr} · <span style="color:var(--txt2)">${pts.length} ${t('sessions-label')}</span></div>
+          ${drawMiniChart(pts, hexColor)}
+        </div>`;
+      }).join('');
+
+      retiredSection = `
+        <div class="prog-retired-hd${isOpen?' open':''}" onclick="toggleRetired('${rid}')">
+          <span class="prog-retired-hd-lbl">📦 Retired · ${retiredNames.length} exercise${retiredNames.length>1?'s':''}</span>
+          <span class="prog-retired-hd-arrow">▼</span>
+        </div>
+        <div class="prog-retired-list${isOpen?' open':''}">${retiredCards}</div>`;
+    }
+
+    return `<div class="prog-section-lbl" style="color:${color}">${t('routine-'+rid.toLowerCase())}</div>${cards}${retiredSection}`;
   }).join('');
 }
 
