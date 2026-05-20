@@ -1380,7 +1380,7 @@ const TRANSLATIONS = {
     'app-title':'My Workout 💪',
     'history':'History','exercises':'💪 Exercises','progress':'📈 Progress',
     'settings':'⚙️ Settings','programs':'📦 Programs',
-    'back':'← Back','done-btn':'✓ Done',
+    'back':'✓ End','done-btn':'✓ Done',
     'routine-a':'Routine A','routine-b':'Routine B',
     'start-routine-a':'Start Routine A','start-routine-b':'Start Routine B',
     'resume-routine-a':'▶ Resume Routine A','resume-routine-b':'▶ Resume Routine B',
@@ -1429,7 +1429,7 @@ const TRANSLATIONS = {
     'app-title':'האימון שלי 💪',
     'history':'היסטוריה','exercises':'💪 תרגילים','progress':'📈 התקדמות',
     'settings':'⚙️ הגדרות','programs':'📦 תוכניות',
-    'back':'חזרה ←','done-btn':'סיום ✓',
+    'back':'סיום ✓','done-btn':'סיום ✓',
     'routine-a':'שגרה א׳','routine-b':'שגרה ב׳',
     'start-routine-a':'התחל שגרה א׳','start-routine-b':'התחל שגרה ב׳',
     'resume-routine-a':'המשך שגרה א׳ ▶','resume-routine-b':'המשך שגרה ב׳ ▶',
@@ -4576,11 +4576,8 @@ function confirmEnd() {
     saveCurrentSession(); // keep the view session in mwCurrent
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
-    // Active workout — save state to mwCurrent so it can be resumed
-    savePendingInputs();
-    _flushSessionToPrefs(); // safety net: also write to prefs
-    saveCurrentSession();
-    S.session=null; homeUpdate(); show('home');
+    // Active workout — always commit to history (even if 0 sets done)
+    finish();
   }
 }
 function completeAllAndFinish() {
