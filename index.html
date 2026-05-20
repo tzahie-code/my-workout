@@ -3908,12 +3908,6 @@ function startWorkout(rid) {
   if (saved && saved.rid === rid && saved.viewing) {
     clearCurrentSession();
   }
-  // Add today if not already selected (don't toggle off)
-  const _today = DAYS[new Date().getDay()];
-  const _p = getPrefs();
-  if (!_p[rid]) _p[rid] = {};
-  if (!Array.isArray(_p[rid].days)) _p[rid].days = [];
-  if (!_p[rid].days.includes(_today)) { _p[rid].days.push(_today); putPrefs(_p); }
   S.rid = rid; S.expanded = null; S.viewing = false;
   S.session = {
     id: Date.now(), routine: rid,
@@ -4551,6 +4545,12 @@ function finish() {
       ses.name = routineEx.variants[ses.variantIdx ?? 0];
     }
   });
+  // Mark today as a workout day — only now that the session is confirmed saved
+  const _today = DAYS[new Date().getDay()];
+  const _p = getPrefs();
+  if (!_p[S.rid]) _p[S.rid] = {};
+  if (!Array.isArray(_p[S.rid].days)) _p[S.rid].days = [];
+  if (!_p[S.rid].days.includes(_today)) { _p[S.rid].days.push(_today); putPrefs(_p); }
   const d = get(); d.sessions.push(S.session); put(d);
   const dur  = Math.round((S.session.endTime-S.session.startTime)/60000);
   const sets = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
