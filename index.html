@@ -850,7 +850,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div class="wk-saved" id="wk-saved">✓ Saved</div>
         </div>
         <button class="wk-back" id="wk-back-btn" onclick="confirmEnd()">← Back</button>
-        <button class="wk-finish-all" id="wk-finish-all-btn" onclick="completeAllAndFinish()" data-t="finish-workout">✓ Finish Workout</button>
+        <button class="wk-finish-all" id="wk-finish-all-btn" onclick="endRoutine()" data-t="finish-workout">End Routine</button>
       </div>
       <div class="wk-prog"><div class="wk-fill" id="wk-fill" style="width:0%"></div></div>
     </div>
@@ -1388,7 +1388,7 @@ const TRANSLATIONS = {
     'btn-progress':'📈 Progress','btn-settings':'⚙️ Settings',
     'btn-reset-week':'↺ Reset Week',
     'locker':'Locker','last-session':'Last session:','exercises-count':'exercises',
-    'finish-workout':'✓ Finish Workout',
+    'finish-workout':'End Routine',
     'rest':'Rest','skip':'Skip →',
     'copy-first-to-all':'Copy first to all',
     'mark-all-done':'✓ Mark all sets done',
@@ -1437,7 +1437,7 @@ const TRANSLATIONS = {
     'btn-progress':'התקדמות 📈','btn-settings':'הגדרות ⚙️',
     'btn-reset-week':'איפוס שבוע ↺',
     'locker':'לוקר','last-session':'אימון אחרון:','exercises-count':'תרגילים',
-    'finish-workout':'סיים אימון ✓',
+    'finish-workout':'סיום שגרה',
     'rest':'מנוחה','skip':'דלג ←',
     'copy-first-to-all':'העתק לכולם',
     'mark-all-done':'סמן הכל כהושלם ✓',
@@ -4576,31 +4576,27 @@ function confirmEnd() {
     saveCurrentSession(); // keep the view session in mwCurrent
     S.session=null; S.viewing=false; homeUpdate(); show('home');
   } else {
-    // Active workout — only save to history if at least 1 set was actually done.
-    // If nothing was checked (accidental start), discard silently so history stays clean.
+    // Active workout — just pause. Session stays in mwCurrent so it can be resumed.
     savePendingInputs();
-    const doneSets = S.session.exercises.reduce((s,e) => s + e.sets.filter(x=>x.done).length, 0);
-    if (doneSets === 0) {
-      clearCurrentSession();
-      S.session = null; homeUpdate(); show('home');
-    } else {
-      finish();
-    }
+    _flushSessionToPrefs();
+    saveCurrentSession();
+    S.session=null; homeUpdate(); show('home');
   }
 }
-function completeAllAndFinish() {
+function endRoutine() {
   savePendingInputs();
-  S.session.exercises.forEach((ex, ei) => {
-    ex.sets.forEach(set => {
-      if (!set.done) {
-        set.w = set._pw || set.w || null;
-        set.r = set._pr || set.r || null;
-        delete set._pw; delete set._pr;
-        set.done = true;
-      }
-    });
-    saveLastWeights(activeExName(ei), ex.sets);
-  });
+  const doneSets = S.session.exercises.reduce((s,e) => s + e.sets.filter(x=>x.done).length, 0);
+  if (doneSets === 0) {
+    // Nothing checked — discard silently, no history trace
+    clearCurrentSession();
+    S.session = null; homeUpdate(); show('home');
+    return;
+  }
+  // At least one set done — ask for confirmation before saving
+  const msg = getLang() === 'he'
+    ? `סיימת ${doneSets} סט${doneSets === 1 ? '' : 'ים'}. לשמור את האימון?`
+    : `You completed ${doneSets} set${doneSets === 1 ? '' : 's'}. Save this workout to history?`;
+  if (!confirm(msg)) return;
   finish();
 }
 
