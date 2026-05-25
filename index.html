@@ -3971,6 +3971,31 @@ function wkRender() {
     rt.exercises.map((ex,i) => buildCard(ex,i)).join('');
 }
 
+// Rebuild a single card in-place, preserving its <img> so GIFs don't restart.
+function wkRenderCard(i) {
+  const cardEl = document.getElementById('ec' + i);
+  if (!cardEl) return;
+  const rt = ROUTINES[S.rid];
+  const oldImg = cardEl.querySelector('.ec-svg-wrap img');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = buildCard(rt.exercises[i], i);
+  const newCard = tmp.firstElementChild;
+  if (oldImg) {
+    const newImg = newCard.querySelector('.ec-svg-wrap img');
+    if (newImg && newImg.src === oldImg.src) newImg.replaceWith(oldImg.cloneNode(true));
+  }
+  cardEl.replaceWith(newCard);
+}
+
+// Update just the progress bar fill after a set toggle.
+function wkUpdateProgressBar() {
+  const rt = ROUTINES[S.rid];
+  const total = rt.exercises.reduce((s,e)=>s+e.sets.length,0);
+  const done  = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
+  const fill  = document.getElementById('wk-fill');
+  if (fill) fill.style.width = S.viewing ? '0%' : (total ? done/total*100 : 0)+'%';
+}
+
 function buildCard(ex, i) {
   const ses     = S.session.exercises[i];
   const allDone    = ses.sets.every(s=>s.done);
@@ -4438,12 +4463,18 @@ function toggleSet(ei, si) {
     return;
   }
   // Auto-close exercise when all its sets are done
+  const prevExpanded = S.expanded;
   if (justDone && S.session.exercises[ei].sets.every(s=>s.done) && S.expanded===ei) {
     const next = S.session.exercises.findIndex((e,idx)=>idx>ei && !e.sets.every(s=>s.done));
     S.expanded = next >= 0 ? next : null;
   }
   saveCurrentSession();
-  wkRender();
+  // Targeted re-render: only rebuild affected cards so images don't restart
+  const cardsToUpdate = new Set([ei]);
+  if (prevExpanded !== null && prevExpanded !== ei) cardsToUpdate.add(prevExpanded);
+  if (S.expanded !== null && S.expanded !== ei) cardsToUpdate.add(S.expanded);
+  cardsToUpdate.forEach(i => wkRenderCard(i));
+  wkUpdateProgressBar();
   const scrollTo = S.expanded !== null ? S.expanded : ei;
   setTimeout(()=>{
     const el = document.getElementById('ec'+scrollTo);
