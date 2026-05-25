@@ -3982,7 +3982,8 @@ function wkRenderCard(i) {
   const newCard = tmp.firstElementChild;
   if (oldImg) {
     const newImg = newCard.querySelector('.ec-svg-wrap img');
-    if (newImg && newImg.src === oldImg.src) newImg.replaceWith(oldImg.cloneNode(true));
+    // Move the original img node (not a clone) so the GIF keeps its current frame
+    if (newImg && newImg.src === oldImg.src) newImg.replaceWith(oldImg);
   }
   cardEl.replaceWith(newCard);
 }
