@@ -3783,8 +3783,10 @@ function saveRest(exName, val, ei) {
   if (!p.rest) p.rest = {};
   p.rest[exName] = val;
   putPrefs(p);
+  const prevExp = S.expanded;
   S.expanded = ei;
-  wkRender();
+  wkRenderCard(ei);
+  if (prevExp !== null && prevExp !== ei) wkRenderCard(prevExp);
 }
 function saveVariantIdx(exName, idx) {
   const p = getPrefs();
@@ -4175,8 +4177,10 @@ function buildCard(ex, i) {
 function toggleCard(i) {
   unlockAudio();
   savePendingInputs();
+  const prevExp = S.expanded;
   S.expanded = S.expanded===i ? null : i;
-  wkRender();
+  wkRenderCard(i);
+  if (prevExp !== null && prevExp !== i) wkRenderCard(prevExp);
   setTimeout(()=>{
     const el = document.getElementById('ec'+i);
     if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -4359,7 +4363,7 @@ function copyWeightToAll(ei, si) {
   // Persist so a variant switch won't lose these values
   saveLastWeights(activeExName(ei), sets);
   saveCurrentSession();
-  wkRender();
+  wkRenderCard(ei);
 }
 
 function savePendingInputs() {
@@ -4429,7 +4433,7 @@ function addMachineSlot(ei) {
     p.machineLabels[exName] = [...labels, ''];
   }
   putPrefs(p);
-  wkRender();
+  wkRenderCard(ei);
 }
 
 function saveSetNote(ei, si, val) {
@@ -4506,8 +4510,11 @@ function completeExercise(ei) {
     setTimeout(finish, 700);
     return;
   }
+  const prevExp = S.expanded;
   S.expanded = null;
-  wkRender();
+  wkRenderCard(ei);
+  if (prevExp !== null && prevExp !== ei) wkRenderCard(prevExp);
+  wkUpdateProgressBar();
   setTimeout(()=>{
     const el = document.getElementById('ec'+ei);
     if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -4516,7 +4523,8 @@ function completeExercise(ei) {
 
 function undoExercise(ei) {
   S.session.exercises[ei].sets.forEach(set => { set.done = false; });
-  wkRender();
+  wkRenderCard(ei);
+  wkUpdateProgressBar();
   setTimeout(()=>{
     const el = document.getElementById('ec'+ei);
     if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -4555,7 +4563,7 @@ function switchVariant(ei) {
                    ? p.setNotes[newName][si] : (ex.sets[si]?.n || '');
     }
   });
-  wkRender();
+  wkRenderCard(ei);
 }
 
 // ════════════════════════════════════
