@@ -3280,10 +3280,15 @@ function _migrateProgramCableHammer() {
   let changed = false;
   ['A','B'].forEach(rid => {
     (prog.routines[rid]?.exercises || []).forEach(ex => {
-      if (ex.name === 'Hammer Curl / Cable Curl') {
+      if (ex.name === 'Hammer Curl / Cable Curl' || ex.name === 'Hammer Curl / Cable Hammer Curl') {
         ex.name = 'Hammer Curl / Cable Hammer Curl';
+        // Sanitize variant names — strip any group-name leftovers and fix Cable Curl → Cable Hammer Curl
         if (Array.isArray(ex.variants)) {
-          ex.variants = ex.variants.map(v => v === 'Cable Curl' ? 'Cable Hammer Curl' : v);
+          ex.variants = ex.variants.map(v => {
+            v = _primaryName(v); // strip any " / X" suffix
+            if (v === 'Cable Curl') v = 'Cable Hammer Curl';
+            return v;
+          });
         } else {
           ex.variants = ['Hammer Curl', 'Cable Hammer Curl'];
         }
@@ -3660,7 +3665,7 @@ function progressRender() {
 
       // Variant switch button — shown between name and stat line
       const variantSwitch = hasVariants
-        ? `<button class="variant-btn" style="margin:3px 0 4px" onclick="switchProgVariant('${rid}',${ei})">⇄ ${tEx(otherName)}</button>`
+        ? `<button class="variant-btn" style="margin:3px 0 4px" onclick="switchProgVariant('${rid}',${ei})">⇄ ${tEx(_primaryName(otherName))}</button>`
         : '';
 
       const editPanel = allPts.length ? `
@@ -4215,7 +4220,7 @@ function buildCard(ex, i) {
             oninput="saveExName('${S.rid}',${i},this.value)">
           ${keyBadge}
         </div>
-        ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${tEx(otherName)}</button>` : ''}
+        ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${tEx(_primaryName(otherName))}</button>` : ''}
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
         ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
