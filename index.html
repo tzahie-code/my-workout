@@ -1331,6 +1331,7 @@ const HE_EXERCISE_NAMES = {
   'Dumbbell Curl':'כפיפת מרפקים',
   'Hammer Curl':'כפיפת פטישים',
   'Cable Curl':'כפיפת מרפקים בכבל',
+  'Cable Hammer Curl':'כפיפת פטישים בכבל',
   'Preacher Curl':'כפיפת כהן',
   'Concentration Curl':'כפיפת ריכוז',
   'Incline Dumbbell Curl':'כפיפת מרפקים בשיפוע',
@@ -1372,7 +1373,7 @@ const HE_EXERCISE_NAMES = {
   'Leg Curl':'כפיפת ברכיים',
   'Calf Raises':'עמידה על קצות אצבעות',
   'Shoulder Press':'לחיצת כתפיים',
-  'Hammer Curl / Cable Curl':'כפיפת פטישים / כבל',
+  'Hammer Curl / Cable Hammer Curl':'כפיפת פטישים / כבל פטיש',
 };
 
 const TRANSLATIONS = {
@@ -1719,9 +1720,10 @@ const EX_IMGS = {
   'Triceps Pushdown':                 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Pushdown.gif',
   'Overhead Triceps Extension':       'https://fitnessprogramer.com/wp-content/uploads/2021/04/Cable-Rope-Overhead-Triceps-Extension.gif',
   'Dumbbell Curl':                    'https://fitnessprogramer.com/wp-content/uploads/2021/02/Dumbbell-Curl.gif',
-  'Hammer Curl / Cable Curl':         'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif',
+  'Hammer Curl / Cable Hammer Curl':  'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif',
   'Hammer Curl':                      'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif',
   'Cable Curl':                       'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif',
+  'Cable Hammer Curl':                'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif',
 };
 
 function getExerciseImg(name, fallbackImg) {
@@ -1787,6 +1789,7 @@ const EXERCISE_LIBRARY = [
   { name:'Dumbbell Curl',              muscles:['bicep'],                                img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Dumbbell-Curl.gif' },
   { name:'Hammer Curl',                muscles:['bicep','forearm'],                      img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif' },
   { name:'Cable Curl',                 muscles:['bicep'],                                img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif' },
+  { name:'Cable Hammer Curl',          muscles:['bicep','forearm'],                      img:'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif' },
   { name:'Preacher Curl',              muscles:['bicep'],                                img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Z-Bar-Preacher-Curl.gif' },
   { name:'Concentration Curl',         muscles:['bicep'],                                img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Concentration-Curl.gif' },
   { name:'Incline Dumbbell Curl',      muscles:['bicep'],                                img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Incline-Dumbbell-Curl.gif' },
@@ -1830,7 +1833,7 @@ const EXERCISE_LIBRARY = [
   { name:'Back Extension',             muscles:['lower-back','glute','hamstring'],       img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/hyperextension.gif' },
   { name:'Lat Pulldown / Pull Up',     muscles:['lat','upper-back','bicep'],             img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Lat-Pulldown.gif' },
   { name:'Seated Row / Chest Supported Row', muscles:['upper-back','lat','bicep'],      img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Cable-Row.gif' },
-  { name:'Hammer Curl / Cable Curl',   muscles:['bicep','forearm'],                      img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif' },
+  { name:'Hammer Curl / Cable Hammer Curl', muscles:['bicep','forearm'],               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif' },
 ];
 
 let _libFilter = null;
@@ -2027,7 +2030,7 @@ let ROUTINES = {
     { name:'Dumbbell Curl', key:false, machine:'', muscles:['bicep'],
       sets:[{n:'עבודה עד 1 לפני כשל',w:'',r:'10-12'},{n:'עבודה עד כשל',w:'',r:'10-12'},
             {n:'עבודה עד כשל',w:'',r:'10-12'}] },
-    { name:'Hammer Curl / Cable Curl', variants:['Hammer Curl','Cable Curl'], key:false, machine:'', muscles:['bicep','forearm'],
+    { name:'Hammer Curl / Cable Hammer Curl', variants:['Hammer Curl','Cable Hammer Curl'], key:false, machine:'', muscles:['bicep','forearm'],
       sets:[{n:'עבודה עד 1 לפני כשל',w:'',r:'10-12'},{n:'עבודה עד כשל',w:'',r:'10-12'},
             {n:'עבודה עד כשל',w:'',r:'10-12'}] },
   ]}
@@ -3272,7 +3275,7 @@ function _repairRoutineSets() {
       'Triceps Pushdown':                    [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
       'Overhead Triceps Extension':          [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
       'Dumbbell Curl':                       [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
-      'Hammer Curl / Cable Curl':            [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
+      'Hammer Curl / Cable Hammer Curl':     [{n:'עבודה עד 1 לפני כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'},{n:'עבודה עד כשל',r:'10-12'}],
     }
   };
 
