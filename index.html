@@ -964,6 +964,10 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <button class="settings-btn" onclick="openReportModal()">📊 Progress Report</button>
           <span style="font-size:12px;color:var(--txt2)">CSV · Text</span>
         </div>
+        <div class="settings-row">
+          <button class="settings-btn" onclick="openPRModal()">🏆 Personal Records</button>
+          <span style="font-size:12px;color:var(--txt2)">Best ever per exercise</span>
+        </div>
       </div>
       <div class="settings-section">
         <div class="settings-title" data-t="account-data">Account &amp; Data</div>
@@ -1023,6 +1027,27 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         Copy to Clipboard
       </button>
       <div id="report-feedback" style="font-size:13px;min-height:24px;margin-top:10px;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- PERSONAL RECORDS MODAL -->
+  <div id="pr-modal" class="lib-modal-wrap" onclick="closePRModal(event)">
+    <div class="lib-modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:17px;font-weight:800">🏆 Personal Records</span>
+        <button onclick="closePRModal()" style="background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
+      </div>
+      <textarea id="pr-preview" readonly onclick="this.select()"
+        style="width:100%;height:260px;background:var(--card2);border:1px solid var(--border);
+          border-radius:10px;color:var(--txt);font-size:10px;padding:10px;
+          font-family:monospace;resize:none;line-height:1.7;margin-bottom:12px"></textarea>
+      <button onclick="copyPRReport()"
+        style="width:100%;padding:13px;border-radius:12px;border:none;
+          font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;
+          touch-action:manipulation;background:var(--a);color:#fff">
+        Copy to Clipboard
+      </button>
+      <div id="pr-feedback" style="font-size:13px;min-height:24px;margin-top:10px;text-align:center"></div>
     </div>
   </div>
 
@@ -2141,6 +2166,94 @@ function goHome() {
   _editHistId = null;
   homeUpdate(); show('home');
 }
+// ── Personal Records ─────────────────────────────────────────────────────────
+function openPRModal() {
+  document.getElementById('pr-feedback').textContent = '';
+  document.getElementById('pr-preview').value = generatePRReport();
+  document.getElementById('pr-modal').style.display = 'flex';
+}
+function closePRModal(e) {
+  if (!e || e.target === document.getElementById('pr-modal'))
+    document.getElementById('pr-modal').style.display = 'none';
+}
+function generatePRReport() {
+  const sessions = [...get().sessions].sort((a, b) => a.id - b.id);
+  // pr[exName] = { maxA, maxB, isBW, date, routine }
+  const pr = {};
+  sessions.forEach(s => {
+    s.exercises.forEach(ex => {
+      const name = _primaryName(ex.name);
+      const done = ex.sets.filter(x => x.done);
+      if (!done.length) return;
+      let maxA = null, maxB = null, bodyweight = false;
+      done.forEach(x => {
+        if (!x.w || isBW(String(x.w))) { bodyweight = true; return; }
+        const { a, b } = parseSplitWeight(x.w);
+        if (a != null) maxA = maxA == null ? a : Math.max(maxA, a);
+        if (b != null) maxB = maxB == null ? b : Math.max(maxB, b);
+      });
+      const best = maxA != null ? maxA : (bodyweight ? 0 : null);
+      if (best == null) return;
+      const prev = pr[name];
+      const isBetter = !prev
+        || (maxA != null && maxA > (prev.maxA || 0))
+        || (maxA == null && bodyweight && !prev.maxA);
+      if (isBetter) {
+        pr[name] = { maxA, maxB, bodyweight, date: s.id, routine: s.routine };
+      }
+    });
+  });
+  if (!Object.keys(pr).length) return 'No workout data yet.';
+
+  // Group by routine
+  const byRoutine = { A: [], B: [] };
+  Object.entries(pr).forEach(([name, rec]) => {
+    const rid = rec.routine || 'A';
+    if (!byRoutine[rid]) byRoutine[rid] = [];
+    byRoutine[rid].push({ name, ...rec });
+  });
+
+  const sep = '─'.repeat(48);
+  const lines = [
+    'MY WORKOUT — Personal Records',
+    `Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
+    '═'.repeat(48), ''
+  ];
+
+  ['A', 'B'].forEach(rid => {
+    const exs = (byRoutine[rid] || []).sort((a, b) => a.name.localeCompare(b.name));
+    if (!exs.length) return;
+    lines.push(`ROUTINE ${rid}`);
+    lines.push(sep);
+    exs.forEach(rec => {
+      const wStr = rec.bodyweight && rec.maxA == null ? 'Bodyweight'
+        : rec.maxA != null && rec.maxB != null ? `M1: ${rec.maxA} kg / M2: ${rec.maxB} kg`
+        : rec.maxA != null ? `${rec.maxA} kg` : '';
+      const dateStr = new Date(rec.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const namePad = rec.name.padEnd(26);
+      const wPad = wStr.padEnd(22);
+      lines.push(`${namePad}${wPad}${dateStr}`);
+    });
+    lines.push('');
+  });
+
+  return lines.join('\n');
+}
+async function copyPRReport() {
+  const text = document.getElementById('pr-preview').value;
+  const fb = document.getElementById('pr-feedback');
+  try {
+    await navigator.clipboard.writeText(text);
+    fb.textContent = '✓ Copied!';
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    fb.textContent = '✓ Copied!';
+  }
+  setTimeout(() => { fb.textContent = ''; }, 2000);
+}
+
 // ── Progress Report ──────────────────────────────────────────────────────────
 var _rptTab = 'text';
 function openReportModal() {
