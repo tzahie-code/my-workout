@@ -1906,9 +1906,9 @@ function _buildLibDiagram() {
 
 function libraryRender() {
   const el = document.getElementById('library-body');
-  let filtered = _libFilter
-    ? EXERCISE_LIBRARY.filter(e => e.muscles.includes(_libFilter))
-    : EXERCISE_LIBRARY;
+  // Exclude group-alias entries (e.g. 'Hammer Curl / Cable Hammer Curl') — individual variants are already listed
+  let filtered = (EXERCISE_LIBRARY.filter(e => !e.name.includes(' / ')));
+  if (_libFilter) filtered = filtered.filter(e => e.muscles.includes(_libFilter));
   if (_libSearch) {
     const q = _libSearch;
     filtered = filtered.filter(e => {
@@ -2517,16 +2517,16 @@ function builderRenderTab() {
         <span class="drag-handle"
           ontouchstart="builderDragStart(event,'${rid}',${idx})"
           onmousedown="builderDragStart(event,'${rid}',${idx})">⠿</span>
-        <span style="flex:1;font-size:15px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ex.name)}</span>
+        <span style="flex:1;font-size:15px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ex.name.split(' / ')[0])}</span>
         <span style="font-size:12px;color:var(--txt2);flex-shrink:0">${ex.setCount||3} ${t('sets')}${ex.key?' 🔥':''}</span>
         <div style="display:flex;gap:4px;flex-shrink:0">${upBtn}${dnBtn}</div>
       </div>`;
     }).join('');
   } else {
     rows = exs.map((ex, idx) => {
-      // Fallback: look up image from EXERCISE_LIBRARY if the builder state has none
+      // Always prefer EXERCISE_LIBRARY (has up-to-date GIFs) over stale stored ex.img
       const libEx = EXERCISE_LIBRARY.find(e => e.name === ex.name);
-      const imgSrc = _exImgSrc(ex.img) || _exImgSrc(libEx?.img) || '';
+      const imgSrc = _exImgSrc(libEx?.img) || _exImgSrc(ex.img) || '';
       const muscles = (ex.muscles||[]).map(m => tM(m)).join(', ');
       return `<div class="builder-ex-row" data-idx="${idx}">
         ${imgSrc
@@ -2535,7 +2535,7 @@ function builderRenderTab() {
         <div class="builder-ex-body">
           <div class="builder-ex-top">
             <div class="builder-ex-text">
-              <div class="builder-ex-name">${escHtml(ex.name)}</div>
+              <div class="builder-ex-name">${escHtml(ex.name.split(' / ')[0])}</div>
               <div class="builder-ex-muscles">${escHtml(muscles)}</div>
             </div>
             <div class="builder-ex-actions">
@@ -2785,7 +2785,9 @@ function pickerSearchInput(val) {
 }
 
 function pickerRender() {
-  let filtered = _pickerFilter ? EXERCISE_LIBRARY.filter(e => e.muscles.includes(_pickerFilter)) : EXERCISE_LIBRARY;
+  // Exclude group-alias entries (name contains ' / ') — individuals are already listed
+  let filtered = EXERCISE_LIBRARY.filter(e => !e.name.includes(' / '));
+  if (_pickerFilter) filtered = filtered.filter(e => e.muscles.includes(_pickerFilter));
   if (_pickerSearch) {
     const q = _pickerSearch;
     filtered = filtered.filter(e => {
@@ -3237,6 +3239,26 @@ function _migrateVariantNamesV2() {
     });
   });
   if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed variant-0 exercise names in history (V2).'); }
+}
+
+// One-time migration: rename any remaining group names (e.g. 'Hammer Curl / Cable Curl')
+// stored in history to their individual variant name based on variantIdx.
+function _migrateGroupNamesV3() {
+  if (localStorage.getItem('mwGroupNamesV3')) return;
+  localStorage.setItem('mwGroupNamesV3', '1');
+  const d = get();
+  let changed = false;
+  d.sessions.forEach(sess => {
+    sess.exercises.forEach(ex => {
+      if (ex.name && ex.name.includes(' / ')) {
+        const parts = ex.name.split(' / ');
+        const idx = ex.variantIdx || 0;
+        ex.name = parts[idx] || parts[0];
+        changed = true;
+      }
+    });
+  });
+  if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed group names in history (V3).'); }
 }
 
 // One-time repair: restore set notes (n) and target reps (r) that were wiped
@@ -5259,6 +5281,7 @@ async function _startApp() {
   // One-time fast migrations (local only, synchronous)
   _migrateVariantNames();
   _migrateVariantNamesV2();
+  _migrateGroupNamesV3();
   _repairRoutineSets();
   _migrateProgressOverridesToSessions();
 
