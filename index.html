@@ -1690,6 +1690,12 @@ function showSyncCode() {
 // EXERCISE PHOTOS (free-exercise-db)
 // ════════════════════════════════════
 const _EX_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
+// Strip the secondary variant from any "X / Y" group name → return just "X"
+function _primaryName(name) {
+  if (!name) return name;
+  const slash = name.indexOf(' / ');
+  return slash >= 0 ? name.slice(0, slash) : name;
+}
 function _exImgSrc(img) {
   if (!img) return '';
   return img.startsWith('http') ? img : `${_EX_BASE}${img}/0.jpg`;
@@ -3266,10 +3272,9 @@ function _migrateGroupNamesV3() {
   if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed group names in history (V3).'); }
 }
 
-// One-time migration: update mwProgram to rename 'Hammer Curl / Cable Curl' → new name + variants
+// Always-on migration: fix any saved program that still has old exercise group names.
+// Runs on every init — fast (O(exercises)) and idempotent, so no flag needed.
 function _migrateProgramCableHammer() {
-  if (localStorage.getItem('mwProgCableHammer')) return;
-  localStorage.setItem('mwProgCableHammer', '1');
   const prog = getProgramData();
   if (!prog?.routines) return;
   let changed = false;
@@ -3279,6 +3284,8 @@ function _migrateProgramCableHammer() {
         ex.name = 'Hammer Curl / Cable Hammer Curl';
         if (Array.isArray(ex.variants)) {
           ex.variants = ex.variants.map(v => v === 'Cable Curl' ? 'Cable Hammer Curl' : v);
+        } else {
+          ex.variants = ['Hammer Curl', 'Cable Hammer Curl'];
         }
         changed = true;
       }
@@ -3286,8 +3293,8 @@ function _migrateProgramCableHammer() {
   });
   if (changed) {
     putProgramData(prog);
-    loadProgram(); // reload so ROUTINES reflects the fix immediately
-    console.log('[repair] Updated Hammer Curl / Cable Curl → Cable Hammer Curl in mwProgram.');
+    loadProgram();
+    console.log('[repair] Fixed Hammer Curl group name in mwProgram.');
   }
 }
 
@@ -3685,7 +3692,7 @@ function progressRender() {
           }).join('')}
         </div>` : '';
       return `<div class="prog-ex" id="prog-card-${rid}-${ei}">
-        <div class="prog-name">${ex.key?'🔥 ':''}${tEx(displayName)}</div>
+        <div class="prog-name">${ex.key?'🔥 ':''}${tEx(_primaryName(displayName))}</div>
         ${variantSwitch}
         <div class="prog-stat">${t('best')} ${bestStr} ${lastUpStr}</div>
         ${drawMiniChart(pts, hexColor)}
@@ -3725,7 +3732,7 @@ function progressRender() {
           ? `<strong>${bestA}kg</strong> / <strong style="color:#ff9f0a">${bestB}kg</strong>`
           : `<strong>${best}kg</strong>`;
         return `<div class="prog-ex retired">
-          <div class="prog-name">${tEx(name)}</div>
+          <div class="prog-name">${tEx(_primaryName(name))}</div>
           <div class="prog-stat">${t('best')} ${bestStr} · <span style="color:var(--txt2)">${pts.length} ${t('sessions-label')}</span></div>
           ${drawMiniChart(pts, hexColor)}
         </div>`;
@@ -4203,7 +4210,7 @@ function buildCard(ex, i) {
       <div class="ec-svg-wrap">${imgHtml}${compBadge}</div>
       <div class="ec-info">
         <div style="display:flex;align-items:center;gap:6px">
-          <input class="ec-name-inp" value="${tEx(activeName).replace(/"/g,'&quot;')}"
+          <input class="ec-name-inp" value="${tEx(_primaryName(activeName)).replace(/"/g,'&quot;')}"
             onclick="event.stopPropagation()"
             oninput="saveExName('${S.rid}',${i},this.value)">
           ${keyBadge}
@@ -4763,7 +4770,7 @@ function _sessDetailHtml(s) {
             inputmode="numeric" value="${x.r!=null?x.r:''}" placeholder="reps">
         </div>`).join('');
       return `<div class="hi-edit-ex">
-        <div class="hi-en he" style="margin-bottom:6px">${ex.name}</div>${rows}</div>`;
+        <div class="hi-en he" style="margin-bottom:6px">${_primaryName(ex.name)}</div>${rows}</div>`;
     }).join('');
     bodyHtml = `
       <div class="hi-edit-actions">
@@ -4791,7 +4798,7 @@ function _sessDetailHtml(s) {
         ? `<div class="hi-split-note"><span style="color:var(--b)">M1: ${maxA}kg</span> · <span style="color:#ff9f0a">M2: ${maxB}kg</span></div>`
         : '';
       return `<div class="hi-ex">
-        <div class="hi-en he">${ex.name}</div>
+        <div class="hi-en he">${_primaryName(ex.name)}</div>
         ${splitLine}
         <div class="hi-sets">${ds.map((x,j)=>{
           const wDisp = displayWeight(x.w)||'?';
