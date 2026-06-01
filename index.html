@@ -1724,12 +1724,17 @@ const EX_IMGS = {
   'Hammer Curl':                      'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif',
   'Cable Curl':                       'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif',
   'Cable Hammer Curl':                'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif',
+  // Backward-compat aliases — old group names that may still be in saved programs/sessions
+  'Hammer Curl / Cable Curl':         'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif',
 };
 
 function getExerciseImg(name, fallbackImg) {
-  const src = EX_IMGS[name]                                          // 1. legacy hardcoded map
-    || _exImgSrc(EXERCISE_LIBRARY.find(e => e.name === name)?.img)  // 2. library (covers any picker exercise)
-    || _exImgSrc(fallbackImg)                                        // 3. img stored in the routine definition
+  const primaryName = name && name.includes(' / ') ? name.split(' / ')[0] : name;
+  const src = EX_IMGS[name]                                                 // 1. exact match (incl. compat aliases)
+    || EX_IMGS[primaryName]                                                  // 2. primary variant name fallback
+    || _exImgSrc(EXERCISE_LIBRARY.find(e => e.name === name)?.img)          // 3. library exact
+    || _exImgSrc(EXERCISE_LIBRARY.find(e => e.name === primaryName)?.img)   // 4. library primary variant
+    || _exImgSrc(fallbackImg)                                                // 5. stored img field
     || '';
   if (!src) return '';
   return `<img src="${src}" loading="lazy" alt="" onerror="this.style.display='none'">`;
@@ -3259,6 +3264,31 @@ function _migrateGroupNamesV3() {
     });
   });
   if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed group names in history (V3).'); }
+}
+
+// One-time migration: update mwProgram to rename 'Hammer Curl / Cable Curl' → new name + variants
+function _migrateProgramCableHammer() {
+  if (localStorage.getItem('mwProgCableHammer')) return;
+  localStorage.setItem('mwProgCableHammer', '1');
+  const prog = getProgramData();
+  if (!prog?.routines) return;
+  let changed = false;
+  ['A','B'].forEach(rid => {
+    (prog.routines[rid]?.exercises || []).forEach(ex => {
+      if (ex.name === 'Hammer Curl / Cable Curl') {
+        ex.name = 'Hammer Curl / Cable Hammer Curl';
+        if (Array.isArray(ex.variants)) {
+          ex.variants = ex.variants.map(v => v === 'Cable Curl' ? 'Cable Hammer Curl' : v);
+        }
+        changed = true;
+      }
+    });
+  });
+  if (changed) {
+    putProgramData(prog);
+    loadProgram(); // reload so ROUTINES reflects the fix immediately
+    console.log('[repair] Updated Hammer Curl / Cable Curl → Cable Hammer Curl in mwProgram.');
+  }
 }
 
 // One-time repair: restore set notes (n) and target reps (r) that were wiped
@@ -5282,6 +5312,7 @@ async function _startApp() {
   _migrateVariantNames();
   _migrateVariantNamesV2();
   _migrateGroupNamesV3();
+  _migrateProgramCableHammer();
   _repairRoutineSets();
   _migrateProgressOverridesToSessions();
 
