@@ -184,8 +184,17 @@
     .ec-quick-lbl { font-size: 9px; font-weight: 700; color: var(--txt2); letter-spacing: .2px; }
     .ec-svg-wrap { width: 78px; flex-shrink: 0; background: #111116;
       display: flex; align-items: center; justify-content: center;
-      border-right: 1px solid var(--border); position: relative; overflow: hidden; }
+      border-right: 1px solid var(--border); position: relative; overflow: hidden;
+      cursor: pointer; }
     .ec-svg-wrap img { width: 78px; height: 78px; object-fit: contain; display: block; }
+    /* GIF lightbox */
+    .gif-lb { display:none; position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,.88);
+      align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:24px; }
+    .gif-lb.open { display:flex; }
+    .gif-lb-name { font-size:17px; font-weight:800; color:#fff; text-align:center; }
+    .gif-lb-img { max-width:min(340px,90vw); max-height:60vh; object-fit:contain;
+      border-radius:14px; background:#111116; display:block; }
+    .gif-lb-close { font-size:13px; color:rgba(255,255,255,.5); margin-top:6px; }
     .ec-comp-badge { position: absolute; inset: 0; background: rgba(48,209,88,.2);
       display: flex; align-items: center; justify-content: center; font-size: 26px; }
     .ec-info { flex: 1; padding: 10px 12px; display: flex;
@@ -1028,6 +1037,13 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
       </button>
       <div id="report-feedback" style="font-size:13px;min-height:24px;margin-top:10px;text-align:center"></div>
     </div>
+  </div>
+
+  <!-- GIF LIGHTBOX -->
+  <div id="gif-lb" class="gif-lb" onclick="closeGifLb()">
+    <div class="gif-lb-name" id="gif-lb-name"></div>
+    <img id="gif-lb-img" class="gif-lb-img" src="" alt="" onclick="event.stopPropagation()">
+    <div class="gif-lb-close">Tap anywhere to close</div>
   </div>
 
   <!-- PERSONAL RECORDS MODAL -->
@@ -2166,6 +2182,25 @@ function goHome() {
   _editHistId = null;
   homeUpdate(); show('home');
 }
+// ── GIF Lightbox ─────────────────────────────────────────────────────────────
+function openGifLb(src, name) {
+  if (!src) return;
+  const lb = document.getElementById('gif-lb');
+  const img = document.getElementById('gif-lb-img');
+  const lbName = document.getElementById('gif-lb-name');
+  // Load a fresh src so the GIF always animates from the start
+  img.src = '';
+  img.src = src;
+  lbName.textContent = name || '';
+  lb.classList.add('open');
+}
+function closeGifLb() {
+  const lb = document.getElementById('gif-lb');
+  lb.classList.remove('open');
+  // Clear src to stop network activity when closed
+  setTimeout(() => { document.getElementById('gif-lb-img').src = ''; }, 300);
+}
+
 // ── Personal Records ─────────────────────────────────────────────────────────
 function openPRModal() {
   document.getElementById('pr-feedback').textContent = '';
@@ -4154,20 +4189,34 @@ function wkRender() {
 }
 
 // Rebuild a single card in-place, preserving its <img> so GIFs don't restart.
+// Key: insert newCard into the live DOM BEFORE removing oldCard, then move the
+// svg-wrap across while both are in the document — the img node is never detached,
+// so the browser never pauses the GIF animation.
 function wkRenderCard(i) {
   const cardEl = document.getElementById('ec' + i);
   if (!cardEl) return;
   const rt = ROUTINES[S.rid];
-  const oldImg = cardEl.querySelector('.ec-svg-wrap img');
   const tmp = document.createElement('div');
   tmp.innerHTML = buildCard(rt.exercises[i], i);
   const newCard = tmp.firstElementChild;
-  if (oldImg) {
-    const newImg = newCard.querySelector('.ec-svg-wrap img');
-    // Move the original img node (not a clone) so the GIF keeps its current frame
-    if (newImg && newImg.src === oldImg.src) newImg.replaceWith(oldImg);
+
+  // Step 1: insert newCard into the live DOM right before the old card
+  cardEl.parentNode.insertBefore(newCard, cardEl);
+
+  // Step 2: while BOTH cards are in the DOM, move the image wrapper across
+  // so the img node is never removed from the document (GIF keeps playing)
+  const oldWrap = cardEl.querySelector('.ec-svg-wrap');
+  const newWrap = newCard.querySelector('.ec-svg-wrap');
+  if (oldWrap && newWrap) {
+    const oldImg = oldWrap.querySelector('img');
+    const newImg = newWrap.querySelector('img');
+    if (oldImg && newImg && oldImg.src === newImg.src) {
+      newWrap.replaceWith(oldWrap); // swap entire wrap — img stays in DOM throughout
+    }
   }
-  cardEl.replaceWith(newCard);
+
+  // Step 3: remove the old card
+  cardEl.remove();
 }
 
 // Update just the progress bar fill after a set toggle.
@@ -4323,9 +4372,12 @@ function buildCard(ex, i) {
 
   const qkCls  = allDone ? ' done' : '';
   const qkIcon = allDone ? '✓' : '○';
+  const imgSrc = EX_IMGS[activeName]
+    || _exImgSrc(EXERCISE_LIBRARY.find(e=>e.name===activeName)?.img) || '';
   return `<div class="${cls}" id="ec${i}">
     <div class="ec-top" onclick="toggleCard(${i})">
-      <div class="ec-svg-wrap">${imgHtml}${compBadge}</div>
+      <div class="ec-svg-wrap" onclick="event.stopPropagation();openGifLb('${imgSrc.replace(/'/g,"\\'")}','${_primaryName(activeName).replace(/'/g,"\\'")}')">
+        ${imgHtml}${compBadge}</div>
       <div class="ec-info">
         <div style="display:flex;align-items:center;gap:6px">
           <input class="ec-name-inp" value="${tEx(_primaryName(activeName)).replace(/"/g,'&quot;')}"
