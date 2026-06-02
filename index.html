@@ -430,7 +430,7 @@
     /* ── EXERCISE LIBRARY ── */
     .lib-card { display:flex; align-items:center; gap:12px; background:var(--card);
       border-radius:var(--r); box-shadow:var(--sh); padding:12px; margin-bottom:10px; cursor:pointer;
-      border:1px solid var(--border); }
+      border:1px solid var(--border); -webkit-user-select:none; user-select:none; }
     .lib-card:active { opacity:.8; }
     .lib-img { width:64px; height:64px; object-fit:contain;
       border-radius:10px; flex-shrink:0; background:#111116; }
@@ -530,7 +530,7 @@
 .builder-body { padding:12px 16px 100px; }
 .builder-ex-row { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
   padding:11px 12px; margin-bottom:10px; display:flex; align-items:flex-start; gap:10px;
-  border:1px solid var(--border); }
+  border:1px solid var(--border); -webkit-user-select:none; user-select:none; }
 .builder-ex-img { width:48px; height:48px; border-radius:8px; object-fit:contain;
   flex-shrink:0; background:#1c1c1e; margin-top:1px; }
 .builder-ex-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:0; }
@@ -613,7 +613,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 .picker-filters::-webkit-scrollbar { display:none; }
 .picker-card { display:flex; align-items:center; gap:10px; background:var(--card);
   border-radius:12px; padding:10px 12px; margin:8px 12px 0; cursor:pointer;
-  border:1px solid var(--border); }
+  border:1px solid var(--border); -webkit-user-select:none; user-select:none; }
 .picker-card:active { opacity:.8; }
 .picker-img { width:44px; height:44px; border-radius:8px; object-fit:contain;
   flex-shrink:0; background:#111116; }
@@ -1989,7 +1989,7 @@ function libraryRender() {
     const imgSrc = _exImgSrc(ex.img);
     const tags = ex.muscles.map(m=>`<span class="mtag">${tM(m)}</span>`).join('');
     return `<div class="lib-card" onclick="showLibDetail(${idx})">
-      ${imgSrc ? `<img class="lib-img" src="${imgSrc}" loading="lazy" alt="" onerror="this.outerHTML='<div class=\'lib-img-ph\'></div>'">` : '<div class="lib-img-ph"></div>'}
+      ${imgSrc ? `<img class="lib-img" src="${imgSrc}" loading="lazy" alt="" onerror="this.outerHTML='<div class=\\'lib-img-ph\\'></div>'" ${_gifLpA(imgSrc, ex.name)}>` : '<div class="lib-img-ph"></div>'}
       <div class="lib-info">
         <div class="lib-name">${tEx(ex.name)}</div>
         <div class="muscle-tags" style="margin-top:4px">${tags}</div>
@@ -2013,7 +2013,7 @@ function showLibDetail(idx) {
       ${ytBtn(ex.name)}
       <button onclick="closeLibDetail()" style="background:none;border:none;font-size:24px;color:var(--txt2);cursor:pointer;line-height:1;margin-left:8px">✕</button>
     </div>
-    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:auto;max-height:260px;object-fit:contain;border-radius:12px;margin-bottom:12px;background:#111116" onerror="this.style.display='none'">` : ''}
+    ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:auto;max-height:260px;object-fit:contain;border-radius:12px;margin-bottom:12px;background:#111116" onerror="this.style.display='none'" ${_gifLpA(imgSrc, ex.name)}>` : ''}
     <div class="muscle-tags" style="margin-bottom:16px">${tags}</div>
     `;
   document.getElementById('lib-modal').style.display = 'flex';
@@ -2186,6 +2186,12 @@ function goHome() {
 }
 // ── GIF Lightbox + long-press ────────────────────────────────────────────────
 let _gifLpTimer = null, _gifLpFired = false;
+// Returns HTML attributes string for any exercise image that should support long-press-to-zoom
+function _gifLpA(src, name) {
+  const s = (src||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const n = (name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return `onpointerdown="_gifLpStart(event,'${s}','${n}')" onpointerup="_gifLpEnd()" onpointercancel="_gifLpEnd()" onclick="_gifLpClick(event)" oncontextmenu="return false" style="cursor:pointer;-webkit-touch-callout:none"`;
+}
 function _gifLpStart(e, src, name) {
   _gifLpFired = false;
   clearTimeout(_gifLpTimer);
@@ -2711,7 +2717,7 @@ function builderRenderTab() {
       const muscles = (ex.muscles||[]).map(m => tM(m)).join(', ');
       return `<div class="builder-ex-row" data-idx="${idx}">
         ${imgSrc
-          ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.opacity='0'" alt="">`
+          ? `<img class="builder-ex-img" src="${imgSrc}" loading="lazy" onerror="this.style.opacity='0'" alt="" ${_gifLpA(imgSrc, ex.name.split(' / ')[0])}>`
           : '<div class="builder-ex-img"></div>'}
         <div class="builder-ex-body">
           <div class="builder-ex-top">
@@ -3005,7 +3011,7 @@ function pickerRender() {
       if (_builderSubstIdx !== null) addLabel = 'Use as Substitute';
       if (_builderVariantIdx !== null) addLabel = 'Use as Trade Exercise';
       return `<div class="picker-card picker-card-exp" onclick="pickerPreview(${idx})">
-        ${imgSrc ? `<img class="picker-img-full" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="">` : ''}
+        ${imgSrc ? `<img class="picker-img-full" src="${imgSrc}" loading="lazy" onerror="this.style.display='none'" alt="" ${_gifLpA(imgSrc, ex.name)}>` : ''}
         <div style="font-size:16px;font-weight:800;margin-bottom:8px">${escHtml(tEx(ex.name))}</div>
         <div class="muscle-tags" style="margin-bottom:16px">${muscleTags}</div>
         <button onclick="event.stopPropagation();pickerConfirmAdd()" style="width:100%;padding:14px;background:var(--green);color:#000;font-weight:800;font-size:15px;border:none;border-radius:12px;cursor:pointer;font-family:inherit">${addLabel}</button>
@@ -3013,7 +3019,7 @@ function pickerRender() {
     }
 
     return `<div class="picker-card${isCurrent?' picker-card-dim':''}" onclick="pickerPreview(${idx})" style="${isCurrent?'opacity:.35;pointer-events:none':''}">
-      ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="">` : '<div class="picker-img-ph"></div>'}
+      ${imgSrc ? `<img class="picker-img" src="${imgSrc}" loading="lazy" onerror="this.outerHTML='<div class=\\'picker-img-ph\\'></div>'" alt="" ${_gifLpA(imgSrc, ex.name)}>` : '<div class="picker-img-ph"></div>'}
       <div style="flex:1">
         <div class="picker-card-name">${escHtml(tEx(ex.name))}${isCurrent?` <span style="font-size:11px;color:var(--txt2)">${t('current-exercise')}</span>`:''}</div>
         <div class="picker-card-muscles">${escHtml(muscles)}</div>
