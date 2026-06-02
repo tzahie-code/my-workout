@@ -185,8 +185,9 @@
     .ec-svg-wrap { width: 78px; flex-shrink: 0; background: #111116;
       display: flex; align-items: center; justify-content: center;
       border-right: 1px solid var(--border); position: relative; overflow: hidden;
-      cursor: pointer; }
-    .ec-svg-wrap img { width: 78px; height: 78px; object-fit: contain; display: block; }
+      cursor: pointer; -webkit-touch-callout: none; user-select: none; }
+    .ec-svg-wrap img { width: 78px; height: 78px; object-fit: contain; display: block;
+      pointer-events: none; }
     /* GIF lightbox */
     .gif-lb { display:none; position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,.88);
       align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:24px; }
@@ -2182,7 +2183,26 @@ function goHome() {
   _editHistId = null;
   homeUpdate(); show('home');
 }
-// ── GIF Lightbox ─────────────────────────────────────────────────────────────
+// ── GIF Lightbox + long-press ────────────────────────────────────────────────
+let _gifLpTimer = null, _gifLpFired = false;
+function _gifLpStart(e, src, name) {
+  _gifLpFired = false;
+  clearTimeout(_gifLpTimer);
+  _gifLpTimer = setTimeout(() => {
+    _gifLpTimer = null;
+    _gifLpFired = true;
+    openGifLb(src, name);
+  }, 500);
+}
+function _gifLpEnd() {
+  clearTimeout(_gifLpTimer);
+  _gifLpTimer = null;
+}
+function _gifLpClick(e) {
+  // Long press already opened the lightbox — block click from toggling the card
+  if (_gifLpFired) { _gifLpFired = false; e.stopPropagation(); }
+  // Normal tap: let click bubble up to ec-top → toggleCard
+}
 function openGifLb(src, name) {
   if (!src) return;
   const lb = document.getElementById('gif-lb');
@@ -4374,9 +4394,16 @@ function buildCard(ex, i) {
   const qkIcon = allDone ? '✓' : '○';
   const imgSrc = EX_IMGS[activeName]
     || _exImgSrc(EXERCISE_LIBRARY.find(e=>e.name===activeName)?.img) || '';
+  const _lpSrc  = imgSrc.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const _lpName = _primaryName(activeName).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   return `<div class="${cls}" id="ec${i}">
     <div class="ec-top" onclick="toggleCard(${i})">
-      <div class="ec-svg-wrap" onclick="event.stopPropagation();openGifLb('${imgSrc.replace(/'/g,"\\'")}','${_primaryName(activeName).replace(/'/g,"\\'")}')">
+      <div class="ec-svg-wrap"
+        onpointerdown="event.stopPropagation();_gifLpStart(event,'${_lpSrc}','${_lpName}')"
+        onpointerup="event.stopPropagation();_gifLpEnd()"
+        onpointercancel="_gifLpEnd()"
+        onclick="_gifLpClick(event)"
+        oncontextmenu="return false">
         ${imgHtml}${compBadge}</div>
       <div class="ec-info">
         <div style="display:flex;align-items:center;gap:6px">
