@@ -146,7 +146,8 @@
     .hi-edit-btn:active { color: var(--b); opacity: 1; }
     .wk-prog { height: 3px; background: var(--border); }
     .wk-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
-    .wk-body { padding: 12px 16px 60px; }
+    .wk-body { padding: 12px 16px 60px; -webkit-user-select: none; user-select: none; }
+    .wk-body input, .wk-body textarea { -webkit-user-select: text; user-select: text; }
 
     /* ── EXERCISE CARD ── */
     .ec { background: var(--card); border-radius: 18px; box-shadow: var(--sh);
@@ -2191,6 +2192,7 @@ function _gifLpStart(e, src, name) {
   _gifLpTimer = setTimeout(() => {
     _gifLpTimer = null;
     _gifLpFired = true;
+    window.getSelection()?.removeAllRanges(); // clear any accidental text selection
     openGifLb(src, name);
   }, 500);
 }
