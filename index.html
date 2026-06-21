@@ -3448,6 +3448,41 @@ function _migrateGroupNamesV3() {
   if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed group names in history (V3).'); }
 }
 
+// One-time repair: for every session that has exercises with null weight but done sets,
+// fill from the nearest prior session of the same routine that has a real weight for
+// that exercise. Covers the "all-sets on collapsed card" data loss bug.
+function _repairNullWeights() {
+  if (localStorage.getItem('mwRepairNullWeights')) return;
+  localStorage.setItem('mwRepairNullWeights', '1');
+  const d = get();
+  if (!d.sessions || !d.sessions.length) return;
+  const sorted = [...d.sessions].sort((a, b) => a.id - b.id); // oldest first
+  let changed = false;
+  sorted.forEach((sess, idx) => {
+    sess.exercises.forEach(ex => {
+      const doneSets = ex.sets.filter(s => s.done);
+      const hasNull  = doneSets.some(s => s.w == null);
+      if (!hasNull) return;
+      // Find the most recent prior session of the same routine that has this exercise
+      for (let pi = idx - 1; pi >= 0; pi--) {
+        if (sorted[pi].routine !== sess.routine) continue;
+        const prevEx = sorted[pi].exercises.find(e => e.name === ex.name);
+        if (!prevEx) continue;
+        const prevDone = prevEx.sets.filter(s => s.done && s.w != null);
+        if (!prevDone.length) continue;
+        // Copy weights set-by-set; if no matching index, reuse last known
+        ex.sets.forEach((set, si) => {
+          if (!set.done || set.w != null) return;
+          const src = prevEx.sets[si] || prevDone[prevDone.length - 1];
+          if (src && src.w != null) { set.w = src.w; changed = true; }
+        });
+        break;
+      }
+    });
+  });
+  if (changed) { put(d); sbSaveDebounced(); }
+}
+
 // Always-on migration: fix any saved program that still has old exercise group names.
 // Runs on every init — fast (O(exercises)) and idempotent, so no flag needed.
 function _migrateProgramCableHammer() {
@@ -5539,6 +5574,7 @@ async function _startApp() {
   _migrateVariantNamesV2();
   _migrateGroupNamesV3();
   _migrateProgramCableHammer();
+  _repairNullWeights();
   _repairRoutineSets();
   _migrateProgressOverridesToSessions();
 
