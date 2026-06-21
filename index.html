@@ -4769,14 +4769,19 @@ function toggleSet(ei, si) {
 
 function completeExercise(ei) {
   savePendingInputs();
-  const ex  = S.session.exercises[ei];
-  const def = ROUTINES[S.rid].exercises[ei];
+  const ex   = S.session.exercises[ei];
+  const def  = ROUTINES[S.rid].exercises[ei];
+  // When the card is collapsed, savePendingInputs can't read DOM inputs, so _pw is
+  // never set. Fall back to lastWeights prefs — the same value shown as pre-fill.
+  const name = activeExName(ei);
+  const savedW = (getPrefs().lastWeights || {})[name] || [];
+  const savedR = (getPrefs().lastReps    || {})[name] || [];
   ex.sets.forEach((set, si) => {
     if (!set.done) {
       set.w = (set._pw !== undefined && set._pw !== '') ? set._pw
-            : (set.w !== null ? set.w : (def.sets[si].w || null));
+            : (set.w  !== null ? set.w  : (savedW[si] ?? def.sets[si]?.w ?? null));
       set.r = (set._pr !== undefined && set._pr !== '') ? set._pr
-            : (set.r !== null ? set.r : (def.sets[si].r || null));
+            : (set.r  !== null ? set.r  : (savedR[si] ?? def.sets[si]?.r ?? null));
       delete set._pw; delete set._pr;
       set.done = true;
     }
