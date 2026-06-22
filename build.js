@@ -90,53 +90,64 @@ function encodePNG(rgba, size) {
   ]);
 }
 
-// Design: dark background, orange filled circle, white pixel-art "W"
-// "W" glyph — 7 columns × 8 rows bitmap
-const W_GLYPH = [
-  [1,0,0,0,0,0,1],
-  [1,0,0,0,0,0,1],
-  [1,0,0,1,0,0,1],
-  [1,0,1,0,1,0,1],
-  [1,0,1,0,1,0,1],
-  [0,1,0,0,0,1,0],
-  [0,1,0,0,0,1,0],
-  [0,0,0,0,0,0,0],
-];
+// Design: dark background (#0d0d0f), orange circle (#ff6b35), smooth white "W"
+// The "W" is rendered as 4 anti-aliased thick strokes (distance-to-polyline),
+// replacing the old pixel-art bitmap which looked jagged when scaled.
 
 function generateIcon(size) {
   const rgba = new Uint8Array(size * size * 4);
   const cx = size / 2, cy = size / 2;
-  const r  = size * 0.42; // orange circle radius
+  const circR = size * 0.42;
+
+  // W centerline: 5 points forming two connected V shapes
+  const wS = circR * 0.70;
+  const wPts = [
+    [cx - wS,        cy - wS * 0.54],  // top-left
+    [cx - wS * 0.38, cy + wS * 0.52],  // bottom of left V
+    [cx,             cy - wS * 0.46],  // center hump (slightly below top corners)
+    [cx + wS * 0.38, cy + wS * 0.52],  // bottom of right V
+    [cx + wS,        cy - wS * 0.54],  // top-right
+  ];
+  const strokeR = size * 0.068; // half-stroke-width for a bold clean line
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const i  = (y * size + x) * 4;
-      const dx = x - cx, dy = y - cy;
-      if (Math.sqrt(dx*dx + dy*dy) <= r) {
-        rgba[i] = 255; rgba[i+1] = 107; rgba[i+2] = 53; // #ff6b35 orange
-      } else {
-        rgba[i] = 13;  rgba[i+1] = 13;  rgba[i+2] = 15; // #0d0d0f dark
+      const idx = (y * size + x) * 4;
+      const px = x + 0.5, py = y + 0.5; // use pixel center for AA
+      const dx = px - cx, dy = py - cy;
+      const distC = Math.sqrt(dx * dx + dy * dy);
+
+      // Smooth circle edge (1px anti-aliasing band)
+      const circAlpha = distC < circR - 1 ? 1
+                      : distC > circR + 1 ? 0
+                      : (circR + 1 - distC) / 2;
+
+      // Base: dark bg blended with orange circle
+      rgba[idx]   = Math.round(13  + (255 - 13)  * circAlpha);
+      rgba[idx+1] = Math.round(13  + (107 - 13)  * circAlpha);
+      rgba[idx+2] = Math.round(15  + (53  - 15)  * circAlpha);
+      rgba[idx+3] = 255;
+
+      if (distC > circR + 2) continue; // skip W calc outside circle
+
+      // Distance from pixel center to the W polyline
+      let minDist = Infinity;
+      for (let k = 0; k < wPts.length - 1; k++) {
+        const ax = wPts[k][0],  ay = wPts[k][1];
+        const bx = wPts[k+1][0], by = wPts[k+1][1];
+        const ux = bx - ax, uy = by - ay;
+        const lenSq = ux * ux + uy * uy;
+        const t = lenSq > 0 ? Math.max(0, Math.min(1, ((px - ax) * ux + (py - ay) * uy) / lenSq)) : 0;
+        const d = Math.sqrt((px - ax - t * ux) ** 2 + (py - ay - t * uy) ** 2);
+        if (d < minDist) minDist = d;
       }
-      rgba[i+3] = 255;
-    }
-  }
 
-  // Draw white "W" glyph — scale so the letter fills ~46% of the circle diameter
-  const glyphW = W_GLYPH[0].length, glyphH = W_GLYPH.length;
-  const scale  = Math.max(1, Math.round(size * 0.46 / glyphW));
-  const ox     = Math.round(cx - glyphW * scale / 2);
-  const oy     = Math.round(cy - glyphH * scale / 2);
-
-  for (let gy = 0; gy < glyphH; gy++) {
-    for (let gx = 0; gx < glyphW; gx++) {
-      if (!W_GLYPH[gy][gx]) continue;
-      for (let py = 0; py < scale; py++) {
-        for (let px = 0; px < scale; px++) {
-          const x = ox + gx * scale + px, y = oy + gy * scale + py;
-          if (x < 0 || x >= size || y < 0 || y >= size) continue;
-          const i = (y * size + x) * 4;
-          rgba[i] = rgba[i+1] = rgba[i+2] = rgba[i+3] = 255;
-        }
+      // Smooth white stroke (1px AA at edge)
+      const wAlpha = Math.max(0, Math.min(1, strokeR - minDist + 1));
+      if (wAlpha > 0) {
+        rgba[idx]   = Math.round(rgba[idx]   + (255 - rgba[idx])   * wAlpha);
+        rgba[idx+1] = Math.round(rgba[idx+1] + (255 - rgba[idx+1]) * wAlpha);
+        rgba[idx+2] = Math.round(rgba[idx+2] + (255 - rgba[idx+2]) * wAlpha);
       }
     }
   }
