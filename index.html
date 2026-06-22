@@ -447,7 +447,7 @@
     .lib-modal-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
       z-index:200; align-items:center; justify-content:center; padding:24px 16px; }
     .lib-modal-sheet { background:var(--card); border-radius:20px; width:100%;
-      max-width:480px; padding:20px; max-height:82vh; overflow-y:auto; border:1px solid var(--border); }
+      max-width:480px; padding:20px; max-height:82vh; max-height:82dvh; overflow-y:auto; overscroll-behavior:contain; border:1px solid var(--border); }
 
     /* ── SETTINGS ── */
     .settings-section { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
@@ -516,7 +516,7 @@
 .pdf-loading { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; flex-direction:column;
   align-items:center; justify-content:center; z-index:9999; gap:12px; color:#fff; font-size:16px; font-weight:600; }
 .pdf-spinner { width:36px; height:36px; border:3px solid rgba(255,255,255,.2);
-  border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+  border-top-color:#fff; border-radius:50%; animation:auth-spin .7s linear infinite; }
 .builder-name-row { background:var(--card); padding:14px 16px; border-bottom:1px solid var(--border); }
 .builder-name-inp { font-size:20px; font-weight:800; width:100%; border:none; outline:none;
   background:transparent; color:var(--txt); border-bottom:2px solid var(--border); padding:4px 0;
@@ -583,7 +583,7 @@
 .picker-wrap { display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,.7); }
 .picker-wrap.active { display:flex; align-items:flex-start; justify-content:center; }
 .picker-sheet { background:var(--bg); border-radius:0 0 20px 20px; width:100%; max-width:480px;
-  height:100%; overflow-y:auto; }
+  height:100%; overflow-y:auto; overscroll-behavior:contain; }
 .picker-hd { background:var(--card); padding:14px 16px; border-bottom:1px solid var(--border);
   display:flex; justify-content:space-between; align-items:center;
   position:sticky; top:0; z-index:10;
@@ -765,6 +765,13 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   .cal-det-sub { font-size:12px; color:var(--txt2); margin-top:3px; }
   .cal-det-acts { display:flex; gap:6px; flex-shrink:0; margin-top:2px; }
   .cal-det-body { padding:12px 14px 14px; }
+  @media (prefers-reduced-motion: reduce) {
+    .screen.active { animation: none; }
+    .ec.inprog { animation: none; }
+    .ec-prog-dot { animation: none; }
+    .timer-flash { animation: none; }
+    .auth-spinner, .pdf-spinner { animation: none; }
+  }
   </style>
 </head>
 <body>
