@@ -90,47 +90,42 @@ function encodePNG(rgba, size) {
   ]);
 }
 
-// Design: dark background (#0d0d0f), orange circle (#ff6b35), smooth white "W"
-// The "W" is rendered as 4 anti-aliased thick strokes (distance-to-polyline),
-// replacing the old pixel-art bitmap which looked jagged when scaled.
+// Design: full orange gradient fill (iOS clips to rounded rect automatically),
+// large white "W" rendered as smooth anti-aliased strokes.
+// Filling the full square — not a circle on dark — is how professional app icons look.
 
 function generateIcon(size) {
   const rgba = new Uint8Array(size * size * 4);
   const cx = size / 2, cy = size / 2;
-  const circR = size * 0.42;
 
-  // W centerline: 5 points forming two connected V shapes
-  const wS = circR * 0.70;
+  // Orange gradient: #ff6b35 top → #d94b20 bottom
+  for (let y = 0; y < size; y++) {
+    const t = y / (size - 1);
+    const r = Math.round(255 - 38 * t);  // 255 → 217
+    const g = Math.round(107 - 32 * t);  // 107 → 75
+    const b = Math.round(53  - 21 * t);  // 53  → 32
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      rgba[idx] = r; rgba[idx+1] = g; rgba[idx+2] = b; rgba[idx+3] = 255;
+    }
+  }
+
+  // White "W" — 5 centerline points, fills ~72% of icon width
+  const wS = size * 0.34;
   const wPts = [
-    [cx - wS,        cy - wS * 0.54],  // top-left
-    [cx - wS * 0.38, cy + wS * 0.52],  // bottom of left V
-    [cx,             cy - wS * 0.46],  // center hump (slightly below top corners)
-    [cx + wS * 0.38, cy + wS * 0.52],  // bottom of right V
-    [cx + wS,        cy - wS * 0.54],  // top-right
+    [cx - wS,        cy - wS * 0.50],
+    [cx - wS * 0.38, cy + wS * 0.52],
+    [cx,             cy - wS * 0.42],
+    [cx + wS * 0.38, cy + wS * 0.52],
+    [cx + wS,        cy - wS * 0.50],
   ];
-  const strokeR = size * 0.068; // half-stroke-width for a bold clean line
+  const strokeR = size * 0.080; // bold stroke, readable at small sizes
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const idx = (y * size + x) * 4;
-      const px = x + 0.5, py = y + 0.5; // use pixel center for AA
-      const dx = px - cx, dy = py - cy;
-      const distC = Math.sqrt(dx * dx + dy * dy);
+      const px = x + 0.5, py = y + 0.5;
 
-      // Smooth circle edge (1px anti-aliasing band)
-      const circAlpha = distC < circR - 1 ? 1
-                      : distC > circR + 1 ? 0
-                      : (circR + 1 - distC) / 2;
-
-      // Base: dark bg blended with orange circle
-      rgba[idx]   = Math.round(13  + (255 - 13)  * circAlpha);
-      rgba[idx+1] = Math.round(13  + (107 - 13)  * circAlpha);
-      rgba[idx+2] = Math.round(15  + (53  - 15)  * circAlpha);
-      rgba[idx+3] = 255;
-
-      if (distC > circR + 2) continue; // skip W calc outside circle
-
-      // Distance from pixel center to the W polyline
       let minDist = Infinity;
       for (let k = 0; k < wPts.length - 1; k++) {
         const ax = wPts[k][0],  ay = wPts[k][1];
@@ -142,7 +137,6 @@ function generateIcon(size) {
         if (d < minDist) minDist = d;
       }
 
-      // Smooth white stroke (1px AA at edge)
       const wAlpha = Math.max(0, Math.min(1, strokeR - minDist + 1));
       if (wAlpha > 0) {
         rgba[idx]   = Math.round(rgba[idx]   + (255 - rgba[idx])   * wAlpha);
