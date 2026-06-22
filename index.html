@@ -9,7 +9,7 @@
     } catch(e) {}
   </script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0d0d0f">
   <!-- PWA — iOS fullscreen & status bar -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -56,8 +56,8 @@
     }
     html, body { height: 100%; background: var(--bg); color: var(--txt);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; }
-    .screen { display: none; min-height: 100vh; }
+    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; }
+    .screen { display: none; min-height: 100vh; min-height: 100dvh; }
     .screen.active { display: block; animation: screen-in .15s ease-out both; }
     #screen-done.active { display: flex; }
     @keyframes screen-in { from { opacity: 0; } to { opacity: 1; } }
@@ -157,8 +157,7 @@
     .ec.comp   { border-color: rgba(48,209,88,.4); box-shadow: 0 4px 24px rgba(48,209,88,.08); }
     .ec.exp-a  { border-color: rgba(255,107,53,.5); box-shadow: 0 4px 24px rgba(255,107,53,.1); }
     .ec.exp-b  { border-color: rgba(77,142,248,.5); box-shadow: 0 4px 24px rgba(77,142,248,.1); }
-    .ec.inprog { border-left: 3px solid var(--a); animation: inprog-glow 1.8s ease-in-out infinite;
-      will-change: box-shadow; }
+    .ec.inprog { border-left: 3px solid var(--a); animation: inprog-glow 1.8s ease-in-out infinite; }
     @keyframes inprog-glow {
       0%,100% { box-shadow: -3px 0 12px rgba(255,107,53,.5); }
       50%      { box-shadow: -3px 0 4px  rgba(255,107,53,.15); }
@@ -628,7 +627,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 
   /* ── AUTH SCREEN ── */
   .auth-wrap { display:flex; flex-direction:column; align-items:center;
-    justify-content:center; min-height:100vh; padding:40px 24px;
+    justify-content:center; min-height:100vh; min-height:100dvh; padding:40px 24px;
     /* fixed height prevents layout jumps */
     box-sizing:border-box; overflow:hidden; }
   .auth-body { width:100%; max-width:320px; min-height:340px;
@@ -1651,65 +1650,6 @@ function repairNullWeights() {
   localStorage.setItem('mwRepaired2', '1');
 }
 
-async function initApp() {
-  loadProgram();
-  try {
-    const { data } = await getSb()
-      .from('workout_store')
-      .select('*')
-      .eq('user_id', getUserId())
-      .maybeSingle();
-
-    if (data) {
-      const localSessions = get();
-      const localPrefs    = getPrefs();
-      // Merge sessions: deduplicate by id, local wins
-      const all = [...(data.sessions_data?.sessions||[]), ...localSessions.sessions];
-      const byId = {};
-      all.forEach(s => { byId[s.id] = s; });
-      const merged = { sessions: Object.values(byId).sort((a,b)=>b.id-a.id) };
-      // Merge prefs: remote base, local overrides
-      const mergedPrefs = mergePrefs(data.prefs_data||{}, localPrefs);
-      // Current session: keep local if exists, else restore from Supabase
-      const localCurrent = loadCurrentSession();
-      const current = localCurrent || data.current_session || null;
-      localStorage.setItem('mwData3', JSON.stringify(merged));
-      localStorage.setItem('mwPrefs', JSON.stringify(mergedPrefs));
-      if (!localCurrent && current) localStorage.setItem('mwCurrent', JSON.stringify(current));
-      // Push merged back to Supabase (fire and forget)
-      getSb().from('workout_store').upsert({
-        user_id: getUserId(), sessions_data: merged, prefs_data: mergedPrefs,
-        current_session: current, updated_at: new Date().toISOString()
-      });
-    } else {
-      // No remote data yet → push existing local data to Supabase
-      const d = get(), p = getPrefs(), c = loadCurrentSession();
-      getSb().from('workout_store').upsert({
-        user_id: getUserId(), sessions_data: d, prefs_data: p,
-        current_session: c, updated_at: new Date().toISOString()
-      });
-    }
-  } catch(e) {
-    console.warn('Supabase init error:', e);
-  }
-
-  repairNullWeights();
-  // Apply saved language (sets dir, updates static DOM)
-  const _savedLang = getSettings().lang || 'en';
-  if (_savedLang !== 'en') {
-    document.documentElement.dir  = 'rtl';
-    document.documentElement.lang = 'he';
-  }
-  _applyLangToDOM();
-  homeUpdate();
-  const saved = loadCurrentSession();
-  if (saved && !saved.viewing) {
-    // Only auto-resume ACTIVE workouts on startup.
-    // View sessions are restored by viewRoutine() when the user taps the card.
-    S.rid = saved.rid; S.session = saved.session; S.expanded = null;
-    show('workout'); wkRender();
-  }
-}
 
 
 function showSyncCode() {
@@ -5623,41 +5563,6 @@ async function _bgSync() {
     }
   } catch(e) { console.warn('Turso load error:', e); }
 
-  // ── Legacy Supabase sync (fire-and-forget) ───────────────────────────────
-  try {
-    const { data } = await getSb()
-      .from('workout_store')
-      .select('*')
-      .eq('user_id', getUserId())
-      .maybeSingle();
-    if (data) {
-      const localSessions = get();
-      const localPrefs    = getPrefs();
-      const all = [...(data.sessions_data?.sessions||[]), ...localSessions.sessions];
-      const byId = {};
-      all.forEach(s => { byId[s.id] = s; });
-      const merged = { sessions: Object.values(byId).sort((a,b)=>b.id-a.id) };
-      const mergedPrefs = mergePrefs(data.prefs_data||{}, localPrefs);
-      const localCurrent = loadCurrentSession();
-      const current = localCurrent || data.current_session || null;
-      localStorage.setItem('mwData3', JSON.stringify(merged));
-      localStorage.setItem('mwPrefs', JSON.stringify(mergedPrefs));
-      if (!localCurrent && current) localStorage.setItem('mwCurrent', JSON.stringify(current));
-      getSb().from('workout_store').upsert({
-        user_id: getUserId(), sessions_data: merged, prefs_data: mergedPrefs,
-        current_session: current, updated_at: new Date().toISOString()
-      });
-      homeUpdate();
-    } else {
-      const d = get(), p = getPrefs(), c = loadCurrentSession();
-      getSb().from('workout_store').upsert({
-        user_id: getUserId(), sessions_data: d, prefs_data: p,
-        current_session: c, updated_at: new Date().toISOString()
-      });
-    }
-  } catch(e) { console.warn('Supabase sync error:', e); }
-
-  // Push merged data back to Turso
   syncToTurso();
 }
 
