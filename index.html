@@ -9,7 +9,7 @@
     } catch(e) {}
   </script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0d0d0f">
   <!-- PWA — iOS fullscreen & status bar -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -56,8 +56,8 @@
     }
     html, body { height: 100%; background: var(--bg); color: var(--txt);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; }
-    .screen { display: none; min-height: 100vh; min-height: 100dvh; }
+    #app { max-width: 480px; margin: 0 auto; min-height: 100vh; }
+    .screen { display: none; min-height: 100vh; }
     .screen.active { display: block; animation: screen-in .15s ease-out both; }
     #screen-done.active { display: flex; }
     @keyframes screen-in { from { opacity: 0; } to { opacity: 1; } }
@@ -447,7 +447,7 @@
     .lib-modal-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
       z-index:200; align-items:center; justify-content:center; padding:24px 16px; }
     .lib-modal-sheet { background:var(--card); border-radius:20px; width:100%;
-      max-width:480px; padding:20px; max-height:82vh; max-height:82dvh; overflow-y:auto; overscroll-behavior:contain; border:1px solid var(--border); }
+      max-width:480px; padding:20px; max-height:82vh; overflow-y:auto; border:1px solid var(--border); }
 
     /* ── SETTINGS ── */
     .settings-section { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
@@ -583,7 +583,7 @@
 .picker-wrap { display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,.7); }
 .picker-wrap.active { display:flex; align-items:flex-start; justify-content:center; }
 .picker-sheet { background:var(--bg); border-radius:0 0 20px 20px; width:100%; max-width:480px;
-  height:100%; overflow-y:auto; overscroll-behavior:contain; }
+  height:100%; overflow-y:auto; }
 .picker-hd { background:var(--card); padding:14px 16px; border-bottom:1px solid var(--border);
   display:flex; justify-content:space-between; align-items:center;
   position:sticky; top:0; z-index:10;
@@ -627,7 +627,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
 
   /* ── AUTH SCREEN ── */
   .auth-wrap { display:flex; flex-direction:column; align-items:center;
-    justify-content:center; min-height:100vh; min-height:100dvh; padding:40px 24px;
+    justify-content:center; min-height:100vh; padding:40px 24px;
     /* fixed height prevents layout jumps */
     box-sizing:border-box; overflow:hidden; }
   .auth-body { width:100%; max-width:320px; min-height:340px;
@@ -765,13 +765,6 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   .cal-det-sub { font-size:12px; color:var(--txt2); margin-top:3px; }
   .cal-det-acts { display:flex; gap:6px; flex-shrink:0; margin-top:2px; }
   .cal-det-body { padding:12px 14px 14px; }
-  @media (prefers-reduced-motion: reduce) {
-    .screen.active { animation: none; }
-    .ec.inprog { animation: none; }
-    .ec-prog-dot { animation: none; }
-    .timer-flash { animation: none; }
-    .auth-spinner, .pdf-spinner { animation: none; }
-  }
   </style>
 </head>
 <body>
