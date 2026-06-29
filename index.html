@@ -1726,7 +1726,7 @@ function getExerciseImg(name, fallbackImg) {
     || _exImgSrc(fallbackImg)                                                // 5. stored img field
     || '';
   if (!src) return '';
-  return `<img src="${src}" loading="lazy" alt="" onerror="this.style.display='none'">`;
+  return `<img src="${src}" alt="" onerror="this.style.display='none'">`;
 }
 
 // ════════════════════════════════════
@@ -2076,12 +2076,12 @@ function saveCurrentSession() {
   }
 }
 
-// Auto-save every 5 seconds while a session is active
+// Auto-save every 5 seconds — only for active workouts, not view mode
 setInterval(() => {
-  if (S.session) {
+  if (S.session && !S.viewing) {
     savePendingInputs();
-    _flushSessionToPrefs(); // always flush to prefs
-    saveCurrentSession();   // always persist to mwCurrent (view + active)
+    _flushSessionToPrefs();
+    saveCurrentSession();
   }
 }, 5000);
 
