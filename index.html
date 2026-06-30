@@ -353,20 +353,6 @@
     .upscale-badge { font-size: 10px; color: var(--green); font-weight: 700; margin-top: 2px; }
     .home-best { font-size: 11px; color: var(--txt2); padding: 2px 0 6px; }
 
-    /* Preview */
-    .pv-ex { background: var(--card); border-radius: var(--r); box-shadow: var(--sh);
-      padding: 12px 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
-      border: 1px solid var(--border); }
-    .pv-img { width: 56px; height: 56px; object-fit: contain;
-      border-radius: 8px; flex-shrink: 0; background: #111116; }
-    .pv-info { flex: 1; min-width: 0; }
-    .pv-name { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-    .pv-meta { font-size: 11px; color: var(--txt2); margin-top: 3px; }
-    .pv-start { display: block; width: calc(100% - 32px); margin: 4px 16px 20px;
-      border: none; border-radius: 14px; padding: 15px; font-size: 16px; font-weight: 700;
-      color: white; cursor: pointer; font-family: inherit; }
-    .pv-start:active { opacity: .85; }
-
     /* ── DONE ── */
     #screen-done { flex-direction: column; align-items: center;
       justify-content: center; text-align: center; padding: 32px; background: var(--bg); }
@@ -705,7 +691,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   html[dir="rtl"] .builder-ex-row { direction: rtl; }
   html[dir="rtl"] .builder-ex-text { text-align: right; }
   html[dir="rtl"] .picker-body-wrap { direction: rtl; }
-  html[dir="rtl"] .pv-info { text-align: right; }
+
   /* ── Calendar History View ───────────────────── */
   .cal-wrap { margin:-16px; padding-bottom:40px; }
   .cal-nav { display:flex; align-items:center; justify-content:space-between; padding:18px 16px 14px; }
@@ -1644,8 +1630,7 @@ function repairNullWeights() {
 
   if (changed) {
     put(d);
-    sbSaveDebounced(); // sync fix to Supabase too
-    console.log('[repair] Filled null weights from session history.');
+    sbSaveDebounced();
   }
   localStorage.setItem('mwRepaired2', '1');
 }
@@ -2258,7 +2243,7 @@ async function copyPRReport() {
 }
 
 // ── Progress Report ──────────────────────────────────────────────────────────
-var _rptTab = 'text';
+let _rptTab = 'text';
 function openReportModal() {
   document.getElementById('report-feedback').textContent = '';
   document.getElementById('report-modal').style.display = 'flex';
@@ -3341,7 +3326,7 @@ function _migrateVariantNames() {
       }
     });
   });
-  if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed variant exercise names in history.'); }
+  if (changed) { put(d); sbSaveDebounced(); }
 }
 
 // One-time migration: fix variant-0 exercises stored under their base name
@@ -3365,7 +3350,7 @@ function _migrateVariantNamesV2() {
       }
     });
   });
-  if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed variant-0 exercise names in history (V2).'); }
+  if (changed) { put(d); sbSaveDebounced(); }
 }
 
 // One-time migration: rename any remaining group names (e.g. 'Hammer Curl / Cable Curl')
@@ -3385,7 +3370,7 @@ function _migrateGroupNamesV3() {
       }
     });
   });
-  if (changed) { put(d); sbSaveDebounced(); console.log('[repair] Fixed group names in history (V3).'); }
+  if (changed) { put(d); sbSaveDebounced(); }
 }
 
 // One-time repair: for every session that has exercises with null weight but done sets,
@@ -3450,7 +3435,6 @@ function _migrateProgramCableHammer() {
   if (changed) {
     putProgramData(prog);
     loadProgram();
-    console.log('[repair] Fixed Hammer Curl group name in mwProgram.');
   }
 }
 
@@ -3513,7 +3497,6 @@ function _repairRoutineSets() {
   if (changed) {
     putProgramData(prog);
     ROUTINES = prog.routines;
-    console.log('[repair] Restored set notes and reps in mwProgram.');
   }
 }
 
