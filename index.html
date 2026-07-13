@@ -1054,6 +1054,27 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
     </div>
   </div>
 
+  <!-- PDF OPTIONS MODAL -->
+  <div id="pdf-opts-modal" class="lib-modal-wrap" onclick="closePdfOpts(event)">
+    <div class="lib-modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-size:17px;font-weight:800">📤 Export PDF</span>
+        <button onclick="closePdfOpts()" style="background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;user-select:none">
+        <input type="checkbox" id="pdf-opt-retired" style="width:18px;height:18px;accent-color:var(--a);cursor:pointer">
+        <div>
+          <div style="font-size:15px;font-weight:600">Include retired exercises</div>
+          <div style="font-size:12px;color:var(--txt2);margin-top:2px">Exercises you replaced, with their best weight</div>
+        </div>
+      </label>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button onclick="closePdfOpts()" style="flex:1;padding:13px;border-radius:12px;border:1px solid var(--border);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg);color:var(--txt);touch-action:manipulation">Cancel</button>
+        <button onclick="_confirmPdfExport()" style="flex:2;padding:13px;border-radius:12px;border:none;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;background:var(--a);color:#fff;touch-action:manipulation">Export</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PROGRAMS -->
   <div id="screen-programs" class="screen">
     <div class="hist-hd">
@@ -2435,7 +2456,7 @@ function programsRender() {
       <div class="prog-actions">
         <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border)" onclick="showBuilder('active')">${t('edit')}</button>
         <button class="prog-btn" style="background:var(--bg);color:var(--txt2);border:1px solid var(--border)" onclick="copyActiveToDraft()">${t('copy-to-draft')}</button>
-        <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDF(ROUTINES, getCurrentProgramName())">📤</button>
+        <button class="prog-share-btn" title="Export / Share PDF" onclick="showPdfOptions(ROUTINES, getCurrentProgramName())">📤</button>
       </div>
     </div>`;
 
@@ -2454,7 +2475,7 @@ function programsRender() {
         <div style="display:flex;gap:5px">
           <button class="prog-btn" style="background:var(--bg);color:var(--txt);border:1px solid var(--border);flex:1" onclick="showBuilder('draft')">${t('edit')}</button>
           <button class="prog-btn" style="background:#ff3b30;color:white" onclick="discardDraft()">${t('discard')}</button>
-          <button class="prog-share-btn" title="Export / Share PDF" onclick="exportProgramPDF(getDraft().routines, getDraft().name)">📤</button>
+          <button class="prog-share-btn" title="Export / Share PDF" onclick="showPdfOptions(getDraft().routines, getDraft().name)">📤</button>
         </div>
       </div>
     </div>` : `
@@ -5260,7 +5281,29 @@ function _hideUndoToast() {
 // ════════════════════════════════════
 function exportProgramPDFById(archiveId) {
   const a = getArchives().find(x => x.id === archiveId);
-  if (a) exportProgramPDF(a.routines, a.name);
+  if (a) showPdfOptions(a.routines, a.name);
+}
+
+let _pdfExportPending = null;
+
+function showPdfOptions(routines, programName) {
+  _pdfExportPending = { routines, programName };
+  document.getElementById('pdf-opt-retired').checked = false;
+  document.getElementById('pdf-opts-modal').style.display = 'flex';
+}
+
+function closePdfOpts(e) {
+  if (e && e.target !== document.getElementById('pdf-opts-modal')) return;
+  document.getElementById('pdf-opts-modal').style.display = 'none';
+}
+
+function _confirmPdfExport() {
+  const includeRetired = document.getElementById('pdf-opt-retired').checked;
+  document.getElementById('pdf-opts-modal').style.display = 'none';
+  if (_pdfExportPending) {
+    exportProgramPDF(_pdfExportPending.routines, _pdfExportPending.programName, { includeRetired });
+    _pdfExportPending = null;
+  }
 }
 
 async function loadImgDataUrl(url) {
@@ -5283,7 +5326,7 @@ async function loadImgDataUrl(url) {
   });
 }
 
-async function exportProgramPDF(routines, programName) {
+async function exportProgramPDF(routines, programName, opts = {}) {
   // Load jsPDF on-demand (not at startup — saves ~200KB parse time)
   if (!window.jspdf) {
     await new Promise((res, rej) => {
@@ -5429,6 +5472,66 @@ async function exportProgramPDF(routines, programName) {
         y += cardH;
       }
       y += 6;
+    }
+
+    // ── Retired Exercises (opt-in) ────────────────────────────────────────────
+    if (opts.includeRetired) {
+      const d = get();
+      for (const rid of ['A', 'B']) {
+        const activeNames = new Set();
+        routines[rid]?.exercises?.forEach(ex => {
+          activeNames.add(ex.name);
+          if (ex.variants) ex.variants.forEach(v => activeNames.add(v));
+        });
+        const retiredNames = [];
+        const seen = new Set();
+        d.sessions.filter(s => s.routine === rid).forEach(s => {
+          s.exercises.forEach(ex => {
+            if (!activeNames.has(ex.name) && !seen.has(ex.name) && ex.sets.some(x => x.done)) {
+              seen.add(ex.name);
+              retiredNames.push(ex.name);
+            }
+          });
+        });
+        if (!retiredNames.length) continue;
+
+        if (y + 14 > PH - 14) { doc.addPage(); y = 14; }
+        doc.setFillColor(100, 100, 112);
+        doc.roundedRect(ML, y, CW, 9, 2, 2, 'F');
+        doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+        doc.text(`Retired — Routine ${rid}`, ML + 4, y + 6.2);
+        y += 13;
+
+        for (const name of retiredNames) {
+          const pts = getExerciseProgress(name);
+          if (!pts.length) continue;
+          const cardH = 18;
+          if (y + cardH > PH - 10) { doc.addPage(); y = 14; }
+
+          doc.setFillColor(238, 238, 243);
+          doc.roundedRect(ML, y, CW, cardH - 2, 2.5, 2.5, 'F');
+
+          doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(70, 70, 85);
+          doc.text(name, ML + 6, y + 7);
+
+          const isSplit = pts.some(p => p.maxB != null);
+          let bestStr;
+          if (isSplit) {
+            const bA = Math.max(...pts.map(p => p.maxA ?? 0));
+            const bB = Math.max(...pts.map(p => p.maxB ?? 0));
+            bestStr = `Best: ${bA}kg / ${bB}kg`;
+          } else {
+            bestStr = `Best: ${Math.max(...pts.map(p => p.max ?? 0))}kg`;
+          }
+          doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(110, 110, 125);
+          doc.text(`${bestStr}  ·  ${pts.length} sessions`, ML + 6, y + 13.5);
+
+          doc.setDrawColor(215, 215, 225); doc.setLineWidth(0.3);
+          doc.line(ML, y + cardH - 1, ML + CW, y + cardH - 1);
+          y += cardH;
+        }
+        y += 6;
+      }
     }
 
     // ── Footer on each page ──
