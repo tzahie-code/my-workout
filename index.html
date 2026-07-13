@@ -5258,6 +5258,9 @@ function exportProgramPDFById(archiveId) {
 }
 
 async function loadImgDataUrl(url) {
+  // Route through our proxy so canvas.toDataURL() doesn't throw a SecurityError
+  // (fitnessprogramer.com doesn't serve CORS headers on direct requests)
+  const src = '/api/img-proxy?url=' + encodeURIComponent(url);
   return new Promise(resolve => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -5270,7 +5273,7 @@ async function loadImgDataUrl(url) {
       } catch(e) { resolve(null); }
     };
     img.onerror = () => resolve(null);
-    img.src = url;
+    img.src = src;
   });
 }
 
@@ -5297,12 +5300,18 @@ async function exportProgramPDF(routines, programName) {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const PW = 210, PH = 297, ML = 13, MR = 13, CW = PW - ML - MR;
 
-    // Pre-load all images in parallel
+    // Pre-load all images in parallel — use the same fallback chain as the workout card
     const imgCache = {};
-    const allNames = [...(routines.A?.exercises||[]), ...(routines.B?.exercises||[])].map(e=>e.name);
-    await Promise.all([...new Set(allNames)].map(async name => {
-      const src = EX_IMGS[name];
-      if (src) imgCache[name] = await loadImgDataUrl(src);
+    const allExercises = [...(routines.A?.exercises||[]), ...(routines.B?.exercises||[])];
+    await Promise.all(allExercises.map(async ex => {
+      if (imgCache[ex.name] !== undefined) return; // already loaded (dedup)
+      const primaryName = ex.name.includes(' / ') ? ex.name.split(' / ')[0] : ex.name;
+      const src = EX_IMGS[ex.name]
+        || EX_IMGS[primaryName]
+        || _exImgSrc(EXERCISE_LIBRARY.find(e => e.name === ex.name)?.img)
+        || _exImgSrc(EXERCISE_LIBRARY.find(e => e.name === primaryName)?.img)
+        || '';
+      imgCache[ex.name] = src ? await loadImgDataUrl(src) : null;
     }));
 
     // ── COVER HEADER ──
