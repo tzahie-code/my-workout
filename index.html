@@ -4664,15 +4664,20 @@ function liveSave(ei, si, field, val) {
 }
 
 function copyWeightToAll(ei, si) {
-  const val = document.getElementById('iw'+ei+'_'+si).value;
-  if (!val) return;
+  const wVal = document.getElementById('iw'+ei+'_'+si).value;
+  const rVal = document.getElementById('ir'+ei+'_'+si)?.value;
+  if (!wVal && !rVal) return;
   const sets = S.session.exercises[ei].sets;
-  // Copy to ALL sets in this exercise (done and undone)
   sets.forEach((set) => {
-    if (set.done) set.w = val;   // update committed value on done sets
-    else          set._pw = val; // update pending value on undone sets
+    if (wVal) {
+      if (set.done) set.w = wVal;
+      else          set._pw = wVal;
+    }
+    if (rVal) {
+      if (set.done) set.r = rVal;
+      else          set._pr = rVal;
+    }
   });
-  // Persist so a variant switch won't lose these values
   saveLastWeights(activeExName(ei), sets);
   saveCurrentSession();
   wkRenderCard(ei);
