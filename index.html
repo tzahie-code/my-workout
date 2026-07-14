@@ -3596,11 +3596,13 @@ function putProgressOverrides(o) {
 
 // Compute raw data for one exercise session (no override applied yet)
 // variantIdx: if provided, only match sessions where that variant was used
-function _rawPoint(s, exName, variantIdx) {
+// noFallback: skip variant-name lookup (used in workout card so one exercise's
+//             history doesn't bleed into its variant's "Last increase" badge)
+function _rawPoint(s, exName, variantIdx, noFallback) {
   let ex = s.exercises.find(e => e.name === exName);
   // Fallback: _migrateVariantNamesV2 renamed exercises to their variant names
   // (e.g. "Lat Pulldown / Pull Up" → "Lat Pulldown"), so also search by variant names.
-  if (!ex) {
+  if (!ex && !noFallback) {
     for (const rid of Object.keys(ROUTINES)) {
       const routineEx = ROUTINES[rid].exercises.find(e => e.name === exName);
       if (routineEx?.variants) {
@@ -3667,6 +3669,45 @@ function getExerciseProgress(exName, variantIdx) {
     const { maxA, maxB, max } = _applyOverrideToRaw(raw, ov.w ?? null);
     return { date: s.id, max, maxA, maxB, bw: raw.bw };
   }).filter(Boolean);
+}
+
+// Direct-only variant: skips the variant-name fallback so one exercise's history
+// can't bleed into another's "Last increase" badge in the workout card.
+function getLastUpscaleDirect(exName) {
+  const d = get();
+  const ovs = (getProgressOverrides()[exName]) || {};
+  const pts = d.sessions.sort((a,b) => a.id - b.id).map(s => {
+    const raw = _rawPoint(s, exName, undefined, true);
+    if (!raw) return null;
+    const ov = ovs[s.id] || {};
+    if (ov.excl) return null;
+    const { maxA, maxB, max } = _applyOverrideToRaw(raw, ov.w ?? null);
+    return { date: s.id, max, maxA, maxB, bw: raw.bw };
+  }).filter(Boolean);
+  if (!pts.length) return null;
+  const isSplit = pts.some(p => p.maxB != null);
+  if (!isSplit) {
+    let last = null;
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i].max > pts[i-1].max) last = { date: pts[i].date, from: pts[i-1].max, to: pts[i].max };
+    }
+    return last;
+  }
+  let lastA = null, lastB = null, prevA = null, prevB = null;
+  for (const pt of pts) {
+    if (pt.maxA != null) {
+      if (prevA != null && pt.maxA > prevA) lastA = { date: pt.date, from: prevA, to: pt.maxA };
+      prevA = pt.maxA;
+    }
+    if (pt.maxB != null) {
+      if (prevB != null && pt.maxB > prevB) lastB = { date: pt.date, from: prevB, to: pt.maxB };
+      prevB = pt.maxB;
+    }
+  }
+  if (!lastA && !lastB) return null;
+  if (!lastA) return lastB;
+  if (!lastB) return lastA;
+  return lastA.date > lastB.date ? lastA : lastB;
 }
 
 function getLastUpscale(exName, variantIdx) {
@@ -4419,7 +4460,7 @@ function buildCard(ex, i) {
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
         ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
-        ${(()=>{ const u=getLastUpscale(ex.name, variants ? variantIdx : undefined); return u?`<div class="upscale-badge">📈 ${t('last-increase')} ${new Date(u.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:''; })()}
+        ${(()=>{ const u=getLastUpscaleDirect(activeName); return u?`<div class="upscale-badge">📈 ${t('last-increase')} ${new Date(u.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:'';})()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="${t('note-placeholder')}"
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
