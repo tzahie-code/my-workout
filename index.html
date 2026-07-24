@@ -88,7 +88,7 @@
     .rc-days { display: flex; gap: 5px; margin-bottom: 10px; }
     .day-btn { flex: 1; padding: 7px 0; border: 1.5px solid var(--border); border-radius: 9px;
       background: var(--card2); font-size: 11px; font-weight: 700; color: var(--txt2);
-      cursor: pointer; transition: all .15s; }
+      cursor: pointer; transition: opacity .15s; }
     .day-btn:active { opacity: .7; }
     .day-btn.sel { color: white; border-color: transparent; }
     /* Locker row */
@@ -178,7 +178,7 @@
     .ec-quick-ck { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border);
       background: var(--card2); font-size: 15px; cursor: pointer;
       color: var(--txt2);
-      display: flex; align-items: center; justify-content: center; transition: all .2s; }
+      display: flex; align-items: center; justify-content: center; transition: opacity .2s, transform .2s; }
     .ec-quick-ck.done { background: var(--green); border-color: var(--green); color: white; }
     .ec-quick-ck:active { opacity: .7; transform: scale(.88); }
     .ec-quick-lbl { font-size: 9px; font-weight: 700; color: var(--txt2); letter-spacing: .2px; }
@@ -288,7 +288,7 @@
     .sr-prev strong { color: var(--txt); }
     .set-ck { width: 34px; height: 34px; border-radius: 9px; border: 2px solid var(--border);
       background: var(--card); font-size: 14px; cursor: pointer; flex-shrink: 0; color: var(--txt2);
-      display: flex; align-items: center; justify-content: center; transition: all .15s; }
+      display: flex; align-items: center; justify-content: center; transition: opacity .15s; }
     .set-ck:active { opacity: .7; }
     .set-ck.done { background: var(--green); border-color: var(--green); color: white; }
     /* Inline exercise note */
@@ -433,7 +433,7 @@
     .lib-modal-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
       z-index:200; align-items:center; justify-content:center; padding:24px 16px; }
     .lib-modal-sheet { background:var(--card); border-radius:20px; width:100%;
-      max-width:480px; padding:20px; max-height:82vh; overflow-y:auto; border:1px solid var(--border); }
+      max-width:480px; padding:20px; max-height:82vh; overflow-y:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); }
 
     /* ── SETTINGS ── */
     .settings-section { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
@@ -448,7 +448,7 @@
     .settings-btn:active { opacity:.6; }
     .toggle-btn { min-width:52px; padding:6px 12px; border-radius:20px; border:none;
       font-size:13px; font-weight:700; cursor:pointer;
-      background:var(--card2); color:var(--txt2); transition:all .2s; font-family:inherit; }
+      background:var(--card2); color:var(--txt2); transition:opacity .2s; font-family:inherit; }
     .toggle-btn.on { background:var(--green); color:white; }
     /* Language dual-pill */
     #lang-toggle { min-width:72px; padding:5px 10px; display:flex; align-items:center;
@@ -571,7 +571,7 @@
 .picker-wrap { display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,.7); }
 .picker-wrap.active { display:flex; align-items:flex-start; justify-content:center; }
 .picker-sheet { background:var(--bg); border-radius:0 0 20px 20px; width:100%; max-width:480px;
-  height:100%; overflow-y:auto; }
+  height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .picker-hd { background:var(--card); padding:14px 16px; border-bottom:1px solid var(--border);
   display:flex; justify-content:space-between; align-items:center;
   position:sticky; top:0; z-index:10;
@@ -590,7 +590,7 @@
   padding:10px 12px 6px; background:var(--card); border-bottom:1px solid var(--border); }
 .picker-body-col { display:flex; flex-direction:column; align-items:center; gap:4px; }
 .picker-body-lbl { font-size:9px; color:var(--txt2); font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
-svg.picker-bsvg polygon.bm { fill:#18182a; stroke:#7070a0; stroke-width:.6; cursor:pointer; transition:all .15s; }
+svg.picker-bsvg polygon.bm { fill:#18182a; stroke:#7070a0; stroke-width:.6; cursor:pointer; transition:fill .15s, stroke .15s, stroke-width .15s; }
 svg.picker-bsvg polygon.bm:hover { fill:rgba(77,142,248,.25); stroke:#4d8ef8; stroke-width:1; }
 svg.picker-bsvg polygon.bm.sel { fill:rgba(255,107,53,.38); stroke:#ff6b35; stroke-width:1.2; }
 svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; cursor:default; }
