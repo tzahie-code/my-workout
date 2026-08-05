@@ -4278,7 +4278,7 @@ function wkRenderCard(i) {
     const oldImg = oldWrap.querySelector('img');
     const newImg = newWrap.querySelector('img');
     if (oldImg && newImg && oldImg.src === newImg.src) {
-      newWrap.replaceWith(oldWrap); // swap entire wrap — img stays in DOM throughout
+      newWrap.replaceChild(oldImg, newImg); // move old img into new wrap so GIF keeps playing; new wrap retains comp badge
     }
   }
 
