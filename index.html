@@ -2816,8 +2816,25 @@ function builderRemoveVariant(rid, idx) {
 function builderSwapVariant(rid, idx) {
   const ex = _builderState[rid].exercises[idx];
   if (!ex.variants || ex.variants.length < 2) return;
+  const oldPrimary   = ex.variants[0];
+  const oldSecondary = ex.variants[1];
   [ex.variants[0], ex.variants[1]] = [ex.variants[1], ex.variants[0]];
   ex.name = ex.variants[0];
+  // Flip variantIdx in all historical sessions so old data matches the new order.
+  // Sessions stored under oldPrimary (idx 0→1) or oldSecondary (idx 1→0).
+  const d = get();
+  let changed = false;
+  d.sessions.forEach(s => {
+    s.exercises.forEach(se => {
+      const n = se.name, an = se.activeName;
+      if (n === oldPrimary || n === oldSecondary || an === oldPrimary || an === oldSecondary) {
+        se.variantIdx = (se.variantIdx ?? 0) === 0 ? 1 : 0;
+        if (an) se.activeName = se.variantIdx === 0 ? ex.variants[0] : ex.variants[1];
+        changed = true;
+      }
+    });
+  });
+  if (changed) { put(d); sbSaveDebounced(); }
   builderRenderTab();
 }
 let _pickerSearch = '';
@@ -3410,6 +3427,32 @@ function _migrateGroupNamesV3() {
         const idx = ex.variantIdx || 0;
         ex.name = parts[idx] || parts[0];
         changed = true;
+      }
+    });
+  });
+  if (changed) { put(d); sbSaveDebounced(); }
+}
+
+// Runs every startup (fast, idempotent): ensures session exercises' variantIdx matches
+// their name's position in the current ROUTINES variant array. Fixes sessions recorded
+// before a primary/secondary swap so progress charts remain accurate after a swap.
+function _migrateVariantIndices() {
+  const d = get();
+  let changed = false;
+  d.sessions.forEach(s => {
+    s.exercises.forEach(se => {
+      if (!se.name) return;
+      for (const rid of Object.keys(ROUTINES)) {
+        const routineEx = ROUTINES[rid].exercises.find(e => e.variants && e.variants.includes(se.name));
+        if (routineEx) {
+          const correctIdx = routineEx.variants.indexOf(se.name);
+          if ((se.variantIdx ?? 0) !== correctIdx) {
+            se.variantIdx = correctIdx;
+            if (se.activeName) se.activeName = se.name;
+            changed = true;
+          }
+          break;
+        }
       }
     });
   });
@@ -5698,6 +5741,7 @@ async function _startApp() {
   _migrateVariantNamesV2();
   _migrateGroupNamesV3();
   _migrateProgramCableHammer();
+  _migrateVariantIndices();
   _repairNullWeights();
   _repairRoutineSets();
   _migrateProgressOverridesToSessions();
