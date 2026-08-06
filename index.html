@@ -3495,6 +3495,33 @@ function _migrateVariantIndices() {
   if (changed) { put(d); sbSaveDebounced(); }
 }
 
+// One-time fix: sessions recorded as 'Seated Row' or 'Seated Row / Chest Supported Row'
+// were the primary exercise before a variant rename; _migrateVariantIndices incorrectly
+// flips their variantIdx to 1 (the new secondary position). Re-map them to the renamed
+// primary 'Chest Supported Row' at variantIdx:0.
+function _migrateCSRFix() {
+  if (localStorage.getItem('mwCSRFixed')) return;
+  localStorage.setItem('mwCSRFixed', '1');
+  const csrRoutines = new Set();
+  Object.keys(ROUTINES).forEach(rid => {
+    if (ROUTINES[rid].exercises.some(e => e.name === 'Chest Supported Row')) csrRoutines.add(rid);
+  });
+  if (!csrRoutines.size) return;
+  const d = get();
+  let changed = false;
+  d.sessions.forEach(s => {
+    if (!csrRoutines.has(s.routine)) return;
+    s.exercises.forEach(se => {
+      if (se.name === 'Seated Row' || se.name === 'Seated Row / Chest Supported Row') {
+        se.name = 'Chest Supported Row';
+        se.variantIdx = 0;
+        changed = true;
+      }
+    });
+  });
+  if (changed) { put(d); sbSaveDebounced(); }
+}
+
 // One-time repair: for every session that has exercises with null weight but done sets,
 // fill from the nearest prior session of the same routine that has a real weight for
 // that exercise. Covers the "all-sets on collapsed card" data loss bug.
@@ -3930,31 +3957,6 @@ function switchProgVariant(rid, ei) {
   _progVariantView[key] = cur === 0 ? 1 : 0;
   progressRender();
 }
-
-// Temporary debug — call debugIDR() from the browser console (F12)
-window.debugIDR = function() {
-  const d = get();
-  const idrSessions = [];
-  d.sessions.forEach(s => {
-    s.exercises.forEach(ex => {
-      if (ex.name && (ex.name.toLowerCase().includes('incline') || ex.name.toLowerCase().includes('seated cable') || ex.name.toLowerCase().includes('row'))) {
-        idrSessions.push({ sessId: s.id, date: new Date(s.id).toLocaleDateString(), routine: s.routine, name: ex.name, variantIdx: ex.variantIdx, activeName: ex.activeName });
-      }
-    });
-  });
-  const routineEntries = [];
-  Object.keys(ROUTINES).forEach(rid => {
-    ROUTINES[rid].exercises.forEach(ex => {
-      if (ex.name && (ex.name.toLowerCase().includes('incline') || ex.name.toLowerCase().includes('seated') || ex.name.toLowerCase().includes('row'))) {
-        routineEntries.push({ rid, name: ex.name, variants: ex.variants });
-      }
-    });
-  });
-  const flags = { mwVariantIndicesMigrated2: localStorage.getItem('mwVariantIndicesMigrated2'), mwVariantNamesMigrated: localStorage.getItem('mwVariantNamesMigrated'), mwVariantNamesV2: localStorage.getItem('mwVariantNamesV2') };
-  const result = { totalSessions: d.sessions.length, routineEntries, idrRelatedSessions: idrSessions, flags, getExProgressIDR0: getExerciseProgress('Incline Dumbbell Row', 0).length, getExProgressIDRundef: getExerciseProgress('Incline Dumbbell Row', undefined).length };
-  console.log(JSON.stringify(result, null, 2));
-  return result;
-};
 
 function progressRender() {
   const el = document.getElementById('progress-body');
@@ -5803,6 +5805,7 @@ async function _startApp() {
   _migrateGroupNamesV3();
   _migrateProgramCableHammer();
   _migrateVariantIndices();
+  _migrateCSRFix();
   _repairNullWeights();
   _repairRoutineSets();
   _migrateProgressOverridesToSessions();
@@ -5837,7 +5840,9 @@ async function _bgSync() {
           // Re-run variant migration on freshly loaded Turso data using correct ROUTINES.
           // (The startup migration ran before Turso loaded, on empty or stale localStorage.)
           localStorage.removeItem('mwVariantIndicesMigrated2');
+          localStorage.removeItem('mwCSRFixed');
           _migrateVariantIndices();
+          _migrateCSRFix();
           changed = true;
         }
       }
