@@ -2819,7 +2819,9 @@ function builderSwapVariant(rid, idx) {
   const oldPrimary   = ex.variants[0];
   const oldSecondary = ex.variants[1];
   [ex.variants[0], ex.variants[1]] = [ex.variants[1], ex.variants[0]];
-  ex.name = ex.variants[0];
+  // Only rename the base exercise when its name was already the primary variant.
+  // Slash-combined names like "X / Y" are kept as-is (sessions reference them by that exact string).
+  if (ex.name === oldPrimary) ex.name = ex.variants[0];
   // Update all historical sessions so their variantIdx matches the new order.
   const d = get();
   let changed = false;
