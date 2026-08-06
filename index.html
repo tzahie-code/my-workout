@@ -3495,16 +3495,21 @@ function _migrateVariantIndices() {
   if (changed) { put(d); sbSaveDebounced(); }
 }
 
-// One-time fix: sessions recorded as 'Seated Row' or 'Seated Row / Chest Supported Row'
-// were the primary exercise before a variant rename; _migrateVariantIndices incorrectly
-// flips their variantIdx to 1 (the new secondary position). Re-map them to the renamed
-// primary 'Chest Supported Row' at variantIdx:0.
+// Idempotent fix (no flag guard — cheap to re-run, safe to call every startup).
+// Normalises every session exercise that belongs to the Chest Supported Row / Seated Row
+// pair to {name:'Chest Supported Row', variantIdx:0}.  Handles all known broken states:
+//   • stored as 'Seated Row' or 'Seated Row / Chest Supported Row' (old base name)
+//   • stored as 'Chest Supported Row' but variantIdx != 0 (wrong index from prior migration)
+// Detects the routine by finding any exercise whose name or variants include either CSR name.
 function _migrateCSRFix() {
-  if (localStorage.getItem('mwCSRFixed')) return;
-  localStorage.setItem('mwCSRFixed', '1');
   const csrRoutines = new Set();
+  const CSR_NAMES = new Set(['Chest Supported Row','Seated Row','Seated Row / Chest Supported Row']);
   Object.keys(ROUTINES).forEach(rid => {
-    if (ROUTINES[rid].exercises.some(e => e.name === 'Chest Supported Row')) csrRoutines.add(rid);
+    const exs = ROUTINES[rid].exercises;
+    if (exs.some(e =>
+      e.name === 'Chest Supported Row' || e.name === 'Seated Row / Chest Supported Row' ||
+      (e.variants && (e.variants.includes('Chest Supported Row') || e.variants.includes('Seated Row')))
+    )) csrRoutines.add(rid);
   });
   if (!csrRoutines.size) return;
   const d = get();
@@ -3512,7 +3517,8 @@ function _migrateCSRFix() {
   d.sessions.forEach(s => {
     if (!csrRoutines.has(s.routine)) return;
     s.exercises.forEach(se => {
-      if (se.name === 'Seated Row' || se.name === 'Seated Row / Chest Supported Row') {
+      if (!CSR_NAMES.has(se.name)) return;
+      if (se.name !== 'Chest Supported Row' || (se.variantIdx ?? 0) !== 0) {
         se.name = 'Chest Supported Row';
         se.variantIdx = 0;
         changed = true;
@@ -5840,7 +5846,6 @@ async function _bgSync() {
           // Re-run variant migration on freshly loaded Turso data using correct ROUTINES.
           // (The startup migration ran before Turso loaded, on empty or stale localStorage.)
           localStorage.removeItem('mwVariantIndicesMigrated2');
-          localStorage.removeItem('mwCSRFixed');
           _migrateVariantIndices();
           _migrateCSRFix();
           changed = true;
