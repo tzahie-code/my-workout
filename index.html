@@ -3929,6 +3929,31 @@ function switchProgVariant(rid, ei) {
   progressRender();
 }
 
+// Temporary debug — call debugIDR() from the browser console (F12)
+window.debugIDR = function() {
+  const d = get();
+  const idrSessions = [];
+  d.sessions.forEach(s => {
+    s.exercises.forEach(ex => {
+      if (ex.name && (ex.name.toLowerCase().includes('incline') || ex.name.toLowerCase().includes('seated cable') || ex.name.toLowerCase().includes('row'))) {
+        idrSessions.push({ sessId: s.id, date: new Date(s.id).toLocaleDateString(), routine: s.routine, name: ex.name, variantIdx: ex.variantIdx, activeName: ex.activeName });
+      }
+    });
+  });
+  const routineEntries = [];
+  Object.keys(ROUTINES).forEach(rid => {
+    ROUTINES[rid].exercises.forEach(ex => {
+      if (ex.name && (ex.name.toLowerCase().includes('incline') || ex.name.toLowerCase().includes('seated') || ex.name.toLowerCase().includes('row'))) {
+        routineEntries.push({ rid, name: ex.name, variants: ex.variants });
+      }
+    });
+  });
+  const flags = { mwVariantIndicesMigrated2: localStorage.getItem('mwVariantIndicesMigrated2'), mwVariantNamesMigrated: localStorage.getItem('mwVariantNamesMigrated'), mwVariantNamesV2: localStorage.getItem('mwVariantNamesV2') };
+  const result = { totalSessions: d.sessions.length, routineEntries, idrRelatedSessions: idrSessions, flags, getExProgressIDR0: getExerciseProgress('Incline Dumbbell Row', 0).length, getExProgressIDRundef: getExerciseProgress('Incline Dumbbell Row', undefined).length };
+  console.log(JSON.stringify(result, null, 2));
+  return result;
+};
+
 function progressRender() {
   const el = document.getElementById('progress-body');
   const d = get();
