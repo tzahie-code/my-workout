@@ -2820,16 +2820,32 @@ function builderSwapVariant(rid, idx) {
   const oldSecondary = ex.variants[1];
   [ex.variants[0], ex.variants[1]] = [ex.variants[1], ex.variants[0]];
   ex.name = ex.variants[0];
-  // Flip variantIdx in all historical sessions so old data matches the new order.
-  // Sessions stored under oldPrimary (idx 0→1) or oldSecondary (idx 1→0).
+  // Update all historical sessions so their variantIdx matches the new order.
   const d = get();
   let changed = false;
   d.sessions.forEach(s => {
     s.exercises.forEach(se => {
-      const n = se.name, an = se.activeName;
-      if (n === oldPrimary || n === oldSecondary || an === oldPrimary || an === oldSecondary) {
-        se.variantIdx = (se.variantIdx ?? 0) === 0 ? 1 : 0;
-        if (an) se.activeName = se.variantIdx === 0 ? ex.variants[0] : ex.variants[1];
+      const vIdx = se.variantIdx ?? 0;
+      if (se.name === oldPrimary) {
+        if (vIdx === 0) {
+          // Was doing oldPrimary (now secondary at index 1)
+          se.variantIdx = 1;
+        } else {
+          // Un-migrated: stored under old base name but was doing oldSecondary — rename + reset
+          se.name = oldSecondary;
+          se.variantIdx = 0;
+          if (se.activeName) se.activeName = oldSecondary;
+        }
+        changed = true;
+      } else if (se.name === oldSecondary) {
+        // Was doing oldSecondary (now primary at index 0)
+        se.variantIdx = 0;
+        changed = true;
+      } else if (se.activeName === oldPrimary || se.activeName === oldSecondary) {
+        // activeName-only match — flip index and swap activeName
+        se.variantIdx = vIdx === 0 ? 1 : 0;
+        if (se.activeName === oldPrimary) se.activeName = oldSecondary;
+        else se.activeName = oldPrimary;
         changed = true;
       }
     });
@@ -3437,6 +3453,12 @@ function _migrateGroupNamesV3() {
 // their name's position in the current ROUTINES variant array. Fixes sessions recorded
 // before a primary/secondary swap so progress charts remain accurate after a swap.
 function _migrateVariantIndices() {
+  // One-time migration — v2 adds smarter handling for sessions stored under an old base name.
+  // The prior always-on version only fixed {name:baseName, variantIdx:wrong} cases.
+  // This version also fixes {name:variantName, variantIdx:1} = un-migrated "doing secondary"
+  // sessions that were recorded when the other exercise was still the primary.
+  if (localStorage.getItem('mwVariantIndicesMigrated2')) return;
+  localStorage.setItem('mwVariantIndicesMigrated2', '1');
   const d = get();
   let changed = false;
   d.sessions.forEach(s => {
@@ -3444,15 +3466,27 @@ function _migrateVariantIndices() {
       if (!se.name) return;
       for (const rid of Object.keys(ROUTINES)) {
         const routineEx = ROUTINES[rid].exercises.find(e => e.variants && e.variants.includes(se.name));
-        if (routineEx) {
-          const correctIdx = routineEx.variants.indexOf(se.name);
-          if ((se.variantIdx ?? 0) !== correctIdx) {
-            se.variantIdx = correctIdx;
-            if (se.activeName) se.activeName = se.name;
+        if (!routineEx) continue;
+        const nameIdx = routineEx.variants.indexOf(se.name);
+        const curIdx  = se.variantIdx ?? 0;
+        if (se.name === routineEx.name) {
+          // Session stored the current base name — variantIdx should equal nameIdx (0)
+          if (curIdx !== nameIdx) { se.variantIdx = nameIdx; changed = true; }
+        } else {
+          // Session stored a VARIANT name — was created when se.name was the primary.
+          // Old variants order: [se.name, routineEx.name], so curIdx means:
+          //   0 → was doing se.name (old primary, now at nameIdx) — keep name, fix index
+          //   >0 → was doing routineEx.name (old secondary = current primary at 0) — rename + reset
+          if (curIdx === 0) {
+            if (curIdx !== nameIdx) { se.variantIdx = nameIdx; changed = true; }
+          } else {
+            se.name = routineEx.name;
+            se.variantIdx = 0;
+            if (se.activeName) se.activeName = routineEx.name;
             changed = true;
           }
-          break;
         }
+        break;
       }
     });
   });
