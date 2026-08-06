@@ -5797,12 +5797,18 @@ async function _bgSync() {
     if (remote === 'expired') { _appInited = false; _showAuthForm(); return; }
     if (remote) {
       let changed = false;
+      // Load program FIRST so ROUTINES is up-to-date before migrations run.
+      if (remote.program?.routines && !getProgramData()) {
+        localStorage.setItem('mwProgram', JSON.stringify(remote.program));
+        loadProgram();
+        changed = true;
+      }
       if (remote.workouts?.sessions) {
         const local = get();
         if (!local.sessions?.length || remote.workouts.sessions.length > local.sessions.length) {
           localStorage.setItem('mwData3', JSON.stringify(remote.workouts));
-          // Re-run variant migration on the freshly loaded Turso data.
-          // (startup migration ran before Turso loaded, so it may have seen empty localStorage.)
+          // Re-run variant migration on freshly loaded Turso data using correct ROUTINES.
+          // (The startup migration ran before Turso loaded, on empty or stale localStorage.)
           localStorage.removeItem('mwVariantIndicesMigrated2');
           _migrateVariantIndices();
           changed = true;
@@ -5814,11 +5820,6 @@ async function _bgSync() {
       }
       if (remote.currentSession && !loadCurrentSession()) {
         localStorage.setItem('mwCurrent', JSON.stringify(remote.currentSession));
-        changed = true;
-      }
-      if (remote.program?.routines && !getProgramData()) {
-        localStorage.setItem('mwProgram', JSON.stringify(remote.program));
-        loadProgram();
         changed = true;
       }
       if (remote.archives?.length && !getArchives().length) {
