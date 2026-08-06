@@ -3502,7 +3502,7 @@ function _migrateVariantIndices() {
 // 3. Normalises every session exercise that belongs to this pair to
 //    {name:'Chest Supported Row', variantIdx:0}.
 function _migrateCSRFix() {
-  const CSR_NAMES = new Set(['Chest Supported Row','Seated Row','Seated Row / Chest Supported Row']);
+  const CSR_NAMES = new Set(['Chest Supported Row','Seated Row','Seated Row / Chest Supported Row','Incline Dumbbell Row']);
 
   // ── Step 1: fix the program definition ──────────────────────────────────────
   let progChanged = false;
