@@ -3606,13 +3606,33 @@ function putProgressOverrides(o) {
 //             history doesn't bleed into its variant's "Last increase" badge)
 function _rawPoint(s, exName, variantIdx, noFallback) {
   let ex = s.exercises.find(e => e.name === exName);
-  // Fallback: _migrateVariantNamesV2 renamed exercises to their variant names
-  // (e.g. "Lat Pulldown / Pull Up" → "Lat Pulldown"), so also search by variant names.
+  // Fallback 1: search by activeName (stored since 2025-08 — the actual variant being done)
+  if (!ex) ex = s.exercises.find(e => e.activeName === exName);
   if (!ex && !noFallback) {
+    // Fallback 2: session stored variant name, current ROUTINES uses base name
+    // e.g. session has 'Pull Up', ROUTINES has {name:'Lat Pulldown', variants:[..,'Pull Up']}
     for (const rid of Object.keys(ROUTINES)) {
       const routineEx = ROUTINES[rid].exercises.find(e => e.name === exName);
       if (routineEx?.variants) {
         ex = s.exercises.find(e => routineEx.variants.includes(e.name));
+        if (ex) break;
+      }
+    }
+    // Fallback 3: session stored base name, exName is a variant in current ROUTINES
+    // e.g. session has {name:'Lat Pulldown', variantIdx:1}, we search by 'Pull Up'
+    if (!ex) {
+      for (const rid of Object.keys(ROUTINES)) {
+        for (const routineEx of ROUTINES[rid].exercises) {
+          if (!routineEx.variants) continue;
+          const vIdx = routineEx.variants.indexOf(exName);
+          if (vIdx >= 0) {
+            const candidate = s.exercises.find(e =>
+              (e.name === routineEx.name || (routineEx.variants && routineEx.variants.includes(e.name))) &&
+              (e.variantIdx ?? 0) === vIdx
+            );
+            if (candidate) { ex = candidate; break; }
+          }
+        }
         if (ex) break;
       }
     }
@@ -4205,6 +4225,7 @@ function startWorkout(rid) {
       const p       = getPrefs();
       return {
         name: ex.name,
+        activeName: aName,  // actual variant being done — used for history lookup after rename/re-add
         machine:    (p.machines  && p.machines[aName])  || ex.machine || '',
         comment:    (p.comments  && p.comments[aName])  || '',
         variantIdx: vIdx,
