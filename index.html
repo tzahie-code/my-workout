@@ -4011,21 +4011,13 @@ function progressRender() {
       const editKey = `${rid}-${ei}`;
 
       // For variant exercises, determine which variant to show.
-      // Explicit user toggle (_progVariantView) wins; otherwise prefer whichever
-      // variant has ≥2 data points — so switching to the alternative during a
-      // workout doesn't wipe the main exercise's progress chart.
+      // Explicit user toggle (_progVariantView) wins; otherwise show the last-used variant.
       const hasVariants = !!(ex.variants && ex.variants.length === 2);
       const vIdx = hasVariants
         ? (_progVariantView[editKey] !== undefined
             ? _progVariantView[editKey]   // explicit user choice in this session
             : (() => {
-                const preferred = getVariantIdx(ex.name); // last-used variant
-                const other     = 1 - preferred;
-                const ptsPreferred = getExerciseProgress(ex.name, preferred);
-                if (ptsPreferred.length >= 2) return preferred; // has data → use it
-                const ptsOther = getExerciseProgress(ex.name, other);
-                if (ptsOther.length >= 2) return other;         // other has data → use it
-                return preferred; // neither has data yet — show preferred
+                return getVariantIdx(ex.name); // always follow last-used variant
               })())
         : undefined;
       const displayName = hasVariants ? ex.variants[vIdx] : ex.name;
