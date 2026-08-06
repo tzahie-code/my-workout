@@ -3495,25 +3495,55 @@ function _migrateVariantIndices() {
   if (changed) { put(d); sbSaveDebounced(); }
 }
 
-// Idempotent fix (no flag guard — cheap to re-run, safe to call every startup).
-// Normalises every session exercise that belongs to the Chest Supported Row / Seated Row
-// pair to {name:'Chest Supported Row', variantIdx:0}.  Handles all known broken states:
-//   • stored as 'Seated Row' or 'Seated Row / Chest Supported Row' (old base name)
-//   • stored as 'Chest Supported Row' but variantIdx != 0 (wrong index from prior migration)
-// Detects the routine by finding any exercise whose name or variants include either CSR name.
+// Idempotent fix — runs every startup (cheap, safe to re-run).
+// 1. Updates the program (mwProgram) so the exercise is named 'Chest Supported Row'
+//    with variants ['Chest Supported Row','Seated Row'] (CSR as primary).
+// 2. Re-loads ROUTINES from the fixed program.
+// 3. Normalises every session exercise that belongs to this pair to
+//    {name:'Chest Supported Row', variantIdx:0}.
 function _migrateCSRFix() {
-  const csrRoutines = new Set();
   const CSR_NAMES = new Set(['Chest Supported Row','Seated Row','Seated Row / Chest Supported Row']);
-  Object.keys(ROUTINES).forEach(rid => {
-    const exs = ROUTINES[rid].exercises;
-    if (exs.some(e =>
-      e.name === 'Chest Supported Row' || e.name === 'Seated Row / Chest Supported Row' ||
-      (e.variants && (e.variants.includes('Chest Supported Row') || e.variants.includes('Seated Row')))
-    )) csrRoutines.add(rid);
-  });
+
+  // ── Step 1: fix the program definition ──────────────────────────────────────
+  let progChanged = false;
+  const prog = getProgramData();
+  const csrRoutines = new Set();
+  if (prog && prog.routines) {
+    Object.keys(prog.routines).forEach(rid => {
+      const exs = prog.routines[rid].exercises || [];
+      exs.forEach(e => {
+        const isCSR = CSR_NAMES.has(e.name) ||
+          (e.variants && (e.variants.includes('Chest Supported Row') || e.variants.includes('Seated Row')));
+        if (!isCSR) return;
+        csrRoutines.add(rid);
+        // Ensure exercise is named 'Chest Supported Row' with CSR as variants[0]
+        if (e.name !== 'Chest Supported Row') { e.name = 'Chest Supported Row'; progChanged = true; }
+        if (!e.variants || e.variants[0] !== 'Chest Supported Row') {
+          e.variants = ['Chest Supported Row','Seated Row'];
+          progChanged = true;
+        }
+      });
+    });
+    if (progChanged) {
+      localStorage.setItem('mwProgram', JSON.stringify(prog));
+      loadProgram(); // refresh in-memory ROUTINES
+      sbSaveDebounced();
+    }
+  }
+  // Fallback: detect from in-memory ROUTINES if no saved program
+  if (!csrRoutines.size) {
+    Object.keys(ROUTINES).forEach(rid => {
+      if (ROUTINES[rid].exercises.some(e =>
+        CSR_NAMES.has(e.name) ||
+        (e.variants && (e.variants.includes('Chest Supported Row') || e.variants.includes('Seated Row')))
+      )) csrRoutines.add(rid);
+    });
+  }
   if (!csrRoutines.size) return;
+
+  // ── Step 2: fix session data ─────────────────────────────────────────────────
   const d = get();
-  let changed = false;
+  let sessChanged = false;
   d.sessions.forEach(s => {
     if (!csrRoutines.has(s.routine)) return;
     s.exercises.forEach(se => {
@@ -3521,11 +3551,11 @@ function _migrateCSRFix() {
       if (se.name !== 'Chest Supported Row' || (se.variantIdx ?? 0) !== 0) {
         se.name = 'Chest Supported Row';
         se.variantIdx = 0;
-        changed = true;
+        sessChanged = true;
       }
     });
   });
-  if (changed) { put(d); sbSaveDebounced(); }
+  if (sessChanged) { put(d); sbSaveDebounced(); }
 }
 
 // One-time repair: for every session that has exercises with null weight but done sets,
