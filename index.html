@@ -5801,6 +5801,10 @@ async function _bgSync() {
         const local = get();
         if (!local.sessions?.length || remote.workouts.sessions.length > local.sessions.length) {
           localStorage.setItem('mwData3', JSON.stringify(remote.workouts));
+          // Re-run variant migration on the freshly loaded Turso data.
+          // (startup migration ran before Turso loaded, so it may have seen empty localStorage.)
+          localStorage.removeItem('mwVariantIndicesMigrated2');
+          _migrateVariantIndices();
           changed = true;
         }
       }
