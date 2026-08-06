@@ -3475,13 +3475,16 @@ function _migrateVariantIndices() {
           // Session stored the current base name — variantIdx should equal nameIdx (0)
           if (curIdx !== nameIdx) { se.variantIdx = nameIdx; changed = true; }
         } else {
-          // Session stored a VARIANT name — was created when se.name was the primary.
-          // Old variants order: [se.name, routineEx.name], so curIdx means:
-          //   0 → was doing se.name (old primary, now at nameIdx) — keep name, fix index
-          //   >0 → was doing routineEx.name (old secondary = current primary at 0) — rename + reset
-          if (curIdx === 0) {
-            if (curIdx !== nameIdx) { se.variantIdx = nameIdx; changed = true; }
+          // Session stored a VARIANT name.
+          if (curIdx === nameIdx) {
+            // variantIdx already matches the variant's position in the array —
+            // this is a correctly stored modern session (user switched variant during workout).
+            // Leave it alone.
+          } else if (curIdx === 0) {
+            // Was doing se.name when it was the primary (now at nameIdx) — fix index only.
+            se.variantIdx = nameIdx; changed = true;
           } else {
+            // Was doing routineEx.name (old secondary = current primary at 0) — rename + reset.
             se.name = routineEx.name;
             se.variantIdx = 0;
             if (se.activeName) se.activeName = routineEx.name;
