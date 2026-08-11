@@ -463,23 +463,29 @@
     .rest-opt-inp:focus { border-color:var(--txt2); }
 
     /* ── REST COUNTDOWN OVERLAY ── */
-    .rest-overlay { display:none; position:fixed; inset:0; z-index:300;
-      background:rgba(0,0,0,.88); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-      align-items:center; justify-content:center; }
-    .rest-overlay.active { display:flex; }
+    .rest-overlay { display:none; position:fixed; bottom:0; left:0; right:0; z-index:300;
+      background:var(--card); border-top:2px solid var(--a);
+      box-shadow:0 -6px 32px rgba(0,0,0,.4); }
+    .rest-overlay.active { display:block; }
     @keyframes timerFlash { 0%,100%{opacity:0} 15%,50%{opacity:1} }
     .timer-flash { position:fixed; inset:0; z-index:9999; pointer-events:none;
       background:rgba(255,180,0,.5); animation:timerFlash .45s ease 3; }
-    .rest-ov-box { background:var(--card); border-radius:28px; padding:40px 56px;
-      text-align:center; box-shadow:0 24px 80px rgba(0,0,0,.7); border:1px solid var(--border); }
-    .rest-ov-lbl { font-size:12px; font-weight:700; color:var(--txt2);
-      text-transform:uppercase; letter-spacing:1.5px; margin-bottom:14px; }
-    .rest-ov-time { font-size:76px; font-weight:900; color:var(--txt);
-      letter-spacing:-4px; line-height:1; margin-bottom:30px; font-variant-numeric:tabular-nums; }
+    .rest-ov-box { display:flex; align-items:center; gap:16px;
+      padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px)); }
+    .rest-ov-lbl { font-size:11px; font-weight:700; color:var(--txt2);
+      text-transform:uppercase; letter-spacing:1.5px; flex:0 0 auto; }
+    .rest-ov-time { font-size:42px; font-weight:900; color:var(--txt);
+      letter-spacing:-2px; line-height:1; flex:1; font-variant-numeric:tabular-nums; }
     .rest-ov-skip { border:1px solid var(--border); background:var(--card2); color:var(--txt2);
-      font-size:14px; font-weight:700; padding:11px 32px; border-radius:14px;
-      cursor:pointer; font-family:inherit; }
+      font-size:14px; font-weight:700; padding:10px 24px; border-radius:14px;
+      cursor:pointer; font-family:inherit; flex:0 0 auto; }
     .rest-ov-skip:active { opacity:.7; }
+    .rest-alert-seg { display:flex; gap:6px; width:100%; }
+    .rest-alert-btn { flex:1; font-size:13px; font-weight:700; border:1px solid var(--border);
+      background:var(--card2); color:var(--txt2); padding:9px 0; border-radius:12px;
+      cursor:pointer; font-family:inherit; }
+    .rest-alert-btn.active { background:var(--a); color:#fff; border-color:var(--a); }
+    .rest-alert-btn:active { opacity:.7; }
 
 /* ── PROGRAMS / BUILDER ── */
 .prog-item { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
@@ -934,9 +940,13 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <span class="settings-lbl" data-t="countdown-lbl">Count down after each set</span>
           <button class="toggle-btn" id="rest-countdown-toggle" onclick="toggleRestCountdown()">OFF</button>
         </div>
-        <div class="settings-row">
-          <span class="settings-lbl" data-t="alarm-lbl">Play alarm when timer ends</span>
-          <button class="toggle-btn" id="rest-alarm-toggle" onclick="toggleRestAlarm()">OFF</button>
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <span class="settings-lbl" data-t="alert-lbl">Alert when timer ends</span>
+          <div class="rest-alert-seg" id="rest-alert-seg">
+            <button class="rest-alert-btn" data-v="blink" onclick="setRestAlert('blink')" data-t="alert-blink">👁 Blink</button>
+            <button class="rest-alert-btn" data-v="vibrate" onclick="setRestAlert('vibrate')" data-t="alert-vibrate">📳 Vibrate</button>
+            <button class="rest-alert-btn" data-v="sound" onclick="setRestAlert('sound')" data-t="alert-sound">🔔 Sound</button>
+          </div>
         </div>
         <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
           <span class="settings-lbl" data-t="timer-options">Timer options</span>
@@ -1460,7 +1470,8 @@ const TRANSLATIONS = {
     'best':'Best:','edit-history':'✏️ Edit history','close':'▲ Close',
     'exclude':'Exclude','excluded':'Excluded','sessions-label':'sessions',
     'rest-timer':'Rest Timer','countdown-lbl':'Count down after each set',
-    'alarm-lbl':'Play alarm when timer ends','timer-options':'Timer options',
+    'alert-lbl':'Alert when timer ends','alert-blink':'👁 Blink','alert-vibrate':'📳 Vibrate','alert-sound':'🔔 Sound',
+    'timer-options':'Timer options',
     'workout-programs':'Workout Programs','manage-programs':'📦 Manage Programs',
     'language':'Language','language-lbl':'App Language',
     'account-data':'Account & Data','sync-btn':'🔑 Sync / Change device','sign-out':'→ Sign Out',
@@ -1509,7 +1520,8 @@ const TRANSLATIONS = {
     'best':'הטוב ביותר:','edit-history':'✏️ ערוך היסטוריה','close':'▲ סגור',
     'exclude':'הסר','excluded':'מוסר','sessions-label':'סשנים',
     'rest-timer':'טיימר מנוחה','countdown-lbl':'ספירה לאחור אחרי כל סט',
-    'alarm-lbl':'אזעקה כשהטיימר מסתיים','timer-options':'אפשרויות טיימר',
+    'alert-lbl':'התראה בסיום הטיימר','alert-blink':'👁 הבהוב','alert-vibrate':'📳 רטט','alert-sound':'🔔 צליל',
+    'timer-options':'אפשרויות טיימר',
     'workout-programs':'תוכניות אימון','manage-programs':'📦 ניהול תוכניות',
     'language':'שפה','language-lbl':'שפת האפליקציה',
     'account-data':'חשבון ונתונים','sync-btn':'🔑 סנכרון / החלפת מכשיר','sign-out':'→ התנתקות',
@@ -3161,11 +3173,10 @@ function showSettings() {
     toggle.textContent = s.restCountdown ? 'ON' : 'OFF';
     toggle.classList.toggle('on', !!s.restCountdown);
   }
-  const alarmToggle = document.getElementById('rest-alarm-toggle');
-  if (alarmToggle) {
-    alarmToggle.textContent = s.restAlarm ? 'ON' : 'OFF';
-    alarmToggle.classList.toggle('on', !!s.restAlarm);
-  }
+  const alertType = s.restAlert || (s.restAlarm ? 'sound' : 'blink');
+  document.querySelectorAll('#rest-alert-seg .rest-alert-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.v === alertType);
+  });
   _setLangBtn(s.lang || 'en');
   const opts = getRestOpts();
   const container = document.getElementById('rest-opts-inputs');
@@ -3186,12 +3197,13 @@ function toggleRestCountdown() {
   showSettings();
 }
 
-function toggleRestAlarm() {
-  unlockAudio();
+function setRestAlert(type) {
+  if (type === 'sound') unlockAudio();
   const s = getSettings();
-  s.restAlarm = !s.restAlarm;
+  s.restAlert = type;
+  s.restAlarm = (type === 'sound'); // keep legacy field in sync
   putSettings(s);
-  if (s.restAlarm) playAlarmBeep(); // preview the sound when turning ON
+  if (type === 'sound') playAlarmBeep();
   showSettings();
 }
 
@@ -3206,7 +3218,9 @@ function _getAudioCtx() {
 // Call on any user tap to unlock audio (iOS requires this).
 // Only does anything if the alarm is actually ON — avoids blip sounds otherwise.
 function unlockAudio() {
-  if (!getSettings().restAlarm) return;
+  const s = getSettings();
+  const alertType = s.restAlert || (s.restAlarm ? 'sound' : 'blink');
+  if (alertType !== 'sound') return;
   const ctx = _getAudioCtx();
   if (ctx && ctx.state === 'suspended') ctx.resume();
 }
@@ -3245,8 +3259,8 @@ function saveRestOpt(idx, val) {
 // ════════════════════════════════════
 // REST COUNTDOWN TIMER
 // ════════════════════════════════════
-let _restTimer = null;
-let _restSecs  = 0;
+let _restTimer   = null;
+let _restEndTime = 0; // absolute timestamp when rest ends
 
 function parseRestSecs(str) {
   const parts = String(str).split(':');
@@ -3262,36 +3276,53 @@ function fmtRestSecs(secs) {
 
 function startRestTimer(secs) {
   if (_restTimer) clearInterval(_restTimer);
-  _restSecs = secs;
+  _restEndTime = Date.now() + secs * 1000;
   const overlay = document.getElementById('rest-overlay');
   const display = document.getElementById('rest-ov-time');
   overlay.classList.add('active');
-  display.textContent = fmtRestSecs(_restSecs);
-  _restTimer = setInterval(() => {
-    _restSecs--;
-    display.textContent = fmtRestSecs(_restSecs);
-    if (_restSecs <= 0) { stopRestTimer(true); }
-  }, 1000);
+  function _tick() {
+    const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
+    display.textContent = fmtRestSecs(rem);
+    if (rem <= 0) stopRestTimer(true);
+  }
+  _tick();
+  _restTimer = setInterval(_tick, 500); // 500ms ensures sub-second accuracy on resume
 }
 
-function stopRestTimer(vibrate) {
+function stopRestTimer(doAlert) {
   if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
-  if (vibrate) {
-    // Visual flash — works on every device regardless of silent mode
+  if (doAlert) {
+    const s = getSettings();
+    const alertType = s.restAlert || (s.restAlarm ? 'sound' : 'blink');
+    // Visual flash — always shown as the primary "time's up" signal
     const flash = document.createElement('div');
     flash.className = 'timer-flash';
     document.body.appendChild(flash);
     setTimeout(() => flash.remove(), 1400);
-    // Vibration — Android only (iPhone doesn't support it)
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-    // Sound — plays when not on silent
-    if (getSettings().restAlarm) playAlarmBeep();
+    if (alertType === 'vibrate' && navigator.vibrate) {
+      navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+    if (alertType === 'sound') {
+      playAlarmBeep();
+    }
   }
 }
 
 function skipRestTimer() { stopRestTimer(false); }
+
+// When the app is brought back to the foreground, immediately update the display
+// so the user sees the correct remaining time without waiting for the next interval tick.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _restTimer) {
+    const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
+    const display = document.getElementById('rest-ov-time');
+    if (display) display.textContent = fmtRestSecs(rem);
+    if (rem <= 0) stopRestTimer(true);
+  }
+});
+
 function showProgress() { _openProgEdits.clear(); progressRender(); show('progress'); }
 
 function toggleProgEdit(rid, ei) {
