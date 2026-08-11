@@ -3265,9 +3265,10 @@ function saveRestOpt(idx, val) {
 // ════════════════════════════════════
 // REST COUNTDOWN TIMER
 // ════════════════════════════════════
-let _restTimer    = null;
-let _restEndTime  = 0; // absolute timestamp when rest ends
-let _restActiveEx = null; // exercise index that triggered the rest timer
+let _restTimer              = null;
+let _restEndTime            = 0;    // absolute timestamp when rest ends
+let _restActiveEx           = null; // exercise index that triggered the rest timer
+let _restExpiredWhileHidden = false; // timer ran out while page was invisible
 
 function parseRestSecs(str) {
   const parts = String(str).split(':');
@@ -3284,17 +3285,29 @@ function fmtRestSecs(secs) {
 function startRestTimer(secs, activeEx) {
   if (_restTimer) clearInterval(_restTimer);
   _restEndTime  = Date.now() + secs * 1000;
+  _restExpiredWhileHidden = false;
   if (activeEx !== undefined) _restActiveEx = activeEx;
   const overlay = document.getElementById('rest-overlay');
   const display = document.getElementById('rest-ov-time');
   overlay.classList.add('active');
-  // Push wk-body content up so it isn't hidden behind the bar
+  // Push content above the floating bar on all screens
+  document.body.style.paddingBottom = '160px';
   const wkBody = document.getElementById('wk-body');
   if (wkBody) wkBody.style.paddingBottom = '160px';
   function _tick() {
     const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
     display.textContent = fmtRestSecs(rem);
-    if (rem <= 0) stopRestTimer(true);
+    if (rem <= 0) {
+      if (document.hidden) {
+        // Page is invisible — defer the alert to visibilitychange so the
+        // flash animation actually plays when the screen is visible again.
+        clearInterval(_restTimer);
+        _restTimer = null;
+        _restExpiredWhileHidden = true;
+      } else {
+        stopRestTimer(true);
+      }
+    }
   }
   _tick();
   _restTimer = setInterval(_tick, 500);
@@ -3302,8 +3315,10 @@ function startRestTimer(secs, activeEx) {
 
 function stopRestTimer(doAlert) {
   if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
+  _restExpiredWhileHidden = false;
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
+  document.body.style.paddingBottom = '';
   const wkBody = document.getElementById('wk-body');
   if (wkBody) wkBody.style.paddingBottom = '';
   if (doAlert) {
@@ -3323,8 +3338,18 @@ function skipRestTimer() { stopRestTimer(false); }
 function jumpToActiveEx() {
   if (_restActiveEx === null || _restActiveEx === undefined) return;
   const ei = _restActiveEx;
-  // If a different card is open, close it and open the active one
-  if (S.expanded !== ei) {
+  const onWorkout = document.getElementById('screen-workout')?.classList.contains('active');
+  if (!onWorkout) {
+    // Restore the in-progress session from storage and show the workout screen
+    const saved = loadCurrentSession();
+    if (saved && !saved.viewing) {
+      _reconcileSession(saved.session, saved.rid);
+      S.rid = saved.rid; S.session = saved.session; S.viewing = false;
+    }
+    S.expanded = ei;
+    show('workout');
+    wkRender();
+  } else if (S.expanded !== ei) {
     savePendingInputs();
     const prev = S.expanded;
     S.expanded = ei;
@@ -3340,13 +3365,18 @@ function jumpToActiveEx() {
       const top = el.getBoundingClientRect().top + window.scrollY - hdH - 8;
       window.scrollTo({ top, behavior: 'smooth' });
     }
-  }, 60);
+  }, 100);
 }
 
-// When the app is brought back to the foreground, immediately update the display
-// so the user sees the correct remaining time without waiting for the next interval tick.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && _restTimer) {
+  if (document.hidden) return;
+  // Timer expired while page was hidden — fire alert now that screen is visible
+  if (_restExpiredWhileHidden) {
+    setTimeout(() => stopRestTimer(true), 50);
+    return;
+  }
+  // Timer still running — sync the display immediately instead of waiting for next tick
+  if (_restTimer) {
     const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
     const display = document.getElementById('rest-ov-time');
     if (display) display.textContent = fmtRestSecs(rem);
