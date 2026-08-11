@@ -476,10 +476,15 @@
       text-transform:uppercase; letter-spacing:1.5px; }
     .rest-ov-time { font-size:64px; font-weight:900; color:var(--txt);
       letter-spacing:-3px; line-height:1; font-variant-numeric:tabular-nums; }
+    .rest-ov-actions { display:flex; gap:10px; }
     .rest-ov-skip { border:1px solid var(--border); background:var(--card2); color:var(--txt2);
-      font-size:14px; font-weight:700; padding:10px 32px; border-radius:14px;
+      font-size:14px; font-weight:700; padding:10px 28px; border-radius:14px;
       cursor:pointer; font-family:inherit; }
     .rest-ov-skip:active { opacity:.7; }
+    .rest-ov-back { border:1px solid var(--border); background:var(--card2); color:var(--txt2);
+      font-size:13px; font-weight:700; padding:10px 18px; border-radius:14px;
+      cursor:pointer; font-family:inherit; }
+    .rest-ov-back:active { opacity:.7; }
     .rest-alert-seg { display:flex; gap:6px; width:100%; }
     .rest-alert-btn { flex:1; font-size:13px; font-weight:700; border:1px solid var(--border);
       background:var(--card2); color:var(--txt2); padding:9px 0; border-radius:12px;
@@ -1150,7 +1155,10 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
   <div class="rest-ov-box">
     <div class="rest-ov-lbl" data-t="rest">Rest</div>
     <div class="rest-ov-time" id="rest-ov-time">1:30</div>
-    <button class="rest-ov-skip" onclick="skipRestTimer()" data-t="skip">Skip →</button>
+    <div class="rest-ov-actions">
+      <button class="rest-ov-back" id="rest-ov-back" onclick="jumpToActiveEx()" data-t="back-to-ex">↑ Exercise</button>
+      <button class="rest-ov-skip" onclick="skipRestTimer()" data-t="skip">Skip →</button>
+    </div>
   </div>
 </div>
 
@@ -1470,7 +1478,8 @@ const TRANSLATIONS = {
     'best':'Best:','edit-history':'✏️ Edit history','close':'▲ Close',
     'exclude':'Exclude','excluded':'Excluded','sessions-label':'sessions',
     'rest-timer':'Rest Timer','countdown-lbl':'Count down after each set',
-    'alert-lbl':'Alert when timer ends','alert-blink':'Blink','alert-vibrate':'Vibrate','alert-sound':'Sound',
+    'alert-lbl':'Alert when timer ends','alert-blink':'Blink','alert-vibrate':'Vibrate (Android)','alert-sound':'Sound',
+    'back-to-ex':'↑ Exercise',
     'timer-options':'Timer options',
     'workout-programs':'Workout Programs','manage-programs':'📦 Manage Programs',
     'language':'Language','language-lbl':'App Language',
@@ -1520,7 +1529,8 @@ const TRANSLATIONS = {
     'best':'הטוב ביותר:','edit-history':'✏️ ערוך היסטוריה','close':'▲ סגור',
     'exclude':'הסר','excluded':'מוסר','sessions-label':'סשנים',
     'rest-timer':'טיימר מנוחה','countdown-lbl':'ספירה לאחור אחרי כל סט',
-    'alert-lbl':'התראה בסיום הטיימר','alert-blink':'הבהוב','alert-vibrate':'רטט','alert-sound':'צליל',
+    'alert-lbl':'התראה בסיום הטיימר','alert-blink':'הבהוב','alert-vibrate':'רטט (אנדרואיד)','alert-sound':'צליל',
+    'back-to-ex':'↑ תרגיל',
     'timer-options':'אפשרויות טיימר',
     'workout-programs':'תוכניות אימון','manage-programs':'📦 ניהול תוכניות',
     'language':'שפה','language-lbl':'שפת האפליקציה',
@@ -3266,8 +3276,9 @@ function saveRestOpt(idx, val) {
 // ════════════════════════════════════
 // REST COUNTDOWN TIMER
 // ════════════════════════════════════
-let _restTimer   = null;
-let _restEndTime = 0; // absolute timestamp when rest ends
+let _restTimer    = null;
+let _restEndTime  = 0; // absolute timestamp when rest ends
+let _restActiveEx = null; // exercise index that triggered the rest timer
 
 function parseRestSecs(str) {
   const parts = String(str).split(':');
@@ -3281,25 +3292,31 @@ function fmtRestSecs(secs) {
   return m + ':' + String(s).padStart(2, '0');
 }
 
-function startRestTimer(secs) {
+function startRestTimer(secs, activeEx) {
   if (_restTimer) clearInterval(_restTimer);
-  _restEndTime = Date.now() + secs * 1000;
+  _restEndTime  = Date.now() + secs * 1000;
+  if (activeEx !== undefined) _restActiveEx = activeEx;
   const overlay = document.getElementById('rest-overlay');
   const display = document.getElementById('rest-ov-time');
   overlay.classList.add('active');
+  // Push wk-body content up so it isn't hidden behind the bar
+  const wkBody = document.getElementById('wk-body');
+  if (wkBody) wkBody.style.paddingBottom = '160px';
   function _tick() {
     const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
     display.textContent = fmtRestSecs(rem);
     if (rem <= 0) stopRestTimer(true);
   }
   _tick();
-  _restTimer = setInterval(_tick, 500); // 500ms ensures sub-second accuracy on resume
+  _restTimer = setInterval(_tick, 500);
 }
 
 function stopRestTimer(doAlert) {
   if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
+  const wkBody = document.getElementById('wk-body');
+  if (wkBody) wkBody.style.paddingBottom = '';
   if (doAlert) {
     const s = getSettings();
     const alertType = s.restAlert || (s.restAlarm ? 'sound' : 'blink');
@@ -3318,6 +3335,24 @@ function stopRestTimer(doAlert) {
 }
 
 function skipRestTimer() { stopRestTimer(false); }
+
+function jumpToActiveEx() {
+  if (_restActiveEx === null || _restActiveEx === undefined) return;
+  const ei = _restActiveEx;
+  // If a different card is open, close it and open the active one
+  if (S.expanded !== ei) {
+    savePendingInputs();
+    const prev = S.expanded;
+    S.expanded = ei;
+    const toUpdate = new Set([ei]);
+    if (prev !== null && prev !== undefined) toUpdate.add(prev);
+    toUpdate.forEach(i => wkRenderCard(i));
+  }
+  setTimeout(() => {
+    const el = document.getElementById('ec' + ei);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 60);
+}
 
 // When the app is brought back to the foreground, immediately update the display
 // so the user sees the correct remaining time without waiting for the next interval tick.
@@ -5006,7 +5041,7 @@ function toggleSet(ei, si) {
   },60);
   if (justDone && getSettings().restCountdown) {
     const restVal = (getPrefs().rest || {})[activeExName(ei)];
-    if (restVal) startRestTimer(parseRestSecs(restVal));
+    if (restVal) startRestTimer(parseRestSecs(restVal), ei);
   }
 }
 
