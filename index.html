@@ -470,15 +470,15 @@
     @keyframes timerFlash { 0%,100%{opacity:0} 15%,50%{opacity:1} }
     .timer-flash { position:fixed; inset:0; z-index:9999; pointer-events:none;
       background:rgba(255,180,0,.5); animation:timerFlash .45s ease 3; }
-    .rest-ov-box { display:flex; align-items:center; gap:16px;
-      padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px)); }
+    .rest-ov-box { display:flex; flex-direction:column; align-items:center; gap:10px;
+      padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px)); }
     .rest-ov-lbl { font-size:11px; font-weight:700; color:var(--txt2);
-      text-transform:uppercase; letter-spacing:1.5px; flex:0 0 auto; }
-    .rest-ov-time { font-size:42px; font-weight:900; color:var(--txt);
-      letter-spacing:-2px; line-height:1; flex:1; font-variant-numeric:tabular-nums; }
+      text-transform:uppercase; letter-spacing:1.5px; }
+    .rest-ov-time { font-size:64px; font-weight:900; color:var(--txt);
+      letter-spacing:-3px; line-height:1; font-variant-numeric:tabular-nums; }
     .rest-ov-skip { border:1px solid var(--border); background:var(--card2); color:var(--txt2);
-      font-size:14px; font-weight:700; padding:10px 24px; border-radius:14px;
-      cursor:pointer; font-family:inherit; flex:0 0 auto; }
+      font-size:14px; font-weight:700; padding:10px 32px; border-radius:14px;
+      cursor:pointer; font-family:inherit; }
     .rest-ov-skip:active { opacity:.7; }
     .rest-alert-seg { display:flex; gap:6px; width:100%; }
     .rest-alert-btn { flex:1; font-size:13px; font-weight:700; border:1px solid var(--border);
@@ -943,9 +943,9 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
           <span class="settings-lbl" data-t="alert-lbl">Alert when timer ends</span>
           <div class="rest-alert-seg" id="rest-alert-seg">
-            <button class="rest-alert-btn" data-v="blink" onclick="setRestAlert('blink')" data-t="alert-blink">👁 Blink</button>
-            <button class="rest-alert-btn" data-v="vibrate" onclick="setRestAlert('vibrate')" data-t="alert-vibrate">📳 Vibrate</button>
-            <button class="rest-alert-btn" data-v="sound" onclick="setRestAlert('sound')" data-t="alert-sound">🔔 Sound</button>
+            <button class="rest-alert-btn" data-v="blink" onclick="setRestAlert('blink')" data-t="alert-blink">Blink</button>
+            <button class="rest-alert-btn" data-v="vibrate" onclick="setRestAlert('vibrate')" data-t="alert-vibrate">Vibrate</button>
+            <button class="rest-alert-btn" data-v="sound" onclick="setRestAlert('sound')" data-t="alert-sound">Sound</button>
           </div>
         </div>
         <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
@@ -1470,7 +1470,7 @@ const TRANSLATIONS = {
     'best':'Best:','edit-history':'✏️ Edit history','close':'▲ Close',
     'exclude':'Exclude','excluded':'Excluded','sessions-label':'sessions',
     'rest-timer':'Rest Timer','countdown-lbl':'Count down after each set',
-    'alert-lbl':'Alert when timer ends','alert-blink':'👁 Blink','alert-vibrate':'📳 Vibrate','alert-sound':'🔔 Sound',
+    'alert-lbl':'Alert when timer ends','alert-blink':'Blink','alert-vibrate':'Vibrate','alert-sound':'Sound',
     'timer-options':'Timer options',
     'workout-programs':'Workout Programs','manage-programs':'📦 Manage Programs',
     'language':'Language','language-lbl':'App Language',
@@ -1520,7 +1520,7 @@ const TRANSLATIONS = {
     'best':'הטוב ביותר:','edit-history':'✏️ ערוך היסטוריה','close':'▲ סגור',
     'exclude':'הסר','excluded':'מוסר','sessions-label':'סשנים',
     'rest-timer':'טיימר מנוחה','countdown-lbl':'ספירה לאחור אחרי כל סט',
-    'alert-lbl':'התראה בסיום הטיימר','alert-blink':'👁 הבהוב','alert-vibrate':'📳 רטט','alert-sound':'🔔 צליל',
+    'alert-lbl':'התראה בסיום הטיימר','alert-blink':'הבהוב','alert-vibrate':'רטט','alert-sound':'צליל',
     'timer-options':'אפשרויות טיימר',
     'workout-programs':'תוכניות אימון','manage-programs':'📦 ניהול תוכניות',
     'language':'שפה','language-lbl':'שפת האפליקציה',
@@ -3177,6 +3177,13 @@ function showSettings() {
   document.querySelectorAll('#rest-alert-seg .rest-alert-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.v === alertType);
   });
+  // Grey out the alert + timer-options rows when countdown is disabled
+  const timerOff = !s.restCountdown;
+  document.querySelectorAll('#screen-settings .settings-section')[0]
+    ?.querySelectorAll('.settings-row:not(:first-child)').forEach(row => {
+      row.style.opacity = timerOff ? '0.35' : '1';
+      row.style.pointerEvents = timerOff ? 'none' : '';
+    });
   _setLangBtn(s.lang || 'en');
   const opts = getRestOpts();
   const container = document.getElementById('rest-opts-inputs');
@@ -3302,7 +3309,7 @@ function stopRestTimer(doAlert) {
     document.body.appendChild(flash);
     setTimeout(() => flash.remove(), 1400);
     if (alertType === 'vibrate' && navigator.vibrate) {
-      navigator.vibrate([200, 100, 200, 100, 200]);
+      navigator.vibrate(600);
     }
     if (alertType === 'sound') {
       playAlarmBeep();
