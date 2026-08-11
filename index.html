@@ -939,11 +939,11 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <span class="settings-lbl" data-t="countdown-lbl">Count down after each set</span>
           <button class="toggle-btn" id="rest-countdown-toggle" onclick="toggleRestCountdown()">OFF</button>
         </div>
-        <div class="settings-row">
+        <div class="settings-row" id="rest-alarm-row">
           <span class="settings-lbl" data-t="alarm-lbl">Sound when timer ends</span>
           <button class="toggle-btn" id="rest-alarm-toggle" onclick="toggleRestAlarm()">OFF</button>
         </div>
-        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <div class="settings-row" id="rest-opts-row" style="flex-direction:column;align-items:flex-start;gap:8px">
           <span class="settings-lbl" data-t="timer-options">Timer options</span>
           <div class="rest-opts-inputs" id="rest-opts-inputs"></div>
         </div>
@@ -1468,6 +1468,7 @@ const TRANSLATIONS = {
     'best':'Best:','edit-history':'✏️ Edit history','close':'▲ Close',
     'exclude':'Exclude','excluded':'Excluded','sessions-label':'sessions',
     'rest-timer':'Rest Timer','countdown-lbl':'Count down after each set',
+    'alarm-lbl':'Sound when timer ends',
     'back-to-ex':'↑ Exercise',
     'timer-options':'Timer options',
     'workout-programs':'Workout Programs','manage-programs':'📦 Manage Programs',
@@ -1518,6 +1519,7 @@ const TRANSLATIONS = {
     'best':'הטוב ביותר:','edit-history':'✏️ ערוך היסטוריה','close':'▲ סגור',
     'exclude':'הסר','excluded':'מוסר','sessions-label':'סשנים',
     'rest-timer':'טיימר מנוחה','countdown-lbl':'ספירה לאחור אחרי כל סט',
+    'alarm-lbl':'צליל בסיום הטיימר',
     'back-to-ex':'↑ תרגיל',
     'timer-options':'אפשרויות טיימר',
     'workout-programs':'תוכניות אימון','manage-programs':'📦 ניהול תוכניות',
@@ -3176,13 +3178,14 @@ function showSettings() {
     alarmToggle.textContent = s.restAlarm ? 'ON' : 'OFF';
     alarmToggle.classList.toggle('on', !!s.restAlarm);
   }
-  // Grey out the alert + timer-options rows when countdown is disabled
+  // Grey out only the dependent rows when countdown is disabled
   const timerOff = !s.restCountdown;
-  document.querySelectorAll('#screen-settings .settings-section')[0]
-    ?.querySelectorAll('.settings-row:not(:first-child)').forEach(row => {
-      row.style.opacity = timerOff ? '0.35' : '1';
-      row.style.pointerEvents = timerOff ? 'none' : '';
-    });
+  ['rest-alarm-row', 'rest-opts-row'].forEach(id => {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.style.opacity = timerOff ? '0.35' : '1';
+    row.style.pointerEvents = timerOff ? 'none' : '';
+  });
   _setLangBtn(s.lang || 'en');
   const opts = getRestOpts();
   const container = document.getElementById('rest-opts-inputs');
@@ -5145,6 +5148,7 @@ function finish() {
     <div class="d-row"><span class="d-lbl">${t('duration')}</span><span class="d-val">${dur} ${t('min')}</span></div>
     <div class="d-row"><span class="d-lbl">${t('exercises-label')}</span><span class="d-val">${S.session.exercises.length}</span></div>
     <div class="d-row"><span class="d-lbl">${t('sets-logged')}</span><span class="d-val">${sets}</span></div>`;
+  stopRestTimer(false);
   show('done');
   // Must null S.session AFTER show('done') so the 5-second auto-save timer
   // cannot re-save the just-finished (all-done) session back into mwCurrent.
