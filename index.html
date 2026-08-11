@@ -470,6 +470,10 @@
     @keyframes timerFlash { 0%,100%{opacity:0} 15%,50%{opacity:1} }
     .timer-flash { position:fixed; inset:0; z-index:9999; pointer-events:none;
       background:rgba(255,180,0,.5); animation:timerFlash .45s ease 3; }
+    /* push content above the floating timer bar on every screen */
+    body.timer-active .home-body,
+    body.timer-active .hist-body { padding-bottom: 180px !important; }
+    body.timer-active #wk-body   { padding-bottom: 180px !important; }
     .rest-ov-box { display:flex; flex-direction:column; align-items:center; gap:10px;
       padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px)); }
     .rest-ov-lbl { font-size:11px; font-weight:700; color:var(--txt2);
@@ -2150,6 +2154,13 @@ function loadCurrentSession() { try { return JSON.parse(localStorage.getItem('mw
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
+  // When the floating timer bar is visible, auto-scroll so the bottom
+  // navigation buttons aren't hidden behind it.
+  if (id !== 'workout' && (_restTimer || _restExpiredWhileHidden)) {
+    requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight }));
+  } else if (id !== 'workout') {
+    window.scrollTo({ top: 0 });
+  }
 }
 function goHome() {
   S.session = null;
@@ -3290,10 +3301,7 @@ function startRestTimer(secs, activeEx) {
   const overlay = document.getElementById('rest-overlay');
   const display = document.getElementById('rest-ov-time');
   overlay.classList.add('active');
-  // Push content above the floating bar on all screens
-  document.body.style.paddingBottom = '160px';
-  const wkBody = document.getElementById('wk-body');
-  if (wkBody) wkBody.style.paddingBottom = '160px';
+  document.body.classList.add('timer-active');
   function _tick() {
     const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
     display.textContent = fmtRestSecs(rem);
@@ -3318,9 +3326,7 @@ function stopRestTimer(doAlert) {
   _restExpiredWhileHidden = false;
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
-  document.body.style.paddingBottom = '';
-  const wkBody = document.getElementById('wk-body');
-  if (wkBody) wkBody.style.paddingBottom = '';
+  document.body.classList.remove('timer-active');
   if (doAlert) {
     const s = getSettings();
     // Blink flash always fires
