@@ -3297,6 +3297,7 @@ function startRestTimer(secs, activeEx) {
   if (_restTimer) clearInterval(_restTimer);
   _restEndTime  = Date.now() + secs * 1000;
   _restExpiredWhileHidden = false;
+  localStorage.setItem('mwRestEnd', String(_restEndTime)); // survives backgrounded/killed JS
   if (activeEx !== undefined) _restActiveEx = activeEx;
   const overlay = document.getElementById('rest-overlay');
   const display = document.getElementById('rest-ov-time');
@@ -3324,6 +3325,7 @@ function startRestTimer(secs, activeEx) {
 function stopRestTimer(doAlert) {
   if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
   _restExpiredWhileHidden = false;
+  localStorage.removeItem('mwRestEnd');
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
   document.body.classList.remove('timer-active');
@@ -3376,17 +3378,27 @@ function jumpToActiveEx() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
-  // Timer expired while page was hidden — fire alert now that screen is visible
-  if (_restExpiredWhileHidden) {
-    setTimeout(() => stopRestTimer(true), 50);
+  // Use localStorage as the source of truth — works even when iOS froze the
+  // interval entirely or killed the JS context while the app was backgrounded.
+  const lsEnd  = parseInt(localStorage.getItem('mwRestEnd') || '0');
+  const expired = lsEnd > 0 && Date.now() >= lsEnd;
+
+  if (expired || _restExpiredWhileHidden) {
+    // Kill the interval now so _tick() can't also fire the alert
+    if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
+    // 100ms delay ensures the screen has painted before the flash plays
+    setTimeout(() => stopRestTimer(true), 100);
     return;
   }
-  // Timer still running — sync the display immediately instead of waiting for next tick
+  // Timer still running — sync display without waiting for the next interval tick
   if (_restTimer) {
     const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
     const display = document.getElementById('rest-ov-time');
     if (display) display.textContent = fmtRestSecs(rem);
-    if (rem <= 0) stopRestTimer(true);
+    if (rem <= 0) {
+      if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
+      setTimeout(() => stopRestTimer(true), 100);
+    }
   }
 });
 
