@@ -3350,7 +3350,12 @@ function jumpToActiveEx() {
   }
   setTimeout(() => {
     const el = document.getElementById('ec' + ei);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) {
+      const hd  = document.querySelector('.wk-hd');
+      const hdH = hd ? hd.offsetHeight : 0;
+      const top = el.getBoundingClientRect().top + window.scrollY - hdH - 8;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
   }, 60);
 }
 
