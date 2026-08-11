@@ -485,12 +485,6 @@
       font-size:13px; font-weight:700; padding:10px 18px; border-radius:14px;
       cursor:pointer; font-family:inherit; }
     .rest-ov-back:active { opacity:.7; }
-    .rest-alert-seg { display:flex; gap:6px; width:100%; }
-    .rest-alert-btn { flex:1; font-size:13px; font-weight:700; border:1px solid var(--border);
-      background:var(--card2); color:var(--txt2); padding:9px 0; border-radius:12px;
-      cursor:pointer; font-family:inherit; }
-    .rest-alert-btn.active { background:var(--a); color:#fff; border-color:var(--a); }
-    .rest-alert-btn:active { opacity:.7; }
 
 /* ── PROGRAMS / BUILDER ── */
 .prog-item { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
@@ -945,13 +939,9 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <span class="settings-lbl" data-t="countdown-lbl">Count down after each set</span>
           <button class="toggle-btn" id="rest-countdown-toggle" onclick="toggleRestCountdown()">OFF</button>
         </div>
-        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-          <span class="settings-lbl" data-t="alert-lbl">Alert when timer ends</span>
-          <div class="rest-alert-seg" id="rest-alert-seg">
-            <button class="rest-alert-btn" data-v="blink" onclick="setRestAlert('blink')" data-t="alert-blink">Blink</button>
-            <button class="rest-alert-btn" data-v="vibrate" onclick="setRestAlert('vibrate')" data-t="alert-vibrate">Vibrate</button>
-            <button class="rest-alert-btn" data-v="sound" onclick="setRestAlert('sound')" data-t="alert-sound">Sound</button>
-          </div>
+        <div class="settings-row">
+          <span class="settings-lbl" data-t="alarm-lbl">Sound when timer ends</span>
+          <button class="toggle-btn" id="rest-alarm-toggle" onclick="toggleRestAlarm()">OFF</button>
         </div>
         <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
           <span class="settings-lbl" data-t="timer-options">Timer options</span>
@@ -1478,7 +1468,6 @@ const TRANSLATIONS = {
     'best':'Best:','edit-history':'✏️ Edit history','close':'▲ Close',
     'exclude':'Exclude','excluded':'Excluded','sessions-label':'sessions',
     'rest-timer':'Rest Timer','countdown-lbl':'Count down after each set',
-    'alert-lbl':'Alert when timer ends','alert-blink':'Blink','alert-vibrate':'Vibrate (Android)','alert-sound':'Sound',
     'back-to-ex':'↑ Exercise',
     'timer-options':'Timer options',
     'workout-programs':'Workout Programs','manage-programs':'📦 Manage Programs',
@@ -1529,7 +1518,6 @@ const TRANSLATIONS = {
     'best':'הטוב ביותר:','edit-history':'✏️ ערוך היסטוריה','close':'▲ סגור',
     'exclude':'הסר','excluded':'מוסר','sessions-label':'סשנים',
     'rest-timer':'טיימר מנוחה','countdown-lbl':'ספירה לאחור אחרי כל סט',
-    'alert-lbl':'התראה בסיום הטיימר','alert-blink':'הבהוב','alert-vibrate':'רטט (אנדרואיד)','alert-sound':'צליל',
     'back-to-ex':'↑ תרגיל',
     'timer-options':'אפשרויות טיימר',
     'workout-programs':'תוכניות אימון','manage-programs':'📦 ניהול תוכניות',
@@ -3183,10 +3171,11 @@ function showSettings() {
     toggle.textContent = s.restCountdown ? 'ON' : 'OFF';
     toggle.classList.toggle('on', !!s.restCountdown);
   }
-  const alertType = s.restAlert || (s.restAlarm ? 'sound' : 'blink');
-  document.querySelectorAll('#rest-alert-seg .rest-alert-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.v === alertType);
-  });
+  const alarmToggle = document.getElementById('rest-alarm-toggle');
+  if (alarmToggle) {
+    alarmToggle.textContent = s.restAlarm ? 'ON' : 'OFF';
+    alarmToggle.classList.toggle('on', !!s.restAlarm);
+  }
   // Grey out the alert + timer-options rows when countdown is disabled
   const timerOff = !s.restCountdown;
   document.querySelectorAll('#screen-settings .settings-section')[0]
@@ -3214,13 +3203,12 @@ function toggleRestCountdown() {
   showSettings();
 }
 
-function setRestAlert(type) {
-  if (type === 'sound') unlockAudio();
+function toggleRestAlarm() {
+  unlockAudio();
   const s = getSettings();
-  s.restAlert = type;
-  s.restAlarm = (type === 'sound'); // keep legacy field in sync
+  s.restAlarm = !s.restAlarm;
   putSettings(s);
-  if (type === 'sound') playAlarmBeep();
+  if (s.restAlarm) playAlarmBeep();
   showSettings();
 }
 
@@ -3235,9 +3223,7 @@ function _getAudioCtx() {
 // Call on any user tap to unlock audio (iOS requires this).
 // Only does anything if the alarm is actually ON — avoids blip sounds otherwise.
 function unlockAudio() {
-  const s = getSettings();
-  const alertType = s.restAlert || (s.restAlarm ? 'sound' : 'blink');
-  if (alertType !== 'sound') return;
+  if (!getSettings().restAlarm) return;
   const ctx = _getAudioCtx();
   if (ctx && ctx.state === 'suspended') ctx.resume();
 }
@@ -3319,18 +3305,13 @@ function stopRestTimer(doAlert) {
   if (wkBody) wkBody.style.paddingBottom = '';
   if (doAlert) {
     const s = getSettings();
-    const alertType = s.restAlert || (s.restAlarm ? 'sound' : 'blink');
-    // Visual flash — always shown as the primary "time's up" signal
+    // Blink flash always fires
     const flash = document.createElement('div');
     flash.className = 'timer-flash';
     document.body.appendChild(flash);
     setTimeout(() => flash.remove(), 1400);
-    if (alertType === 'vibrate' && navigator.vibrate) {
-      navigator.vibrate(600);
-    }
-    if (alertType === 'sound') {
-      playAlarmBeep();
-    }
+    // Sound only if toggled on
+    if (s.restAlarm) playAlarmBeep();
   }
 }
 
