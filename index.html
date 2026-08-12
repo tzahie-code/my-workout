@@ -119,6 +119,10 @@
       padding: 7px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600;
       font-family: inherit; white-space: nowrap; }
     .wk-back:active { opacity: .7; }
+    .wk-jump { background: none; border: 1px solid var(--border); color: var(--txt2);
+      padding: 7px 11px; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 700;
+      font-family: inherit; line-height: 1; }
+    .wk-jump:active { opacity: .7; }
     .wk-finish-all { border: none; color: white; padding: 7px 14px; border-radius: 10px;
       cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; white-space: nowrap; }
     .wk-finish-all:active { opacity: .8; }
@@ -856,6 +860,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div class="wk-title" id="wk-title"></div>
           <div class="wk-saved" id="wk-saved">✓ Saved</div>
         </div>
+        <button class="wk-jump" onclick="jumpToActiveEx()" title="Jump to current exercise">↑</button>
         <button class="wk-back" id="wk-back-btn" onclick="confirmEnd()">← Back</button>
         <button class="wk-finish-all" id="wk-finish-all-btn" onclick="endRoutine()" data-t="finish-workout">End Routine</button>
       </div>
@@ -3374,6 +3379,15 @@ function stopRestTimer(doAlert) {
 function skipRestTimer() { stopRestTimer(false); }
 
 function jumpToActiveEx() {
+  // Resolve which exercise to jump to: timer's exercise → expanded card → first incomplete
+  if (_restActiveEx === null || _restActiveEx === undefined) {
+    if (S.expanded !== null && S.expanded !== undefined) {
+      _restActiveEx = S.expanded;
+    } else if (S.session) {
+      const fi = S.session.exercises.findIndex(e => !e.sets.every(s => s.done));
+      _restActiveEx = fi >= 0 ? fi : 0;
+    }
+  }
   if (_restActiveEx === null || _restActiveEx === undefined) return;
   const ei = _restActiveEx;
   const onWorkout = document.getElementById('screen-workout')?.classList.contains('active');
@@ -5071,6 +5085,7 @@ function saveSetNote(ei, si, val) {
 
 function toggleSet(ei, si) {
   unlockAudio();
+  _restActiveEx = ei; // always track last-worked exercise for ↑ button
   savePendingInputs();
   const set = S.session.exercises[ei].sets[si];
   let justDone = false;
