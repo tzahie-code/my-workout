@@ -3280,6 +3280,8 @@ let _restTimer              = null;
 let _restEndTime            = 0;    // absolute timestamp when rest ends
 let _restActiveEx           = null; // exercise index that triggered the rest timer
 let _restExpiredWhileHidden = false; // timer ran out while page was invisible
+let _scheduledOscs          = [];   // pre-scheduled Web Audio oscillator nodes
+let _beepFired              = false; // true once pre-scheduled beep has played
 
 function parseRestSecs(str) {
   const parts = String(str).split(':');
@@ -3293,16 +3295,42 @@ function fmtRestSecs(secs) {
   return m + ':' + String(s).padStart(2, '0');
 }
 
+function _cancelScheduledBeep() {
+  _scheduledOscs.forEach(o => { try { o.stop(0); } catch (_) {} });
+  _scheduledOscs = [];
+}
+
 function startRestTimer(secs, activeEx) {
   if (_restTimer) clearInterval(_restTimer);
   _restEndTime  = Date.now() + secs * 1000;
   _restExpiredWhileHidden = false;
-  localStorage.setItem('mwRestEnd', String(_restEndTime)); // survives backgrounded/killed JS
+  _beepFired    = false;
+  localStorage.setItem('mwRestEnd', String(_restEndTime));
   if (activeEx !== undefined) _restActiveEx = activeEx;
   const overlay = document.getElementById('rest-overlay');
   const display = document.getElementById('rest-ov-time');
   overlay.classList.add('active');
   document.body.classList.add('timer-active');
+  // Pre-schedule the alarm beep via the Web Audio scheduler.
+  // Oscillators fire at the exact end-time without needing ctx.resume() then —
+  // this survives iOS re-suspending the AudioContext between now and expiry.
+  _cancelScheduledBeep();
+  if (getSettings().restAlarm) {
+    const ac = _getAudioCtx();
+    if (ac) ac.resume().then(() => {
+      const endT = ac.currentTime + secs;
+      [[880,0,0.15],[880,0.22,0.15],[1100,0.44,0.4]].forEach(([f,off,dur],i,arr) => {
+        const osc = ac.createOscillator(), g = ac.createGain();
+        osc.connect(g); g.connect(ac.destination);
+        osc.type = 'sine'; osc.frequency.value = f;
+        g.gain.setValueAtTime(0.5, endT+off);
+        g.gain.exponentialRampToValueAtTime(0.001, endT+off+dur);
+        osc.start(endT+off); osc.stop(endT+off+dur+0.05);
+        if (i === arr.length-1) osc.onended = () => { _beepFired = true; };
+        _scheduledOscs.push(osc);
+      });
+    }).catch(() => {});
+  }
   function _tick() {
     const rem = Math.max(0, Math.ceil((_restEndTime - Date.now()) / 1000));
     display.textContent = fmtRestSecs(rem);
@@ -3326,19 +3354,21 @@ function stopRestTimer(doAlert) {
   if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
   _restExpiredWhileHidden = false;
   localStorage.removeItem('mwRestEnd');
+  _cancelScheduledBeep(); // no-op if already fired; cancels if skipped/backgrounded
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
   document.body.classList.remove('timer-active');
   if (doAlert) {
-    const s = getSettings();
     // Blink flash always fires
     const flash = document.createElement('div');
     flash.className = 'timer-flash';
     document.body.appendChild(flash);
     setTimeout(() => flash.remove(), 1400);
-    // Sound only if toggled on
-    if (s.restAlarm) playAlarmBeep();
+    // Foreground: pre-scheduled nodes already fired (_beepFired = true) — skip.
+    // Background recovery: nodes didn't fire — fall back to playAlarmBeep().
+    if (getSettings().restAlarm && !_beepFired) playAlarmBeep();
   }
+  _beepFired = false;
 }
 
 function skipRestTimer() { stopRestTimer(false); }
