@@ -3383,17 +3383,9 @@ function jumpToActiveEx() {
   const exs = S.session.exercises;
   const start = (_restActiveEx !== null && _restActiveEx !== undefined) ? _restActiveEx : 0;
   let ei = start;
-  // If the current exercise is fully done, advance to the next incomplete one
+  // If the current exercise is fully done, find the first incomplete from the top
   if (exs[start] && exs[start].sets.every(s => s.done)) {
-    let found = -1;
-    for (let i = start + 1; i < exs.length; i++) {
-      if (!exs[i].sets.every(s => s.done)) { found = i; break; }
-    }
-    if (found === -1) {
-      for (let i = 0; i < start; i++) {
-        if (!exs[i].sets.every(s => s.done)) { found = i; break; }
-      }
-    }
+    const found = exs.findIndex(e => !e.sets.every(s => s.done));
     if (found >= 0) ei = found;
   }
   _restActiveEx = ei;
