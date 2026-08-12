@@ -3379,14 +3379,10 @@ function stopRestTimer(doAlert) {
 function skipRestTimer() { stopRestTimer(false); }
 
 function jumpToActiveEx() {
-  // Resolve which exercise to jump to: timer's exercise → expanded card → first incomplete
-  if (_restActiveEx === null || _restActiveEx === undefined) {
-    if (S.expanded !== null && S.expanded !== undefined) {
-      _restActiveEx = S.expanded;
-    } else if (S.session) {
-      const fi = S.session.exercises.findIndex(e => !e.sets.every(s => s.done));
-      _restActiveEx = fi >= 0 ? fi : 0;
-    }
+  // Resolve which exercise to jump to: last-tapped → first incomplete from top → exercise 0
+  if ((_restActiveEx === null || _restActiveEx === undefined) && S.session) {
+    const fi = S.session.exercises.findIndex(e => !e.sets.every(s => s.done));
+    _restActiveEx = fi >= 0 ? fi : 0;
   }
   if (_restActiveEx === null || _restActiveEx === undefined) return;
   const ei = _restActiveEx;
@@ -4491,6 +4487,7 @@ function startWorkout(rid) {
     S.rid = saved.rid; S.session = saved.session; S.expanded = null;
     S.viewing = false;
     show('workout'); wkRender();
+    jumpToActiveEx(); // auto-open & scroll to current exercise
     return;
   }
   // Block starting a different routine while an ACTIVE workout is already in progress
