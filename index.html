@@ -4615,8 +4615,13 @@ function wkUpdateProgressBar() {
   if (S.viewing) { row.style.display = 'none'; return; }
   row.style.display = '';
   const exs = S.session.exercises;
-  const fi  = exs.findIndex(e => !e.sets.every(s => s.done));
-  const cur = fi >= 0 ? fi + 1 : exs.length;
+  let cur;
+  if (_restActiveEx !== null && _restActiveEx !== undefined) {
+    cur = _restActiveEx + 1;
+  } else {
+    const fi = exs.findIndex(e => !e.sets.every(s => s.done));
+    cur = fi >= 0 ? fi + 1 : exs.length;
+  }
   const word = getLang() === 'he' ? 'תרגיל' : 'Exercise';
   label.textContent = `${word} ${cur} / ${exs.length}`;
 }
