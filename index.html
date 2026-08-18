@@ -4616,9 +4616,7 @@ function wkUpdateProgressBar() {
   row.style.display = '';
   const exs  = S.session.exercises;
   const done = exs.filter(e => e.sets.every(s => s.done)).length;
-  const cur  = Math.min(done + 1, exs.length);
-  const word = getLang() === 'he' ? 'תרגיל' : 'Exercise';
-  label.textContent = `${word} ${cur} / ${exs.length}`;
+  label.textContent = `${done} / ${exs.length}`;
 }
 
 function buildCard(ex, i) {
