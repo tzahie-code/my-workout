@@ -5981,34 +5981,33 @@ function authGoogleClick() {
 async function _startApp() {
   _appInited = true;
 
-  // ── Phase 1: Instant boot from local cache — no network, shows home in <50ms ──
-  const emailEl = document.getElementById('auth-user-email');
-  if (emailEl && _gUser) emailEl.textContent = _gUser.email || '';
+  try {
+    // ── Phase 1: Instant boot from local cache — no network, shows home in <50ms ──
+    const emailEl = document.getElementById('auth-user-email');
+    if (emailEl && _gUser) emailEl.textContent = _gUser.email || '';
 
-  loadProgram();
-  repairNullWeights();
+    loadProgram();
+    repairNullWeights();
 
-  const _savedLang = getSettings().lang || 'en';
-  if (_savedLang !== 'en') {
-    document.documentElement.dir  = 'rtl';
-    document.documentElement.lang = 'he';
+    const _savedLang = getSettings().lang || 'en';
+    if (_savedLang !== 'en') {
+      document.documentElement.dir  = 'rtl';
+      document.documentElement.lang = 'he';
+    }
+    _applyLangToDOM();
+
+    // One-time fast migrations — each isolated so one bad migration can't block startup
+    [_migrateVariantNames, _migrateVariantNamesV2, _migrateGroupNamesV3,
+     _migrateProgramCableHammer, _migrateVariantIndices, _migrateCSRFix,
+     _repairNullWeights, _repairRoutineSets, _migrateProgressOverridesToSessions
+    ].forEach(fn => { try { fn(); } catch(e) { console.warn('migration skipped:', fn.name, e); } });
+
+    homeUpdate();
+  } catch(e) {
+    console.error('_startApp error:', e);
   }
-  _applyLangToDOM();
 
-  // One-time fast migrations (local only, synchronous)
-  _migrateVariantNames();
-  _migrateVariantNamesV2();
-  _migrateGroupNamesV3();
-  _migrateProgramCableHammer();
-  _migrateVariantIndices();
-  _migrateCSRFix();
-  _repairNullWeights();
-  _repairRoutineSets();
-  _migrateProgressOverridesToSessions();
-
-  // Always start at home — active sessions are resumed via the "Resume" button
-  // on the home card. Never auto-jump into a workout on cold start.
-  homeUpdate();
+  // Always show home — even if something above threw, better to show home than stay stuck
   show('home');
 
   // ── Phase 2: Background sync — doesn't delay startup ─────────────────────
