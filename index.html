@@ -148,6 +148,8 @@
     .hi-edit-btn { background: none; border: none; color: var(--txt2); font-size: 15px;
       cursor: pointer; padding: 4px 8px; border-radius: 6px; opacity: .6; }
     .hi-edit-btn:active { color: var(--b); opacity: 1; }
+    .wk-ex-row { display:flex; justify-content:flex-end; padding:3px 14px 2px; }
+    .wk-ex-row span { font-size:11px; color:var(--txt2); font-weight:600; letter-spacing:.2px; }
     .wk-prog { height: 3px; background: var(--border); }
     .wk-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
     .wk-body { padding: 12px 16px 60px; -webkit-user-select: none; user-select: none; }
@@ -864,6 +866,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         <button class="wk-back" id="wk-back-btn" onclick="confirmEnd()">← Back</button>
         <button class="wk-finish-all" id="wk-finish-all-btn" onclick="endRoutine()" data-t="finish-workout">End Routine</button>
       </div>
+      <div class="wk-ex-row" id="wk-ex-row"><span id="wk-ex-label"></span></div>
       <div class="wk-prog"><div class="wk-fill" id="wk-fill" style="width:0%"></div></div>
     </div>
     <div class="wk-body" id="wk-body"></div>
@@ -4563,9 +4566,7 @@ function wkRender() {
   document.getElementById('wk-finish-all-btn').style.background = ac();
   document.getElementById('wk-finish-all-btn').style.display = S.viewing ? 'none' : '';
   document.getElementById('wk-fill').style.background = ac();
-  const total = rt.exercises.reduce((s,e)=>s+e.sets.length,0);
-  const done  = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
-  document.getElementById('wk-fill').style.width = S.viewing ? '0%' : (total?done/total*100:0)+'%';
+  wkUpdateProgressBar();
   document.getElementById('wk-body').innerHTML =
     rt.exercises.map((ex,i) => buildCard(ex,i)).join('');
 }
@@ -4601,13 +4602,23 @@ function wkRenderCard(i) {
   cardEl.remove();
 }
 
-// Update just the progress bar fill after a set toggle.
+// Update progress bar fill and exercise counter after a set toggle.
 function wkUpdateProgressBar() {
-  const rt = ROUTINES[S.rid];
+  const rt    = ROUTINES[S.rid];
   const total = rt.exercises.reduce((s,e)=>s+e.sets.length,0);
   const done  = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
   const fill  = document.getElementById('wk-fill');
   if (fill) fill.style.width = S.viewing ? '0%' : (total ? done/total*100 : 0)+'%';
+  const label = document.getElementById('wk-ex-label');
+  const row   = document.getElementById('wk-ex-row');
+  if (!label || !row) return;
+  if (S.viewing) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const exs = S.session.exercises;
+  const fi  = exs.findIndex(e => !e.sets.every(s => s.done));
+  const cur = fi >= 0 ? fi + 1 : exs.length;
+  const word = getLang() === 'he' ? 'תרגיל' : 'Exercise';
+  label.textContent = `${word} ${cur} / ${exs.length}`;
 }
 
 function buildCard(ex, i) {
