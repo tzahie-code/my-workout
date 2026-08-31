@@ -4627,9 +4627,11 @@ function wkUpdateProgressBar() {
   if (!label || !row) return;
   if (S.viewing) { row.style.display = 'none'; return; }
   row.style.display = '';
-  const exs      = S.session.exercises;
-  const exDone   = exs.filter(e => e.sets.every(s => s.done)).length;
-  label.textContent = `${exDone} / ${exs.length}`;
+  const exs       = S.session.exercises;
+  const exDone    = exs.filter(e => e.sets.every(s => s.done)).length;
+  const hasStarted = exs.some(e => e.sets.some(s => s.done));
+  const currentEx = hasStarted ? Math.min(exDone + 1, exs.length) : 0;
+  label.textContent = `${currentEx} / ${exs.length}`;
 }
 
 function buildCard(ex, i) {
