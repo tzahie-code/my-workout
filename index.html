@@ -127,6 +127,12 @@
     .wk-finish-all { border: none; color: white; padding: 7px 14px; border-radius: 10px;
       cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; white-space: nowrap; }
     .wk-finish-all:active { opacity: .8; }
+    .wk-mode-switch { display:none; grid-template-columns:1fr 1fr; gap:4px; padding:4px;
+      margin:0 0 8px; background:var(--card2); border-radius:12px; }
+    .wk-mode-switch.show { display:grid; }
+    .wk-mode-btn { border:0; border-radius:9px; padding:9px 8px; background:transparent;
+      color:var(--txt2); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .wk-mode-btn.active { background:var(--card); color:var(--a); box-shadow:var(--sh); }
     .hi-del { background: none; border: none; color: var(--txt2); font-size: 16px;
       cursor: pointer; padding: 4px 8px; border-radius: 6px; opacity: .6; }
     .hi-del:active { color: var(--red); opacity: 1; }
@@ -162,6 +168,9 @@
       transition: border-color .2s, box-shadow .2s;
       contain: layout style; }
     .ec.comp   { border-color: rgba(48,209,88,.4); box-shadow: 0 4px 24px rgba(48,209,88,.08); }
+    .ec-mode-prescription { display:inline-flex; align-items:center; padding:5px 8px;
+      border-radius:8px; background:var(--card2); color:var(--a); font-size:13px;
+      font-weight:800; direction:ltr; }
     .ec.exp-a  { border-color: rgba(255,107,53,.5); box-shadow: 0 4px 24px rgba(255,107,53,.1); }
     .ec.exp-b  { border-color: rgba(77,142,248,.5); box-shadow: 0 4px 24px rgba(77,142,248,.1); }
     .ec.inprog { border-left: 3px solid var(--a); animation: inprog-glow 1.8s ease-in-out infinite; }
@@ -867,6 +876,10 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
         <button class="wk-jump" onclick="jumpToActiveEx()" title="Jump to current exercise">↑</button>
         <button class="wk-back" id="wk-back-btn" onclick="confirmEnd()">← Back</button>
         <button class="wk-finish-all" id="wk-finish-all-btn" onclick="endRoutine()" data-t="finish-workout">End Routine</button>
+      </div>
+      <div class="wk-mode-switch" id="wk-mode-switch">
+        <button class="wk-mode-btn" id="wk-mode-heavy" onclick="switchWorkoutMode('heavy')">Heavy</button>
+        <button class="wk-mode-btn" id="wk-mode-pump" onclick="switchWorkoutMode('pump')">Pump</button>
       </div>
       <div class="wk-ex-row" id="wk-ex-row"><span id="wk-ex-label"></span></div>
       <div class="wk-prog"><div class="wk-fill" id="wk-fill" style="width:0%"></div></div>
@@ -2176,6 +2189,7 @@ function _meaningfulSnap() {
   if (!S.session) return null;
   return JSON.stringify({
     rid: S.rid,
+    mode: S.session.mode || null,
     viewing: S.viewing || false,
     exs: S.session.exercises.map(ex => ({
       name: ex.name, machine: ex.machine, comment: ex.comment,
@@ -2713,11 +2727,11 @@ let _builderReorderMode = false;
 function _routinesToBuilderState(routines, name) {
   return {
     name,
-    A: { label: routines.A.label||'Routine A', exercises: routines.A.exercises.map(ex => {
+    A: { label: routines.A.label||'Routine A', modes: routines.A.modes, exercises: routines.A.exercises.map(ex => {
       const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
       return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
     })},
-    B: { label: routines.B.label||'Routine B', exercises: routines.B.exercises.map(ex => {
+    B: { label: routines.B.label||'Routine B', modes: routines.B.modes, exercises: routines.B.exercises.map(ex => {
       const lib = EXERCISE_LIBRARY.find(e => e.name === ex.name);
       return { name: ex.name, muscles: ex.muscles||[], img: ex.img||(lib&&lib.img)||'', key: ex.key||false, machine: ex.machine||'', variants: ex.variants, setCount: ex.sets.length };
     })}
@@ -3233,13 +3247,13 @@ function _builderResolveSets(ex, rid) {
 function saveBuilder() {
   const name = (_builderState.name||'').trim() || 'My Program';
   const routines = {
-    A: { id:'A', label: _builderState.A.label||'Routine A', locker: ROUTINES.A.locker||'',
+    A: { id:'A', label: _builderState.A.label||'Routine A', locker: ROUTINES.A.locker||'', modes:_builderState.A.modes,
       exercises: _builderState.A.exercises.map(ex => ({
         name: ex.name, key: ex.key||false, machine: ex.machine||'', muscles: ex.muscles||[],
         img: ex.img||'', variants: ex.variants,
         sets: _builderResolveSets(ex, 'A')
       }))},
-    B: { id:'B', label: _builderState.B.label||'Routine B', locker: ROUTINES.B.locker||'',
+    B: { id:'B', label: _builderState.B.label||'Routine B', locker: ROUTINES.B.locker||'', modes:_builderState.B.modes,
       exercises: _builderState.B.exercises.map(ex => ({
         name: ex.name, key: ex.key||false, machine: ex.machine||'', muscles: ex.muscles||[],
         img: ex.img||'', variants: ex.variants,
@@ -4100,7 +4114,9 @@ function getExerciseProgress(exName, variantIdx) {
 function getLastUpscaleDirect(exName) {
   const d = get();
   const ovs = (getProgressOverrides()[exName]) || {};
-  const pts = d.sessions.sort((a,b) => a.id - b.id).map(s => {
+  const pts = d.sessions
+    .filter(s => !S.session?.mode || s.mode === S.session.mode)
+    .sort((a,b) => a.id - b.id).map(s => {
     const raw = _rawPoint(s, exName, undefined, true);
     if (!raw) return null;
     const ov = ovs[s.id] || {};
@@ -4400,25 +4416,11 @@ function viewRoutine(rid) {
     S.viewing = true;
   } else {
     S.rid = rid; S.expanded = null; S.viewing = true;
+    const mode = getWorkoutMode(rid);
     S.session = {
-      id: Date.now(), routine: rid,
+      id: Date.now(), routine: rid, mode,
       startTime: Date.now(), endTime: null,
-      exercises: ROUTINES[rid].exercises.map(ex => {
-        const vIdx  = ex.variants ? getVariantIdx(ex.name) : undefined;
-        const aName = ex.variants ? ex.variants[vIdx||0] : ex.name;
-        const p     = getPrefs();
-        return {
-          name: ex.name,
-          machine:    (p.machines && p.machines[aName])  || ex.machine || '',
-          comment:    (p.comments && p.comments[aName])  || '',
-          variantIdx: vIdx,
-          sets: ex.sets.map((def,si) => ({
-            w:null, r:null, done:false,
-            note: (p.setNotes && p.setNotes[aName] && p.setNotes[aName][si] != null)
-                    ? p.setNotes[aName][si] : (def.n||'')
-          }))
-        };
-      })
+      exercises: _newSessionExercises(rid, mode)
     };
   }
   show('workout'); wkRender();
@@ -4438,6 +4440,63 @@ function getPrefs() {
   try { return JSON.parse(localStorage.getItem(userStorageKey('mwPrefs'))) || {}; } catch(e) { return {}; }
 }
 function putPrefs(p) { localStorage.setItem(userStorageKey('mwPrefs'), JSON.stringify(p)); sbSaveDebounced(); }
+
+function routineSupportsModes(rid) {
+  const modes = ROUTINES[rid]?.modes;
+  return Array.isArray(modes) && modes.includes('heavy') && modes.includes('pump');
+}
+function getWorkoutMode(rid) {
+  if (!routineSupportsModes(rid)) return null;
+  return getPrefs().workoutModes?.[rid] === 'pump' ? 'pump' : 'heavy';
+}
+function _modeSetDefs(ex, mode) {
+  if (!mode) return ex.sets || [];
+  const match = mode === 'heavy' ? /^(כבד|heavy)/i : /^(פאמפ|pump)/i;
+  const filtered = (ex.sets || []).filter(def => match.test(String(def.n || '').trim()));
+  return filtered.length ? filtered : (ex.sets || []);
+}
+function _modeMemoryKey(exName, mode = S.session?.mode) {
+  return mode ? `${exName}::${mode}` : exName;
+}
+function _newSessionExercises(rid, mode) {
+  const p = getPrefs();
+  return ROUTINES[rid].exercises.map(ex => {
+    const vIdx  = ex.variants ? getVariantIdx(ex.name) : undefined;
+    const aName = ex.variants ? ex.variants[vIdx || 0] : ex.name;
+    return {
+      name: ex.name,
+      activeName: aName,
+      machine: (p.machines && p.machines[aName]) || ex.machine || '',
+      comment: (p.comments && p.comments[aName]) || '',
+      variantIdx: vIdx,
+      sets: _modeSetDefs(ex, mode).map((def, si) => ({
+        w:null, r:null, done:false,
+        note: (p.setNotes && p.setNotes[aName] && p.setNotes[aName][si] != null)
+          ? p.setNotes[aName][si] : (def.n || '')
+      }))
+    };
+  });
+}
+
+function switchWorkoutMode(mode) {
+  if (!S.session || !routineSupportsModes(S.rid) || !['heavy','pump'].includes(mode)) return;
+  if (S.session.mode === mode) return;
+  const hasProgress = S.session.exercises.some(ex => ex.sets.some(set => set.done));
+  if (hasProgress && !S.viewing) {
+    alert(getLang()==='he' ? 'לא ניתן לשנות מצב אחרי תחילת האימון.' : 'You cannot change mode after starting the workout.');
+    return;
+  }
+  savePendingInputs();
+  const p = getPrefs();
+  if (!p.workoutModes) p.workoutModes = {};
+  p.workoutModes[S.rid] = mode;
+  putPrefs(p);
+  S.session.mode = mode;
+  S.session.exercises = _newSessionExercises(S.rid, mode);
+  S.expanded = null;
+  saveCurrentSession();
+  wkRender();
+}
 
 function getExName(origName) {
   const p = getPrefs();
@@ -4572,6 +4631,12 @@ function _reconcileSession(session, rid) {
   // Add any exercises in ROUTINES that are missing from the saved session
   // (e.g. user added an exercise via builder while a session was in progress)
   const p = getPrefs();
+  const mode = session.mode || getWorkoutMode(rid);
+  if (routineSupportsModes(rid) && !session.mode) {
+    session.mode = mode;
+    session.exercises = _newSessionExercises(rid, mode);
+    return;
+  }
   ROUTINES[rid].exercises.forEach(ex => {
     const already = session.exercises.find(e => e.name === ex.name);
     if (already) return; // already in session
@@ -4582,7 +4647,7 @@ function _reconcileSession(session, rid) {
       machine:    (p.machines  && p.machines[aName])  || ex.machine || '',
       comment:    (p.comments  && p.comments[aName])  || '',
       variantIdx: vIdx,
-      sets: ex.sets.map((def,si) => ({
+      sets: _modeSetDefs(ex, mode).map((def,si) => ({
         w: null, r: null, done: false,
         note: (p.setNotes && p.setNotes[aName] && p.setNotes[aName][si] != null)
                 ? p.setNotes[aName][si] : (def.n||'')
@@ -4616,26 +4681,11 @@ function startWorkout(rid) {
     clearCurrentSession();
   }
   S.rid = rid; S.expanded = null; S.viewing = false;
+  const mode = getWorkoutMode(rid);
   S.session = {
-    id: Date.now(), routine: rid,
+    id: Date.now(), routine: rid, mode,
     startTime: Date.now(), endTime: null,
-    exercises: ROUTINES[rid].exercises.map(ex => {
-      const vIdx    = ex.variants ? getVariantIdx(ex.name) : undefined;
-      const aName   = ex.variants ? ex.variants[vIdx||0] : ex.name;
-      const p       = getPrefs();
-      return {
-        name: ex.name,
-        activeName: aName,  // actual variant being done — used for history lookup after rename/re-add
-        machine:    (p.machines  && p.machines[aName])  || ex.machine || '',
-        comment:    (p.comments  && p.comments[aName])  || '',
-        variantIdx: vIdx,
-        sets: ex.sets.map((def,si) => ({
-          w:null, r:null, done:false,
-          note: (p.setNotes && p.setNotes[aName] && p.setNotes[aName][si] != null)
-                  ? p.setNotes[aName][si] : (def.n||'')
-        }))
-      };
-    })
+    exercises: _newSessionExercises(rid, mode)
   };
   show('workout');
   wkRender();
@@ -4672,6 +4722,16 @@ function wkRender() {
   document.getElementById('wk-finish-all-btn').style.background = ac();
   document.getElementById('wk-finish-all-btn').style.display = S.viewing ? 'none' : '';
   document.getElementById('wk-fill').style.background = ac();
+  const modeSwitch = document.getElementById('wk-mode-switch');
+  const supportsModes = routineSupportsModes(S.rid);
+  modeSwitch.classList.toggle('show', supportsModes);
+  if (supportsModes) {
+    const mode = S.session.mode || getWorkoutMode(S.rid);
+    document.getElementById('wk-mode-heavy').classList.toggle('active', mode === 'heavy');
+    document.getElementById('wk-mode-pump').classList.toggle('active', mode === 'pump');
+    document.getElementById('wk-mode-heavy').textContent = getLang()==='he' ? 'כבד' : 'Heavy';
+    document.getElementById('wk-mode-pump').textContent = getLang()==='he' ? 'פאמפ' : 'Pump';
+  }
   wkUpdateProgressBar();
   document.getElementById('wk-body').innerHTML =
     rt.exercises.map((ex,i) => buildCard(ex,i)).join('');
@@ -4710,8 +4770,7 @@ function wkRenderCard(i) {
 
 // Update progress bar fill and exercise counter after a set toggle.
 function wkUpdateProgressBar() {
-  const rt    = ROUTINES[S.rid];
-  const total = rt.exercises.reduce((s,e)=>s+e.sets.length,0);
+  const total = S.session.exercises.reduce((s,e)=>s+e.sets.length,0);
   const done  = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
   const fill  = document.getElementById('wk-fill');
   if (fill) fill.style.width = S.viewing ? '0%' : (total ? done/total*100 : 0)+'%';
@@ -4729,6 +4788,9 @@ function wkUpdateProgressBar() {
 
 function buildCard(ex, i) {
   const ses     = S.session.exercises[i];
+  const modeDefs = _modeSetDefs(ex, S.session.mode);
+  const prescription = modeDefs.length && modeDefs.every(def => String(def.r || '') === String(modeDefs[0].r || ''))
+    ? `${modeDefs.length} × ${modeDefs[0].r || '—'}` : '';
   const allDone    = ses.sets.every(s=>s.done);
   const doneCnt    = ses.sets.filter(s=>s.done).length;
   const inProgress = !allDone && doneCnt > 0;
@@ -4800,7 +4862,7 @@ function buildCard(ex, i) {
   let expandHtml = '';
   if (isExp) {
     const focCls = isB ? ' fb' : '';
-    const setRows = ex.sets.map((def, si) => {
+    const setRows = modeDefs.map((def, si) => {
       const set  = ses.sets[si];
       const isVariant = variants && variantIdx !== 0; // true when showing the substitute exercise
       const prevW = prevSetW(activeName, si, ex.name, variantIdx);   // for input pre-fill (includes pending)
@@ -4901,7 +4963,7 @@ function buildCard(ex, i) {
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
           onclick="event.stopPropagation()"
           oninput="saveComment(${i},this.value)">
-        <div class="ec-row">${dots}${inProgress && !isExp ? `<span class="ec-prog-badge"><span class="ec-prog-dot"></span>${doneCnt}/${ses.sets.length}</span>` : ''}</div>
+        <div class="ec-row">${prescription ? `<span class="ec-mode-prescription">${prescription}</span>` : ''}${dots}${inProgress && !isExp ? `<span class="ec-prog-badge"><span class="ec-prog-dot"></span>${doneCnt}/${ses.sets.length}</span>` : ''}</div>
       </div>
       ${S.viewing ? '' : `<div class="ec-quick-wrap" onclick="event.stopPropagation()">
         <button class="ec-quick-ck${qkCls}" onclick="quickToggleExercise(${i})">${qkIcon}</button>
@@ -4929,13 +4991,14 @@ function prevSetW(name, idx, baseName, variantIdx) {
   // Used for INPUT PRE-FILL only — includes pending (_pw) values from current session.
   // 'name' = active variant name (or exercise name if no variants)
   const p = getPrefs();
-  const _pw = p.lastWeights?.[name]?.[idx];
+  const memoryKey = _modeMemoryKey(name);
+  const _pw = p.lastWeights?.[memoryKey]?.[idx];
   if (_pw != null && _pw !== '') return _pw;
   // Fall back to session history — scan ALL recent sessions, not just the latest.
   // Also check the base name as a safety net for any pre-migration history entries,
   // but only when variantIdx matches (prevents cross-variant weight leakage).
   const d = get();
-  const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
+  const sessions = d.sessions.filter(s=>s.routine===S.rid && (!S.session?.mode || s.mode===S.session.mode)).sort((a,b)=>b.id-a.id);
   for (const sess of sessions) {
     let ex = sess.exercises.find(e => e.name === name);
     if (!ex && baseName) {
@@ -4952,7 +5015,7 @@ function lastDoneW(name, idx, baseName, variantIdx) {
   // from pending inputs. This way typing or "Copy first to all" never corrupts
   // the "Last" label, which should always reflect the previous completed session.
   const d = get();
-  const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
+  const sessions = d.sessions.filter(s=>s.routine===S.rid && (!S.session?.mode || s.mode===S.session.mode)).sort((a,b)=>b.id-a.id);
   for (const sess of sessions) {
     let ex = sess.exercises.find(e => e.name === name);
     if (!ex && baseName) {
@@ -4968,17 +5031,18 @@ function saveLastWeights(exName, sets) {
   const p = getPrefs();
   if (!p.lastWeights) p.lastWeights = {};
   if (!p.lastReps)    p.lastReps    = {};
-  const prevW = p.lastWeights[exName] || [];
-  const prevR = p.lastReps[exName]    || [];
+  const memoryKey = _modeMemoryKey(exName);
+  const prevW = p.lastWeights[memoryKey] || [];
+  const prevR = p.lastReps[memoryKey]    || [];
   // Preserve existing prefs values for sets the user hasn't touched yet.
   // Treat _pw/'' (empty string) same as undefined — savePendingInputs sets _pw=''
   // for expanded-but-untouched inputs, which must NOT clobber historical values.
-  p.lastWeights[exName] = sets.map((s, i) => {
+  p.lastWeights[memoryKey] = sets.map((s, i) => {
     if (s.done)                          return s.w  ?? null;
     if (s._pw != null && s._pw !== '')   return s._pw;
     return prevW[i] ?? null;   // untouched or empty — keep previous
   });
-  p.lastReps[exName] = sets.map((s, i) => {
+  p.lastReps[memoryKey] = sets.map((s, i) => {
     if (s.done)                          return s.r  ?? null;
     if (s._pr != null && s._pr !== '')   return s._pr;
     return prevR[i] ?? null;
@@ -4987,11 +5051,11 @@ function saveLastWeights(exName, sets) {
 }
 function prevSetR(name, idx, baseName) {
   const p = getPrefs();
-  const _pr = p.lastReps?.[name]?.[idx];
+  const _pr = p.lastReps?.[_modeMemoryKey(name)]?.[idx];
   if (_pr != null && _pr !== '') return _pr;
   // Also scan session history for reps; check base name too for pre-migration safety.
   const d = get();
-  const sessions = d.sessions.filter(s=>s.routine===S.rid).sort((a,b)=>b.id-a.id);
+  const sessions = d.sessions.filter(s=>s.routine===S.rid && (!S.session?.mode || s.mode===S.session.mode)).sort((a,b)=>b.id-a.id);
   for (const sess of sessions) {
     const ex = sess.exercises.find(e => e.name === name || (baseName && e.name === baseName));
     if (ex && ex.sets[idx] && ex.sets[idx].done && ex.sets[idx].r != null)
@@ -5251,14 +5315,16 @@ function completeExercise(ei) {
   // When the card is collapsed, savePendingInputs can't read DOM inputs, so _pw is
   // never set. Fall back to lastWeights prefs — the same value shown as pre-fill.
   const name = activeExName(ei);
-  const savedW = (getPrefs().lastWeights || {})[name] || [];
-  const savedR = (getPrefs().lastReps    || {})[name] || [];
+  const memoryKey = _modeMemoryKey(name);
+  const savedW = (getPrefs().lastWeights || {})[memoryKey] || [];
+  const savedR = (getPrefs().lastReps    || {})[memoryKey] || [];
+  const modeDefs = _modeSetDefs(def, S.session.mode);
   ex.sets.forEach((set, si) => {
     if (!set.done) {
       set.w = (set._pw !== undefined && set._pw !== '') ? set._pw
-            : (set.w  !== null ? set.w  : (savedW[si] ?? def.sets[si]?.w ?? null));
+            : (set.w  !== null ? set.w  : (savedW[si] ?? modeDefs[si]?.w ?? null));
       set.r = (set._pr !== undefined && set._pr !== '') ? set._pr
-            : (set.r  !== null ? set.r  : (savedR[si] ?? def.sets[si]?.r ?? null));
+            : (set.r  !== null ? set.r  : (savedR[si] ?? modeDefs[si]?.r ?? null));
       delete set._pw; delete set._pr;
       set.done = true;
     }
@@ -5317,8 +5383,9 @@ function switchVariant(ei) {
       // Clear pending typed values so the new variant's last weights show
       delete set._pw; delete set._pr;
       // Inherit set notes from the main exercise when the variant has none saved
+      const modeDefs = _modeSetDefs(ex, S.session.mode);
       set.note = (p.setNotes && p.setNotes[newName] && p.setNotes[newName][si] != null)
-                   ? p.setNotes[newName][si] : (ex.sets[si]?.n || '');
+                   ? p.setNotes[newName][si] : (modeDefs[si]?.n || '');
     }
   });
   wkRenderCard(ei);
@@ -5449,7 +5516,8 @@ function _sessDetailHtml(s) {
   const tot     = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
   const color   = s.routine==='A' ? 'var(--a)' : 'var(--b)';
   const dateStr = new Date(s.id).toLocaleDateString(locale,{weekday:'short',month:'short',day:'numeric'});
-  const subTxt  = `${dateStr} · ${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
+  const modeTxt = s.mode ? (s.mode === 'heavy' ? (getLang()==='he'?'כבד':'Heavy') : (getLang()==='he'?'פאמפ':'Pump')) : '';
+  const subTxt  = `${dateStr}${modeTxt?' · '+modeTxt:''} · ${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
 
   let bodyHtml;
   if (editing) {
@@ -5594,7 +5662,8 @@ function histRender() {
           const tot    = s.exercises.reduce((x,e)=>x+e.sets.filter(y=>y.done).length,0);
           const durMin = s.endTime ? Math.round((s.endTime-s.id)/60000) : null;
           const dayLbl = new Date(s.id).toLocaleDateString(locale,{weekday:'long',month:'short',day:'numeric'});
-          const meta   = `${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
+          const modeTxt = s.mode ? (s.mode === 'heavy' ? (isHe?'כבד':'Heavy') : (isHe?'פאמפ':'Pump')) : '';
+          const meta   = `${modeTxt?modeTxt+' · ':''}${tot} ${t('sets')}${durMin?' · '+durMin+' '+t('min'):''}`;
           const dayKey = _dateKey(s.id);
           return `<div class="cal-week-item" onclick="calGotoDay('${dayKey}')">
             <div class="cal-week-badge cal-week-badge-${s.routine.toLowerCase()}">${s.routine}</div>

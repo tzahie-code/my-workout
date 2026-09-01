@@ -6,13 +6,13 @@ const exercise = (name, muscles, blocks, img) => ({
 });
 
 export const NOAM_EMAIL = 'noamweisbrun@gmail.com';
-// Version 3 targets the verified email address shown in Noam's profile.
-export const NOAM_PROGRAM_SEED_VERSION = 3;
+// Version 4 adds separate Heavy and Pump workout modes.
+export const NOAM_PROGRAM_SEED_VERSION = 4;
 
 export const NOAM_PROGRAM = {
   name: 'Heavy + Pump',
   routines: {
-    A: { id:'A', label:'Back, Chest & Biceps', locker:'', exercises:[
+    A: { id:'A', label:'Back, Chest & Biceps', locker:'', modes:['heavy','pump'], exercises:[
       exercise('Lat Pulldown', ['lat','upper-back','bicep'], [['כבד',4,'6-8'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Lat-Pulldown.gif'),
       exercise('Chest Supported Row', ['upper-back','lat','bicep'], [['כבד',4,'8-10'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/45-Degree-Incline-Row.gif'),
       exercise('Shrugs', ['upper-back'], [['כבד',3,'10-15'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/10/smith-machine-shrug.gif'),
@@ -24,7 +24,7 @@ export const NOAM_PROGRAM = {
       exercise('Cable Rope Hammer Curl', ['bicep','forearm'], [['כבד',3,'10-12'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif'),
       exercise('Cable Bar Curl', ['bicep'], [['כבד',3,'10-12'],['פאמפ',2,'15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif')
     ]},
-    B: { id:'B', label:'Legs, Glutes, Shoulders & Triceps', locker:'', exercises:[
+    B: { id:'B', label:'Legs, Glutes, Shoulders & Triceps', locker:'', modes:['heavy','pump'], exercises:[
       exercise('Leg Extension', ['quad'], [['פאמפ',3,'15-20'],['כבד',4,'8-10']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/LEG-EXTENSION.gif'),
       exercise('Leg Press', ['quad','glute','hamstring'], [['פאמפ',3,'12-15'],['כבד',4,'8-10']], 'https://fitnessprogramer.com/wp-content/uploads/2015/11/Leg-Press.gif'),
       exercise('Seated Leg Curl', ['hamstring'], [['פאמפ - קליל',3,'12-15'],['כבד',4,'8-10']], 'https://fitnessprogramer.com/wp-content/uploads/2021/08/Seated-Leg-Curl.gif'),
