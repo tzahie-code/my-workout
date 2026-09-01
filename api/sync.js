@@ -109,7 +109,10 @@ export default async function handler(req) {
   // ── POST — save user data ─────────────────────────────────
   if (req.method === 'POST') {
     const body    = await req.json();
-    const dataStr = JSON.stringify(body.data || {});
+    // Old clients may upload stale cached data before receiving the one-time
+    // Noam seed. Apply the same guarded seed on writes so they cannot erase it.
+    const seeded  = seedNoamProgram(body.data || {}, email);
+    const dataStr = JSON.stringify(seeded.data);
     await tursoExec(
       `INSERT INTO user_data (user_id, email, data, updated_at) VALUES (?, ?, ?, ?)
        ON CONFLICT(user_id) DO UPDATE SET

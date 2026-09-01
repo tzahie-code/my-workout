@@ -1318,7 +1318,7 @@ const USER_MIGRATION_KEYS = [
 
 const LEGACY_USER_STORAGE_KEYS = [
   'mwData3', 'mwPrefs', 'mwCurrent', 'mwProgram', 'mwArchives', 'mwDraft',
-  'mwProgOverrides', 'mwRestEnd', ...USER_MIGRATION_KEYS
+  'mwProgOverrides', 'mwSeedVersions', 'mwRestEnd', ...USER_MIGRATION_KEYS
 ];
 
 function migrateLegacyUserDataForCurrentUser() {
@@ -1354,7 +1354,8 @@ async function syncToTurso() {
         currentSession: loadCurrentSession(),
         program:        getProgramData(),
         archives:       getArchives(),
-        progressOverrides: getProgressOverrides()
+        progressOverrides: getProgressOverrides(),
+        seedVersions:   getSeedVersions()
       }})
     });
   } catch(e) { console.warn('Turso sync failed:', e); }
@@ -2545,6 +2546,7 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function programStorageKey(userId = getUserId()) { return userStorageKey('mwProgram', userId); }
 function getProgramData() { try { return JSON.parse(localStorage.getItem(programStorageKey())||'null'); } catch{ return null; } }
 function putProgramData(p) { localStorage.setItem(programStorageKey(), JSON.stringify(p)); sbSaveDebounced(); }
+function getSeedVersions() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwSeedVersions'))||'{}'); } catch{ return {}; } }
 function getArchives() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwArchives'))||'[]'); } catch{ return []; } }
 function putArchives(a) { localStorage.setItem(userStorageKey('mwArchives'), JSON.stringify(a)); sbSaveDebounced(); }
 function getDraft() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwDraft'))||'null'); } catch{ return null; } }
@@ -6138,11 +6140,15 @@ async function _bgSync() {
       let changed = false;
       let loadedUserData = false;
       // Load program FIRST so ROUTINES is up-to-date before migrations run.
-      if (remote.program?.routines && !getProgramData()) {
+      const hasServerProgramSeed = !!remote.seedVersions?.noamProgram;
+      if (remote.program?.routines && (!getProgramData() || hasServerProgramSeed)) {
         localStorage.setItem(programStorageKey(), JSON.stringify(remote.program));
         loadProgram();
         changed = true;
         loadedUserData = true;
+      }
+      if (remote.seedVersions) {
+        localStorage.setItem(userStorageKey('mwSeedVersions'), JSON.stringify(remote.seedVersions));
       }
       if (remote.workouts?.sessions) {
         const local = get();
