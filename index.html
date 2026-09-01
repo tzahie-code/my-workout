@@ -1407,6 +1407,8 @@ const HE_MUSCLE_LABELS = {
 const HE_ROUTINE_LABELS = {
   'Legs, Back & Abs':        'רגליים, גב ובטן',
   'Chest, Shoulders & Arms': 'חזה, כתפיים וידיים',
+  'Back, Chest & Biceps':    'גב, חזה ויד קדמית',
+  'Legs, Glutes, Shoulders & Triceps': 'רגליים, ישבן, כתפיים ויד אחורית',
 };
 function tLabel(label) {
   if (!label) return '';
@@ -1417,6 +1419,8 @@ function tLabel(label) {
 const HE_EXERCISE_NAMES = {
   'Barbell Bench Press':'לחיצת חזה עם מוט',
   'Machine Chest Press':'לחיצת חזה במכונה',
+  'Smith Incline Press':'לחיצת חזה עליון בסמית׳',
+  'Cable Fly':'פרפר בכבלים',
   'Incline Dumbbell Press':'לחיצת חזה בשיפוע',
   'Decline Dumbbell Press':'לחיצת חזה שיפוע שלילי',
   'Pec Deck':'פרפר',
@@ -1486,6 +1490,15 @@ const HE_EXERCISE_NAMES = {
   'Seated Row / Chest Supported Row':'חתירה / תמיכת חזה',
   'Seated Row':'חתירה בישיבה',
   'Chest Supported Row':'חתירה תמיכת חזה',
+  'Shrugs':'משיכות כתפיים',
+  'Bayesian Cable Curl':'כפיפת מרפק בייסיאנית בכבל',
+  'Cable Rope Hammer Curl':'כפיפת פטיש בחבל',
+  'Cable Bar Curl':'כפיפת מרפק בכבל עם מוט',
+  'Seated Leg Curl':'כפיפת ברכיים בישיבה',
+  'Multi Hip - Abduction + Adduction':'מולטי היפ - הרחקה + קירוב',
+  'Cable Lateral Raise':'הרחקת כתף בכבל',
+  'Rear Delt Cable':'כתף אחורית בכבלים',
+  'Overhead Rope Extension':'פשיטת מרפק מעל הראש בחבל',
   'Back Extension':'פשיטת גב',
   'Leg Curl':'כפיפת ברכיים',
   'Calf Raises':'עמידה על קצות אצבעות',
@@ -1764,6 +1777,17 @@ function _exImgSrc(img) {
   return img.startsWith('http') ? img : `${_EX_BASE}${img}/0.jpg`;
 }
 const EX_IMGS = {
+  'Shrugs':                           'https://fitnessprogramer.com/wp-content/uploads/2021/10/smith-machine-shrug.gif',
+  'Smith Incline Press':              'https://fitnessprogramer.com/wp-content/uploads/2021/06/Smith-Machine-Incline-Bench-Press.gif',
+  'Cable Fly':                        'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Crossover.gif',
+  'Bayesian Cable Curl':              'https://fitnessprogramer.com/wp-content/uploads/2021/02/One-Arm-Cable-Curl.gif',
+  'Cable Rope Hammer Curl':           'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif',
+  'Cable Bar Curl':                   'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif',
+  'Seated Leg Curl':                  'https://fitnessprogramer.com/wp-content/uploads/2021/08/Seated-Leg-Curl.gif',
+  'Multi Hip - Abduction + Adduction':'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Hip-Abduction.gif',
+  'Cable Lateral Raise':              'https://fitnessprogramer.com/wp-content/uploads/2021/09/Leaning-Cable-Lateral-Raise.gif',
+  'Rear Delt Cable':                  'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-rear-delt-fly.gif',
+  'Overhead Rope Extension':          'https://fitnessprogramer.com/wp-content/uploads/2021/04/Cable-Rope-Overhead-Triceps-Extension.gif',
   // Workout A — Legs + Back + Abs
   'Leg Press':                        'https://fitnessprogramer.com/wp-content/uploads/2015/11/Leg-Press.gif',
   'Bulgarian Split Squat':            'https://fitnessprogramer.com/wp-content/uploads/2021/05/Dumbbell-Bulgarian-Split-Squat.gif',
@@ -1916,6 +1940,18 @@ const EXERCISE_LIBRARY = [
   { name:'Lat Pulldown / Pull Up',     muscles:['lat','upper-back','bicep'],             img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Lat-Pulldown.gif' },
   { name:'Seated Row / Chest Supported Row', muscles:['upper-back','lat','bicep'],      img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Cable-Row.gif' },
   { name:'Hammer Curl / Cable Hammer Curl', muscles:['bicep','forearm'],               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif' },
+  // Shared exact-name entries used by custom programs
+  { name:'Shrugs',                    muscles:['upper-back'],                          img:'https://fitnessprogramer.com/wp-content/uploads/2021/10/smith-machine-shrug.gif' },
+  { name:'Smith Incline Press',       muscles:['chest','shoulder','tricep'],           img:'https://fitnessprogramer.com/wp-content/uploads/2021/06/Smith-Machine-Incline-Bench-Press.gif' },
+  { name:'Cable Fly',                 muscles:['chest'],                               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Crossover.gif' },
+  { name:'Bayesian Cable Curl',       muscles:['bicep'],                               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/One-Arm-Cable-Curl.gif' },
+  { name:'Cable Rope Hammer Curl',    muscles:['bicep','forearm'],                     img:'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif' },
+  { name:'Cable Bar Curl',            muscles:['bicep'],                               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif' },
+  { name:'Seated Leg Curl',           muscles:['hamstring'],                           img:'https://fitnessprogramer.com/wp-content/uploads/2021/08/Seated-Leg-Curl.gif' },
+  { name:'Multi Hip - Abduction + Adduction', muscles:['glute'],                       img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Hip-Abduction.gif' },
+  { name:'Cable Lateral Raise',       muscles:['shoulder'],                            img:'https://fitnessprogramer.com/wp-content/uploads/2021/09/Leaning-Cable-Lateral-Raise.gif' },
+  { name:'Rear Delt Cable',           muscles:['shoulder','upper-back'],               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-rear-delt-fly.gif' },
+  { name:'Overhead Rope Extension',   muscles:['tricep'],                              img:'https://fitnessprogramer.com/wp-content/uploads/2021/04/Cable-Rope-Overhead-Triceps-Extension.gif' },
 ];
 
 let _libFilter = null;

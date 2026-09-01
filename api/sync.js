@@ -1,3 +1,5 @@
+import { seedNoamProgram } from './noam-program.js';
+
 export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
@@ -83,10 +85,25 @@ export default async function handler(req) {
       [{ type: 'text', value: userId }]
     );
     const rows = result.results?.[0]?.response?.result?.rows;
-    if (rows?.length) {
-      return ok({ data: JSON.parse(rows[0][0].value), email });
+    const storedData = rows?.length ? JSON.parse(rows[0][0].value) : null;
+    const seeded = seedNoamProgram(storedData, email);
+    if (seeded.changed) {
+      await tursoExec(
+        `INSERT INTO user_data (user_id, email, data, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           data       = excluded.data,
+           email      = excluded.email,
+           updated_at = excluded.updated_at`,
+        [
+          { type:'text', value:userId },
+          { type:'text', value:email },
+          { type:'text', value:JSON.stringify(seeded.data) },
+          { type:'integer', value:String(Date.now()) }
+        ]
+      );
+      return ok({ data: seeded.data, email });
     }
-    return ok({ data: null, email });
+    return ok({ data: storedData, email });
   }
 
   // ── POST — save user data ─────────────────────────────────
