@@ -1506,6 +1506,7 @@ const HE_EXERCISE_NAMES = {
   'Chest Supported Row':'חתירה תמיכת חזה',
   'Chest Supported Machine Row':'חתירה במכונה עם תמיכת חזה',
   'Shrugs':'משיכות כתפיים',
+  'Dumbbell Shrugs':'משיכות כתפיים עם משקולות',
   'Bayesian Cable Curl':'כפיפת מרפק בייסיאנית בכבל',
   'Cable Rope Hammer Curl':'כפיפת פטיש בחבל',
   'Cable Bar Curl':'כפיפת מרפק בכבל עם מוט',
@@ -1793,6 +1794,7 @@ function _exImgSrc(img) {
 }
 const EX_IMGS = {
   'Shrugs':                           'https://fitnessprogramer.com/wp-content/uploads/2021/10/smith-machine-shrug.gif',
+  'Dumbbell Shrugs':                  'https://fitnessprogramer.com/wp-content/uploads/2021/04/Dumbbell-Shrug.gif',
   'Smith Incline Press':              'https://fitnessprogramer.com/wp-content/uploads/2021/06/Smith-Machine-Incline-Bench-Press.gif',
   'Cable Fly':                        'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Crossover.gif',
   'Bayesian Cable Curl':              'https://fitnessprogramer.com/wp-content/uploads/2021/02/One-Arm-Cable-Curl.gif',
@@ -1959,6 +1961,7 @@ const EXERCISE_LIBRARY = [
   { name:'Hammer Curl / Cable Hammer Curl', muscles:['bicep','forearm'],               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Hammer-Curl.gif' },
   // Shared exact-name entries used by custom programs
   { name:'Shrugs',                    muscles:['upper-back'],                          img:'https://fitnessprogramer.com/wp-content/uploads/2021/10/smith-machine-shrug.gif' },
+  { name:'Dumbbell Shrugs',           muscles:['upper-back'],                          img:'https://fitnessprogramer.com/wp-content/uploads/2021/04/Dumbbell-Shrug.gif' },
   { name:'Smith Incline Press',       muscles:['chest','shoulder','tricep'],           img:'https://fitnessprogramer.com/wp-content/uploads/2021/06/Smith-Machine-Incline-Bench-Press.gif' },
   { name:'Cable Fly',                 muscles:['chest'],                               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Crossover.gif' },
   { name:'Bayesian Cable Curl',       muscles:['bicep'],                               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/One-Arm-Cable-Curl.gif' },
@@ -4643,6 +4646,13 @@ function _reconcileSession(session, rid) {
       legacyRow.name = 'Chest Supported Machine Row';
       legacyRow.activeName = 'Chest Supported Machine Row';
       delete legacyRow.variantIdx;
+    }
+  }
+  if (ROUTINES[rid].exercises.some(ex => ex.name === 'Dumbbell Shrugs')) {
+    const legacyShrugs = session.exercises.find(ex => ex.name === 'Shrugs');
+    if (legacyShrugs) {
+      legacyShrugs.name = 'Dumbbell Shrugs';
+      legacyShrugs.activeName = 'Dumbbell Shrugs';
     }
   }
   if (routineSupportsModes(rid) && !session.mode) {
