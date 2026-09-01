@@ -6,7 +6,9 @@ const exercise = (name, muscles, blocks, img) => ({
 });
 
 export const NOAM_EMAIL = 'noamwiesbrun@gmail.com';
-export const NOAM_PROGRAM_SEED_VERSION = 1;
+// Version 2 re-applies the program for Noam. Version 1 could be marked as
+// complete before an older client uploaded its stale cached program.
+export const NOAM_PROGRAM_SEED_VERSION = 2;
 
 export const NOAM_PROGRAM = {
   name: 'Heavy + Pump',
