@@ -1197,6 +1197,9 @@ const _oauthCallbackToken = (function () {
 
 let _gToken = localStorage.getItem('mw_gtoken') || null; // persisted across sessions
 let _gUser  = JSON.parse(localStorage.getItem('mw_guser') || 'null');
+// Capture the owner of legacy, unscoped user data before another account can
+// sign in and replace mwUserId on this page.
+const _legacyDataOwnerId = localStorage.getItem('mwUserId');
 
 let _authMode = 'login'; // 'login' | 'register'
 
@@ -1282,6 +1285,15 @@ async function handleGoogleSignIn(response) {
 }
 
 function authSignOut() {
+  if (S.session && !S.viewing) {
+    savePendingInputs();
+    _flushSessionToPrefs();
+    saveCurrentSession();
+  }
+  clearTimeout(_syncTimer);
+  S = { rid:null, session:null, expanded:null, viewing:false };
+  _lastSavedSnapshot = null;
+  _restActiveEx = null;
   _gToken = null; _gUser = null;
   localStorage.removeItem('mw_gtoken');
   localStorage.removeItem('mw_guser');
@@ -1292,6 +1304,33 @@ function authSignOut() {
 
 function getUserId() {
   return localStorage.getItem('mwUserId') || 'local';
+}
+
+function userStorageKey(base, userId = getUserId()) {
+  return `${base}:${userId}`;
+}
+
+const USER_MIGRATION_KEYS = [
+  'mwRepaired2', 'mwVariantNamesMigrated', 'mwVariantNamesV2',
+  'mwGroupNamesV3', 'mwVariantIndicesMigrated2', 'mwRepairNullWeights',
+  'mwSetsRepaired', 'mwProgMigrated'
+];
+
+const LEGACY_USER_STORAGE_KEYS = [
+  'mwData3', 'mwPrefs', 'mwCurrent', 'mwProgram', 'mwArchives', 'mwDraft',
+  'mwProgOverrides', 'mwRestEnd', ...USER_MIGRATION_KEYS
+];
+
+function migrateLegacyUserDataForCurrentUser() {
+  const userId = getUserId();
+  if (!_legacyDataOwnerId || userId !== _legacyDataOwnerId) return;
+  LEGACY_USER_STORAGE_KEYS.forEach(base => {
+    const legacy = localStorage.getItem(base);
+    if (legacy === null) return;
+    const scopedKey = userStorageKey(base, userId);
+    if (localStorage.getItem(scopedKey) === null) localStorage.setItem(scopedKey, legacy);
+    localStorage.removeItem(base);
+  });
 }
 
 // ════════════════════════════════════
@@ -1314,7 +1353,8 @@ async function syncToTurso() {
         prefs:          getPrefs(),
         currentSession: loadCurrentSession(),
         program:        getProgramData(),
-        archives:       getArchives()
+        archives:       getArchives(),
+        progressOverrides: getProgressOverrides()
       }})
     });
   } catch(e) { console.warn('Turso sync failed:', e); }
@@ -1561,7 +1601,7 @@ const TRANSLATIONS = {
 };
 
 function getLang() {
-  try { return JSON.parse(localStorage.getItem('mwPrefs')||'{}')?.settings?.lang || 'en'; }
+  try { return JSON.parse(localStorage.getItem(userStorageKey('mwPrefs'))||'{}')?.settings?.lang || 'en'; }
   catch { return 'en'; }
 }
 function t(key) {
@@ -1637,7 +1677,7 @@ function _applyLangToDOM() {
 }
 
 function repairNullWeights() {
-  if (localStorage.getItem('mwRepaired2')) return; // already ran
+  if (localStorage.getItem(userStorageKey('mwRepaired2'))) return; // already ran
   const d = get();
   if (!d.sessions.length) return;
 
@@ -1687,7 +1727,7 @@ function repairNullWeights() {
     put(d);
     sbSaveDebounced();
   }
-  localStorage.setItem('mwRepaired2', '1');
+  localStorage.setItem(userStorageKey('mwRepaired2'), '1');
 }
 
 
@@ -2077,6 +2117,7 @@ let ROUTINES = {
             {n:'עבודה עד כשל',w:'',r:'10-12'}] },
   ]}
 };
+const DEFAULT_ROUTINES = JSON.parse(JSON.stringify(ROUTINES));
 
 // ════════════════════════════════════
 // STATE
@@ -2088,8 +2129,8 @@ let _calState = { year: new Date().getFullYear(), month: new Date().getMonth(), 
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
-function get() { try { return JSON.parse(localStorage.getItem('mwData3')||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
-function put(d) { localStorage.setItem('mwData3', JSON.stringify(d)); sbSaveDebounced(); }
+function get() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwData3'))||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
+function put(d) { localStorage.setItem(userStorageKey('mwData3'), JSON.stringify(d)); sbSaveDebounced(); }
 let _lastSavedSnapshot = null;
 // Build a snapshot that excludes _pw/_pr staging values — these are just pending
 // input buffer values that get re-initialized from the DOM on every auto-save,
@@ -2109,7 +2150,7 @@ function _meaningfulSnap() {
 function saveCurrentSession() {
   if (!S.session) return;
   const snapshot = JSON.stringify({rid:S.rid, session:S.session, viewing:S.viewing||false});
-  localStorage.setItem('mwCurrent', snapshot);
+  localStorage.setItem(userStorageKey('mwCurrent'), snapshot);
   sbSaveDebounced();
   // Flash "✓ Saved" only when meaningful data actually changed (ignores _pw/_pr staging)
   const meaningful = _meaningfulSnap();
@@ -2157,8 +2198,8 @@ function _emergencySave() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _emergencySave(); });
 window.addEventListener('pagehide', _emergencySave);
 window.addEventListener('beforeunload', _emergencySave);
-function clearCurrentSession() { localStorage.removeItem('mwCurrent'); sbSaveDebounced(); }
-function loadCurrentSession() { try { return JSON.parse(localStorage.getItem('mwCurrent')||'null'); } catch{ return null; } }
+function clearCurrentSession() { localStorage.removeItem(userStorageKey('mwCurrent')); sbSaveDebounced(); }
+function loadCurrentSession() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwCurrent'))||'null'); } catch{ return null; } }
 
 // ════════════════════════════════════
 // SCREENS
@@ -2465,17 +2506,20 @@ function showHistory() {
 // PROGRAMS & ARCHIVES
 // ════════════════════════════════════
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function getProgramData() { try { return JSON.parse(localStorage.getItem('mwProgram')||'null'); } catch{ return null; } }
-function putProgramData(p) { localStorage.setItem('mwProgram', JSON.stringify(p)); sbSaveDebounced(); }
-function getArchives() { try { return JSON.parse(localStorage.getItem('mwArchives')||'[]'); } catch{ return []; } }
-function putArchives(a) { localStorage.setItem('mwArchives', JSON.stringify(a)); sbSaveDebounced(); }
-function getDraft() { try { return JSON.parse(localStorage.getItem('mwDraft')||'null'); } catch{ return null; } }
-function putDraft(p) { localStorage.setItem('mwDraft', JSON.stringify(p)); }
-function clearDraft() { localStorage.removeItem('mwDraft'); }
+function programStorageKey(userId = getUserId()) { return userStorageKey('mwProgram', userId); }
+function getProgramData() { try { return JSON.parse(localStorage.getItem(programStorageKey())||'null'); } catch{ return null; } }
+function putProgramData(p) { localStorage.setItem(programStorageKey(), JSON.stringify(p)); sbSaveDebounced(); }
+function getArchives() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwArchives'))||'[]'); } catch{ return []; } }
+function putArchives(a) { localStorage.setItem(userStorageKey('mwArchives'), JSON.stringify(a)); sbSaveDebounced(); }
+function getDraft() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwDraft'))||'null'); } catch{ return null; } }
+function putDraft(p) { localStorage.setItem(userStorageKey('mwDraft'), JSON.stringify(p)); }
+function clearDraft() { localStorage.removeItem(userStorageKey('mwDraft')); }
 function getCurrentProgramName() { const p = getProgramData(); return p ? p.name : 'My Workout'; }
 function loadProgram() {
   const prog = getProgramData();
-  if (prog && prog.routines && prog.routines.A && prog.routines.B) ROUTINES = prog.routines;
+  ROUTINES = prog?.routines?.A && prog?.routines?.B
+    ? prog.routines
+    : JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
 }
 
 function showPrograms() { programsRender(); show('programs'); }
@@ -3317,7 +3361,7 @@ function startRestTimer(secs, activeEx) {
   _restEndTime  = Date.now() + secs * 1000;
   _restExpiredWhileHidden = false;
   _beepFired    = false;
-  localStorage.setItem('mwRestEnd', String(_restEndTime));
+  localStorage.setItem(userStorageKey('mwRestEnd'), String(_restEndTime));
   if (activeEx !== undefined) _restActiveEx = activeEx;
   const overlay = document.getElementById('rest-overlay');
   const display = document.getElementById('rest-ov-time');
@@ -3365,7 +3409,7 @@ function startRestTimer(secs, activeEx) {
 function stopRestTimer(doAlert) {
   if (_restTimer) { clearInterval(_restTimer); _restTimer = null; }
   _restExpiredWhileHidden = false;
-  localStorage.removeItem('mwRestEnd');
+  localStorage.removeItem(userStorageKey('mwRestEnd'));
   _cancelScheduledBeep(); // no-op if already fired; cancels if skipped/backgrounded
   const overlay = document.getElementById('rest-overlay');
   if (overlay) overlay.classList.remove('active');
@@ -3441,7 +3485,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   // Use localStorage as the source of truth — works even when iOS froze the
   // interval entirely or killed the JS context while the app was backgrounded.
-  const lsEnd  = parseInt(localStorage.getItem('mwRestEnd') || '0');
+  const lsEnd  = parseInt(localStorage.getItem(userStorageKey('mwRestEnd')) || '0');
   const expired = lsEnd > 0 && Date.now() >= lsEnd;
 
   if (expired || _restExpiredWhileHidden) {
@@ -3558,8 +3602,8 @@ function toggleProgExcl(rid, ei, sessId) {
 // One-time migration: fix sessions where a variant was used but the main
 // exercise name was stored instead of the actual variant name.
 function _migrateVariantNames() {
-  if (localStorage.getItem('mwVariantNamesMigrated')) return;
-  localStorage.setItem('mwVariantNamesMigrated', '1');
+  if (localStorage.getItem(userStorageKey('mwVariantNamesMigrated'))) return;
+  localStorage.setItem(userStorageKey('mwVariantNamesMigrated'), '1');
   const d = get();
   let changed = false;
   d.sessions.forEach(sess => {
@@ -3582,8 +3626,8 @@ function _migrateVariantNames() {
 // (e.g. 'Hammer Curl / Cable Curl' → 'Hammer Curl').
 // The original _migrateVariantNames only fixed variantIdx > 0; this fixes idx=0.
 function _migrateVariantNamesV2() {
-  if (localStorage.getItem('mwVariantNamesV2')) return;
-  localStorage.setItem('mwVariantNamesV2', '1');
+  if (localStorage.getItem(userStorageKey('mwVariantNamesV2'))) return;
+  localStorage.setItem(userStorageKey('mwVariantNamesV2'), '1');
   const d = get();
   let changed = false;
   d.sessions.forEach(sess => {
@@ -3605,8 +3649,8 @@ function _migrateVariantNamesV2() {
 // One-time migration: rename any remaining group names (e.g. 'Hammer Curl / Cable Curl')
 // stored in history to their individual variant name based on variantIdx.
 function _migrateGroupNamesV3() {
-  if (localStorage.getItem('mwGroupNamesV3')) return;
-  localStorage.setItem('mwGroupNamesV3', '1');
+  if (localStorage.getItem(userStorageKey('mwGroupNamesV3'))) return;
+  localStorage.setItem(userStorageKey('mwGroupNamesV3'), '1');
   const d = get();
   let changed = false;
   d.sessions.forEach(sess => {
@@ -3630,8 +3674,8 @@ function _migrateVariantIndices() {
   // The prior always-on version only fixed {name:baseName, variantIdx:wrong} cases.
   // This version also fixes {name:variantName, variantIdx:1} = un-migrated "doing secondary"
   // sessions that were recorded when the other exercise was still the primary.
-  if (localStorage.getItem('mwVariantIndicesMigrated2')) return;
-  localStorage.setItem('mwVariantIndicesMigrated2', '1');
+  if (localStorage.getItem(userStorageKey('mwVariantIndicesMigrated2'))) return;
+  localStorage.setItem(userStorageKey('mwVariantIndicesMigrated2'), '1');
   const d = get();
   let changed = false;
   d.sessions.forEach(s => {
@@ -3699,7 +3743,7 @@ function _migrateCSRFix() {
       });
     });
     if (progChanged) {
-      localStorage.setItem('mwProgram', JSON.stringify(prog));
+      localStorage.setItem(programStorageKey(), JSON.stringify(prog));
       loadProgram(); // refresh in-memory ROUTINES
       sbSaveDebounced();
     }
@@ -3736,8 +3780,8 @@ function _migrateCSRFix() {
 // fill from the nearest prior session of the same routine that has a real weight for
 // that exercise. Covers the "all-sets on collapsed card" data loss bug.
 function _repairNullWeights() {
-  if (localStorage.getItem('mwRepairNullWeights')) return;
-  localStorage.setItem('mwRepairNullWeights', '1');
+  if (localStorage.getItem(userStorageKey('mwRepairNullWeights'))) return;
+  localStorage.setItem(userStorageKey('mwRepairNullWeights'), '1');
   const d = get();
   if (!d.sessions || !d.sessions.length) return;
   const sorted = [...d.sessions].sort((a, b) => a.id - b.id); // oldest first
@@ -3802,8 +3846,8 @@ function _migrateProgramCableHammer() {
 // Matches each exercise in mwProgram against the hardcoded ROUTINES template by name
 // and fills any empty n/r from the template. Runs once.
 function _repairRoutineSets() {
-  if (localStorage.getItem('mwSetsRepaired')) return;
-  localStorage.setItem('mwSetsRepaired', '1');
+  if (localStorage.getItem(userStorageKey('mwSetsRepaired'))) return;
+  localStorage.setItem(userStorageKey('mwSetsRepaired'), '1');
   const prog = getProgramData();
   if (!prog || !prog.routines) return;
 
@@ -3862,7 +3906,7 @@ function _repairRoutineSets() {
 // One-time migration: copy any existing progress weight overrides into session data
 // so history and progress agree. Runs once and sets a flag so it never runs again.
 function _migrateProgressOverridesToSessions() {
-  if (localStorage.getItem('mwProgMigrated')) return;
+  if (localStorage.getItem(userStorageKey('mwProgMigrated'))) return;
   const ovs = getProgressOverrides();
   const d   = get();
   let dirty = false;
@@ -3886,7 +3930,7 @@ function _migrateProgressOverridesToSessions() {
     });
   });
   if (dirty) { put(d); sbSaveDebounced(); }
-  localStorage.setItem('mwProgMigrated', '1');
+  localStorage.setItem(userStorageKey('mwProgMigrated'), '1');
 }
 
 // ════════════════════════════════════
@@ -3909,10 +3953,10 @@ function parseSplitWeight(w) {
 // ── Progress overrides storage ──────────────────────────────────────
 // { [exName]: { [sessId]: { w?: number, excl?: true } } }
 function getProgressOverrides() {
-  try { return JSON.parse(localStorage.getItem('mwProgOverrides') || '{}'); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(userStorageKey('mwProgOverrides')) || '{}'); } catch { return {}; }
 }
 function putProgressOverrides(o) {
-  localStorage.setItem('mwProgOverrides', JSON.stringify(o));
+  localStorage.setItem(userStorageKey('mwProgOverrides'), JSON.stringify(o));
   sbSaveDebounced();
 }
 
@@ -4353,9 +4397,9 @@ const COLORS = { A: 'var(--a)', B: 'var(--b)' };
 const DEFAULT_LOCKERS = { A: '102', B: '719' };
 
 function getPrefs() {
-  try { return JSON.parse(localStorage.getItem('mwPrefs')) || {}; } catch(e) { return {}; }
+  try { return JSON.parse(localStorage.getItem(userStorageKey('mwPrefs'))) || {}; } catch(e) { return {}; }
 }
-function putPrefs(p) { localStorage.setItem('mwPrefs', JSON.stringify(p)); sbSaveDebounced(); }
+function putPrefs(p) { localStorage.setItem(userStorageKey('mwPrefs'), JSON.stringify(p)); sbSaveDebounced(); }
 
 function getExName(origName) {
   const p = getPrefs();
@@ -5594,7 +5638,7 @@ function saveHistEdit(sessId) {
       changed = true;
     }
   });
-  if (changed) localStorage.setItem('mwProgOverrides', JSON.stringify(ovs));
+  if (changed) localStorage.setItem(userStorageKey('mwProgOverrides'), JSON.stringify(ovs));
   sbSaveDebounced();
   _editHistId = null;
   histRender();
@@ -6004,6 +6048,13 @@ function authGoogleClick() {
   });
 }
 
+function runUserDataMigrations() {
+  [_migrateVariantNames, _migrateVariantNamesV2, _migrateGroupNamesV3,
+   _migrateProgramCableHammer, _migrateVariantIndices, _migrateCSRFix,
+   _repairNullWeights, _repairRoutineSets, _migrateProgressOverridesToSessions
+  ].forEach(fn => { try { fn(); } catch(e) { console.warn('migration skipped:', fn.name, e); } });
+}
+
 async function _startApp() {
   _appInited = true;
 
@@ -6012,6 +6063,10 @@ async function _startApp() {
     const emailEl = document.getElementById('auth-user-email');
     if (emailEl && _gUser) emailEl.textContent = _gUser.email || '';
 
+    migrateLegacyUserDataForCurrentUser();
+    S = { rid:null, session:null, expanded:null, viewing:false };
+    _lastSavedSnapshot = null;
+    _restActiveEx = null;
     loadProgram();
     repairNullWeights();
 
@@ -6023,10 +6078,7 @@ async function _startApp() {
     _applyLangToDOM();
 
     // One-time fast migrations — each isolated so one bad migration can't block startup
-    [_migrateVariantNames, _migrateVariantNamesV2, _migrateGroupNamesV3,
-     _migrateProgramCableHammer, _migrateVariantIndices, _migrateCSRFix,
-     _repairNullWeights, _repairRoutineSets, _migrateProgressOverridesToSessions
-    ].forEach(fn => { try { fn(); } catch(e) { console.warn('migration skipped:', fn.name, e); } });
+    runUserDataMigrations();
 
     homeUpdate();
   } catch(e) {
@@ -6048,22 +6100,20 @@ async function _bgSync() {
     if (remote === 'expired') { _appInited = false; _showAuthForm(); return; }
     if (remote) {
       let changed = false;
+      let loadedUserData = false;
       // Load program FIRST so ROUTINES is up-to-date before migrations run.
       if (remote.program?.routines && !getProgramData()) {
-        localStorage.setItem('mwProgram', JSON.stringify(remote.program));
+        localStorage.setItem(programStorageKey(), JSON.stringify(remote.program));
         loadProgram();
         changed = true;
+        loadedUserData = true;
       }
       if (remote.workouts?.sessions) {
         const local = get();
         if (!local.sessions?.length || remote.workouts.sessions.length > local.sessions.length) {
-          localStorage.setItem('mwData3', JSON.stringify(remote.workouts));
-          // Re-run variant migration on freshly loaded Turso data using correct ROUTINES.
-          // (The startup migration ran before Turso loaded, on empty or stale localStorage.)
-          localStorage.removeItem('mwVariantIndicesMigrated2');
-          _migrateVariantIndices();
-          _migrateCSRFix();
+          localStorage.setItem(userStorageKey('mwData3'), JSON.stringify(remote.workouts));
           changed = true;
+          loadedUserData = true;
         }
       }
       if (remote.prefs) {
@@ -6071,12 +6121,21 @@ async function _bgSync() {
         changed = true;
       }
       if (remote.currentSession && !loadCurrentSession()) {
-        localStorage.setItem('mwCurrent', JSON.stringify(remote.currentSession));
+        localStorage.setItem(userStorageKey('mwCurrent'), JSON.stringify(remote.currentSession));
         changed = true;
       }
       if (remote.archives?.length && !getArchives().length) {
-        localStorage.setItem('mwArchives', JSON.stringify(remote.archives));
+        localStorage.setItem(userStorageKey('mwArchives'), JSON.stringify(remote.archives));
         changed = true;
+      }
+      if (remote.progressOverrides && !Object.keys(getProgressOverrides()).length) {
+        localStorage.setItem(userStorageKey('mwProgOverrides'), JSON.stringify(remote.progressOverrides));
+        changed = true;
+        loadedUserData = true;
+      }
+      if (loadedUserData) {
+        USER_MIGRATION_KEYS.forEach(key => localStorage.removeItem(userStorageKey(key)));
+        runUserDataMigrations();
       }
       if (changed) homeUpdate(); // silently refresh home with remote data
     }
