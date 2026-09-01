@@ -3389,11 +3389,22 @@ function jumpToActiveEx() {
   if (!S.session) return;
   const exs = S.session.exercises;
   const start = (_restActiveEx !== null && _restActiveEx !== undefined) ? _restActiveEx : 0;
-  let ei = start;
-  // If the current exercise is fully done, find the first incomplete from the top
-  if (exs[start] && exs[start].sets.every(s => s.done)) {
-    const found = exs.findIndex(e => !e.sets.every(s => s.done));
-    if (found >= 0) ei = found;
+  const isInProgress = ex => ex && ex.sets.some(s => s.done) && ex.sets.some(s => !s.done);
+  let ei;
+  if (isInProgress(exs[start])) {
+    ei = start;
+  } else {
+    // A partially completed exercise is the real current exercise, even when
+    // another completed card was opened or the app was restarted.
+    const partial = exs.findIndex(isInProgress);
+    if (partial >= 0) {
+      ei = partial;
+    } else if (exs[start] && !exs[start].sets.every(s => s.done)) {
+      ei = start;
+    } else {
+      const incomplete = exs.findIndex(e => !e.sets.every(s => s.done));
+      ei = incomplete >= 0 ? incomplete : start;
+    }
   }
   _restActiveEx = ei;
   const onWorkout = document.getElementById('screen-workout')?.classList.contains('active');
