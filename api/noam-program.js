@@ -5,10 +5,9 @@ const exercise = (name, muscles, blocks, img) => ({
   sets: blocks.flatMap(([type, count, reps]) => sets(type, count, reps))
 });
 
-export const NOAM_EMAIL = 'noamwiesbrun@gmail.com';
-// Version 2 re-applies the program for Noam. Version 1 could be marked as
-// complete before an older client uploaded its stale cached program.
-export const NOAM_PROGRAM_SEED_VERSION = 2;
+export const NOAM_EMAIL = 'noamweisbrun@gmail.com';
+// Version 3 targets the verified email address shown in Noam's profile.
+export const NOAM_PROGRAM_SEED_VERSION = 3;
 
 export const NOAM_PROGRAM = {
   name: 'Heavy + Pump',
