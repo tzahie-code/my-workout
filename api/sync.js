@@ -36,6 +36,9 @@ export default async function handler(req) {
     data       TEXT NOT NULL DEFAULT '{}',
     updated_at INTEGER NOT NULL DEFAULT 0
   )`);
+  // Google sessions use opaque long-lived tokens, so retain their verified
+  // email in the session instead of looking only in the password-user table.
+  await tursoExec('ALTER TABLE mw_sessions ADD COLUMN email TEXT');
 
   // ── Verify token (Google JWT or email/password session) ──
   const auth    = req.headers.get('authorization') || '';
@@ -61,21 +64,24 @@ export default async function handler(req) {
     userId = gUser.sub;
     email  = gUser.email || '';
   } else {
-    // Email/password session token
+    // Long-lived app session token
     const sResult = await tursoExec(
-      'SELECT user_id FROM mw_sessions WHERE token = ? AND expires_at > ?',
+      'SELECT user_id, email FROM mw_sessions WHERE token = ? AND expires_at > ?',
       [{ type:'text', value: idToken }, { type:'integer', value: String(Date.now()) }]
     );
     const sRows = sResult.results?.[0]?.response?.result?.rows;
     if (!sRows?.length) return err('Invalid or expired session', 401);
     userId = sRows[0][0].value;
-    // Get email from users table
-    const uResult = await tursoExec(
-      'SELECT email FROM mw_users WHERE user_id = ?',
-      [{ type:'text', value: userId }]
-    );
-    const uRows = uResult.results?.[0]?.response?.result?.rows;
-    email = uRows?.[0]?.[0]?.value || '';
+    email = sRows[0][1]?.value || '';
+    // Older email/password sessions do not have the new session email yet.
+    if (!email) {
+      const uResult = await tursoExec(
+        'SELECT email FROM mw_users WHERE user_id = ?',
+        [{ type:'text', value: userId }]
+      );
+      const uRows = uResult.results?.[0]?.response?.result?.rows;
+      email = uRows?.[0]?.[0]?.value || '';
+    }
   }
 
   // ── GET — load user data ──────────────────────────────────

@@ -61,8 +61,12 @@ export default async function handler(req) {
   await db(`CREATE TABLE IF NOT EXISTS mw_sessions (
     token      TEXT PRIMARY KEY,
     user_id    TEXT NOT NULL,
+    email      TEXT,
     expires_at INTEGER NOT NULL
   )`);
+  // Existing databases predate the email column. Turso returns an error when
+  // the column already exists, which is safe to ignore here.
+  await db('ALTER TABLE mw_sessions ADD COLUMN email TEXT');
 
   const body = await req.json();
   const { action, email, password, idToken } = body;
@@ -80,8 +84,8 @@ export default async function handler(req) {
     const token      = randHex(32);
     const expiresAt  = Date.now() + 365*24*60*60*1000;
     await db(
-      'INSERT INTO mw_sessions (token, user_id, expires_at) VALUES (?,?,?)',
-      [{ type:'text', value:token }, { type:'text', value:userId }, { type:'integer', value:String(expiresAt) }]
+      'INSERT INTO mw_sessions (token, user_id, email, expires_at) VALUES (?,?,?,?)',
+      [{ type:'text', value:token }, { type:'text', value:userId }, { type:'text', value:userEmail }, { type:'integer', value:String(expiresAt) }]
     );
     return ok({ token, userId, email: userEmail });
   }
@@ -117,8 +121,8 @@ export default async function handler(req) {
     const token     = randHex(32);
     const expiresAt = Date.now() + 365*24*60*60*1000;
     await db(
-      'INSERT INTO mw_sessions (token, user_id, expires_at) VALUES (?,?,?)',
-      [{ type:'text', value:token }, { type:'text', value:userId }, { type:'integer', value:String(expiresAt) }]
+      'INSERT INTO mw_sessions (token, user_id, email, expires_at) VALUES (?,?,?,?)',
+      [{ type:'text', value:token }, { type:'text', value:userId }, { type:'text', value:cleanEmail }, { type:'integer', value:String(expiresAt) }]
     );
 
     return ok({ token, userId, email: cleanEmail });
@@ -142,8 +146,8 @@ export default async function handler(req) {
     const token     = randHex(32);
     const expiresAt = Date.now() + 365*24*60*60*1000;
     await db(
-      'INSERT INTO mw_sessions (token, user_id, expires_at) VALUES (?,?,?)',
-      [{ type:'text', value:token }, { type:'text', value:userId }, { type:'integer', value:String(expiresAt) }]
+      'INSERT INTO mw_sessions (token, user_id, email, expires_at) VALUES (?,?,?,?)',
+      [{ type:'text', value:token }, { type:'text', value:userId }, { type:'text', value:cleanEmail }, { type:'integer', value:String(expiresAt) }]
     );
 
     return ok({ token, userId, email: cleanEmail });
