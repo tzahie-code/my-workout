@@ -6,15 +6,15 @@ const exercise = (name, muscles, blocks, img) => ({
 });
 
 export const NOAM_EMAIL = 'noamweisbrun@gmail.com';
-// Version 4 adds separate Heavy and Pump workout modes.
-export const NOAM_PROGRAM_SEED_VERSION = 4;
+// Version 5 uses the correct chest-supported machine row in Routine A.
+export const NOAM_PROGRAM_SEED_VERSION = 5;
 
 export const NOAM_PROGRAM = {
   name: 'Heavy + Pump',
   routines: {
     A: { id:'A', label:'Back, Chest & Biceps', locker:'', modes:['heavy','pump'], exercises:[
       exercise('Lat Pulldown', ['lat','upper-back','bicep'], [['כבד',4,'6-8'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Lat-Pulldown.gif'),
-      exercise('Chest Supported Row', ['upper-back','lat','bicep'], [['כבד',4,'8-10'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/45-Degree-Incline-Row.gif'),
+      exercise('Chest Supported Machine Row', ['upper-back','lat','bicep'], [['כבד',4,'8-10'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Row-Machine.gif'),
       exercise('Shrugs', ['upper-back'], [['כבד',3,'10-15'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/10/smith-machine-shrug.gif'),
       exercise('Back Extension', ['lower-back','glute','hamstring'], [['כבד',2,'12-15'],['פאמפ',2,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/hyperextension.gif'),
       exercise('Smith Incline Press', ['chest','shoulder','tricep'], [['כבד',4,'6-8'],['פאמפ',3,'10-12']], 'https://fitnessprogramer.com/wp-content/uploads/2021/06/Smith-Machine-Incline-Bench-Press.gif'),
@@ -41,7 +41,7 @@ export const NOAM_PROGRAM = {
 
 export const NOAM_COMMENTS = {
   'Lat Pulldown':'אחיזה ניטרלית ברוחב כתפיים. משוך לחזה העליון תוך הובלה במרפקים מטה-אחורה, סחוט שכמות וחזור בשליטה למתיחה מלאה. בלי תנופה.',
-  'Chest Supported Row':'החזה נשען על הכרית לכל אורך התרגיל. משוך תוך קירוב שכמות, עצור בכיווץ וחזור לאט למתיחה. אל תרים את החזה.',
+  'Chest Supported Machine Row':'החזה נשען על הכרית לכל אורך התרגיל. משוך את הידיות תוך קירוב שכמות, עצור בכיווץ וחזור לאט למתיחה. אל תרים את החזה מהתמיכה.',
   'Shrugs':'זרועות ישרות. הרם כתפיים ישר לכיוון האוזניים, סחוט שנייה ורד לאט. בלי לגלגל כתפיים.',
   'Back Extension':'גב ניטרלי. רד מהמותניים בשליטה עד מתיחה ועלה עד קו ישר בלבד. כווץ ישבן בקצה ואל תתקמר מעבר.',
   'Smith Incline Press':'ספסל 30°. אחיזה מעט רחבה מהכתפיים. הורד לחזה העליון עם מרפקים כ-45° ודחוף בלי נעילה חזקה.',

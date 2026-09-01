@@ -1504,6 +1504,7 @@ const HE_EXERCISE_NAMES = {
   'Seated Row / Chest Supported Row':'חתירה / תמיכת חזה',
   'Seated Row':'חתירה בישיבה',
   'Chest Supported Row':'חתירה תמיכת חזה',
+  'Chest Supported Machine Row':'חתירה במכונה עם תמיכת חזה',
   'Shrugs':'משיכות כתפיים',
   'Bayesian Cable Curl':'כפיפת מרפק בייסיאנית בכבל',
   'Cable Rope Hammer Curl':'כפיפת פטיש בחבל',
@@ -1816,6 +1817,7 @@ const EX_IMGS = {
   'Seated Row / Chest Supported Row': 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Cable-Row.gif',
   'Seated Row':                       'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Cable-Row.gif',
   'Chest Supported Row':              'https://fitnessprogramer.com/wp-content/uploads/2021/02/45-Degree-Incline-Row.gif',
+  'Chest Supported Machine Row':      'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Row-Machine.gif',
   'Back Extension':                   'https://fitnessprogramer.com/wp-content/uploads/2021/02/hyperextension.gif',
   'Cable Crunch':                     'https://fitnessprogramer.com/wp-content/uploads/2021/02/Kneeling-Cable-Crunch.gif',
   'Hanging Leg Raises':               'https://fitnessprogramer.com/wp-content/uploads/2021/08/Hanging-Leg-Raises.gif',
@@ -1889,6 +1891,7 @@ const EXERCISE_LIBRARY = [
   { name:'Iso-Lateral High Row',       muscles:['upper-back','lat','bicep'],             img:'https://fitnessprogramer.com/wp-content/uploads/2023/06/Lever-High-Row.gif' },
   { name:'Seated Cable Row',           muscles:['upper-back','lat','bicep'],             img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Cable-Row.gif' },
   { name:'Incline Dumbbell Row',       muscles:['upper-back','lat','bicep'],             img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/45-Degree-Incline-Row.gif' },
+  { name:'Chest Supported Machine Row',muscles:['upper-back','lat','bicep'],             img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Seated-Row-Machine.gif' },
   { name:'Face Pull',                  muscles:['upper-back','shoulder'],                img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Face-Pull.gif' },
   { name:'Hyperextensions',            muscles:['lower-back','glute','hamstring'],       img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/hyperextension.gif' },
   { name:'Straight Arm Pulldown',      muscles:['lat'],                                  img:'https://fitnessprogramer.com/wp-content/uploads/2021/05/Cable-Straight-Arm-Pulldown.gif' },
@@ -4632,6 +4635,16 @@ function _reconcileSession(session, rid) {
   // (e.g. user added an exercise via builder while a session was in progress)
   const p = getPrefs();
   const mode = session.mode || getWorkoutMode(rid);
+  // Keep an in-progress Noam session aligned with the corrected machine-row
+  // exercise instead of adding it as an eleventh exercise.
+  if (ROUTINES[rid].exercises.some(ex => ex.name === 'Chest Supported Machine Row')) {
+    const legacyRow = session.exercises.find(ex => ex.name === 'Chest Supported Row');
+    if (legacyRow) {
+      legacyRow.name = 'Chest Supported Machine Row';
+      legacyRow.activeName = 'Chest Supported Machine Row';
+      delete legacyRow.variantIdx;
+    }
+  }
   if (routineSupportsModes(rid) && !session.mode) {
     session.mode = mode;
     session.exercises = _newSessionExercises(rid, mode);
