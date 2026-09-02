@@ -22,7 +22,7 @@ let html = fs.readFileSync('index.html', 'utf8');
 if (!html.includes('__BUILD_DATE__')) {
   console.warn('Warning: __BUILD_DATE__ placeholder not found in index.html');
 } else {
-  html = html.replace('__BUILD_DATE__', buildDate);
+  html = html.replaceAll('__BUILD_DATE__', buildDate);
   fs.writeFileSync('index.html', html);
   console.log('index.html  → build date:', buildDate);
 }

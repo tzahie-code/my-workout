@@ -17,6 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="My Workout">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
+  <meta name="app-build" content="__BUILD_DATE__">
   <title>My Workout</title>
   <!-- jsPDF loaded on-demand only when user exports PDF (saves ~200KB parse on every boot) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2596,6 +2597,11 @@ function forceUpdate() {
 
 let _availableUpdateRegistration = null;
 let _applyingAvailableUpdate = false;
+let _loadedBuildUpdate = false;
+
+function currentBuildVersion() {
+  return document.querySelector('meta[name="app-build"]')?.content || '';
+}
 
 function showUpdatePrompt(registration) {
   _availableUpdateRegistration = registration || _availableUpdateRegistration;
@@ -2609,8 +2615,16 @@ function dismissUpdatePrompt() {
 }
 
 function applyAvailableUpdate() {
+  if (_loadedBuildUpdate) {
+    const build = currentBuildVersion();
+    if (build) localStorage.setItem('mwAcceptedBuild', build);
+    _loadedBuildUpdate = false;
+    dismissUpdatePrompt();
+    return;
+  }
   _emergencySave();
   localStorage.setItem('mwReloading', '1');
+  localStorage.setItem('mwUpdateAcceptedOnReload', '1');
   _applyingAvailableUpdate = true;
   dismissUpdatePrompt();
   const waiting = _availableUpdateRegistration?.waiting;
@@ -2621,6 +2635,25 @@ function applyAvailableUpdate() {
   } else {
     window.location.reload();
   }
+}
+
+function checkLoadedBuildUpdate() {
+  const build = currentBuildVersion();
+  if (!build || build === '__BUILD' + '_DATE__') return;
+  if (localStorage.getItem('mwUpdateAcceptedOnReload')) {
+    localStorage.removeItem('mwUpdateAcceptedOnReload');
+    localStorage.setItem('mwAcceptedBuild', build);
+    return;
+  }
+  const accepted = localStorage.getItem('mwAcceptedBuild');
+  if (!accepted) {
+    // Existing signed-in users predate build tracking and should see this update once.
+    if (!_gToken) { localStorage.setItem('mwAcceptedBuild', build); return; }
+  } else if (accepted === build) {
+    return;
+  }
+  _loadedBuildUpdate = true;
+  showUpdatePrompt();
 }
 function showHistory() {
   const now = new Date();
@@ -6403,6 +6436,7 @@ else {
   // Register the service worker and notify the user when a newer deployment is ready.
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
+      setTimeout(checkLoadedBuildUpdate, 300);
       const hadController = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (_applyingAvailableUpdate) window.location.reload();

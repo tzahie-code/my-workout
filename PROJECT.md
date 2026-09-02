@@ -292,7 +292,7 @@ Current settings include:
 - Account display and sign-out.
 - Sync/change-device controls retained for compatibility.
 - Force update, which clears `mwCurrent`, browser caches, and service-worker registrations, then reloads the current deployment with a cache-busting URL. Do not use it while relying on an unfinished session snapshot.
-- An automatic update-ready prompt when a newer service worker is installed. The worker waits until the user accepts the update, and foreground checks are delayed and throttled so resuming the app is never held up. Updating from this prompt saves the active session before reloading; users can also dismiss it and continue temporarily.
+- An automatic update-ready prompt when a newer service worker is installed. The worker waits while the app is active, and persistent build-version tracking still shows the prompt if the browser activates an update while the app is suspended. Foreground checks are delayed and throttled so resuming the app is never held up. Updating from this prompt saves the active session before reloading; users can also dismiss it and see it again on the next launch.
 
 Translations are held in `TRANSLATIONS`, with separate mappings for Hebrew exercise, routine, day, and muscle names. New user-visible features should add both English and Hebrew labels and should be checked in LTR and RTL modes.
 
