@@ -292,6 +292,7 @@ Current settings include:
 - Account display and sign-out.
 - Sync/change-device controls retained for compatibility.
 - Force update, which clears `mwCurrent`, browser caches, and service-worker registrations, then reloads the current deployment with a cache-busting URL. Do not use it while relying on an unfinished session snapshot.
+- An automatic update-ready prompt when a newer service worker is installed. Updating from this prompt saves the active session before reloading; users can also dismiss it and continue temporarily.
 
 Translations are held in `TRANSLATIONS`, with separate mappings for Hebrew exercise, routine, day, and muscle names. New user-visible features should add both English and Hebrew labels and should be checked in LTR and RTL modes.
 

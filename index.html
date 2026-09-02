@@ -450,6 +450,18 @@
       z-index:200; align-items:center; justify-content:center; padding:24px 16px; }
     .lib-modal-sheet { background:var(--card); border-radius:20px; width:100%;
       max-width:480px; padding:20px; max-height:82vh; overflow-y:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); }
+    .update-popup-wrap { display:none; position:fixed; inset:0; z-index:220;
+      align-items:flex-end; justify-content:center; padding:18px;
+      background:rgba(0,0,0,.68); backdrop-filter:blur(3px); }
+    .update-popup { width:min(100%,440px); padding:22px; border-radius:20px;
+      background:var(--card); border:1px solid var(--border); box-shadow:var(--sh); }
+    .update-popup-title { font-size:19px; font-weight:900; margin-bottom:7px; }
+    .update-popup-text { color:var(--txt2); font-size:14px; line-height:1.5; margin-bottom:18px; }
+    .update-popup-actions { display:flex; gap:10px; }
+    .update-popup-actions button { flex:1; padding:13px 10px; border-radius:12px;
+      font-family:inherit; font-size:14px; font-weight:800; cursor:pointer; touch-action:manipulation; }
+    .update-later { color:var(--txt2); background:var(--card2); border:1px solid var(--border); }
+    .update-now { color:#fff; background:var(--a); border:none; }
 
     /* ── SETTINGS ── */
     .settings-section { background:var(--card); border-radius:var(--r); box-shadow:var(--sh);
@@ -1023,6 +1035,18 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
     </div>
   </div>
 
+  <!-- APP UPDATE PROMPT -->
+  <div id="update-popup" class="update-popup-wrap" role="dialog" aria-modal="true" aria-labelledby="update-popup-title">
+    <div class="update-popup">
+      <div id="update-popup-title" class="update-popup-title" data-t="update-ready-title">A new update is ready</div>
+      <div class="update-popup-text" data-t="update-ready-text">Update now to get the latest improvements. Your active workout will be saved.</div>
+      <div class="update-popup-actions">
+        <button class="update-later" onclick="dismissUpdatePrompt()" data-t="update-later">Later</button>
+        <button class="update-now" onclick="applyAvailableUpdate()" data-t="update-now">Update now</button>
+      </div>
+    </div>
+  </div>
+
   <!-- REPORT MODAL -->
   <div id="report-modal" class="lib-modal-wrap" onclick="closeReportModal(event)">
     <div class="lib-modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh">
@@ -1563,6 +1587,9 @@ const TRANSLATIONS = {
     'language':'Language','language-lbl':'App Language',
     'account-data':'Account & Data','sync-btn':'🔑 Sync / Change device','sign-out':'→ Sign Out',
     'update-btn':'↻ Update App',
+    'update-ready-title':'A new update is ready',
+    'update-ready-text':'Update now to get the latest improvements. Your active workout will be saved.',
+    'update-later':'Later','update-now':'Update now',
     'search-placeholder':'Search exercise or muscle…',
     'all':'All','no-exercises':'No exercises found',
     'front':'Front','back-body':'Back',
@@ -1615,6 +1642,9 @@ const TRANSLATIONS = {
     'language':'שפה','language-lbl':'שפת האפליקציה',
     'account-data':'חשבון ונתונים','sync-btn':'🔑 סנכרון / החלפת מכשיר','sign-out':'→ התנתקות',
     'update-btn':'↻ עדכן אפליקציה',
+    'update-ready-title':'עדכון חדש מוכן',
+    'update-ready-text':'אפשר לעדכן עכשיו ולקבל את השיפורים האחרונים. האימון הפעיל יישמר.',
+    'update-later':'אחר כך','update-now':'עדכן עכשיו',
     'search-placeholder':'חפש תרגיל או שריר...',
     'all':'הכל','no-exercises':'לא נמצאו תרגילים',
     'front':'קדמי','back-body':'אחורי',
@@ -2562,6 +2592,28 @@ function forceUpdate() {
       .then(names => Promise.all(names.map(n => caches.delete(n))))
       .then(clearSW).catch(clearSW);
   } else { clearSW(); }
+}
+
+let _availableUpdateRegistration = null;
+
+function showUpdatePrompt(registration) {
+  _availableUpdateRegistration = registration || _availableUpdateRegistration;
+  const popup = document.getElementById('update-popup');
+  if (popup) popup.style.display = 'flex';
+}
+
+function dismissUpdatePrompt() {
+  const popup = document.getElementById('update-popup');
+  if (popup) popup.style.display = 'none';
+}
+
+function applyAvailableUpdate() {
+  _emergencySave();
+  localStorage.setItem('mwReloading', '1');
+  dismissUpdatePrompt();
+  const waiting = _availableUpdateRegistration?.waiting;
+  if (waiting) waiting.postMessage({ type:'SKIP_WAITING' });
+  window.location.reload();
 }
 function showHistory() {
   const now = new Date();
@@ -6341,10 +6393,26 @@ else {
 })();
 </script>
 <script>
-  // Register Service Worker for offline support
+  // Register the service worker and notify the user when a newer deployment is ready.
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      const hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController) showUpdatePrompt();
+      });
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        if (reg.waiting && hadController) showUpdatePrompt(reg);
+        reg.addEventListener('updatefound', () => {
+          const worker = reg.installing;
+          if (!worker) return;
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && hadController) showUpdatePrompt(reg);
+          });
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      }).catch(() => {});
     });
   }
 </script>
