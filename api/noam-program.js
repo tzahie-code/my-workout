@@ -1,13 +1,13 @@
 const set = (n, r) => ({ n, w: '', r });
 const sets = (n, count, r) => Array.from({ length: count }, () => set(n, r));
-const exercise = (name, muscles, blocks, img) => ({
-  name, key: false, machine: '', muscles, img,
+const exercise = (name, muscles, blocks, img, machine = '') => ({
+  name, key: false, machine, muscles, img,
   sets: blocks.flatMap(([type, count, reps]) => sets(type, count, reps))
 });
 
 export const NOAM_EMAIL = 'noamweisbrun@gmail.com';
-// Version 6 replaces the generic Smith shrug with Dumbbell Shrugs.
-export const NOAM_PROGRAM_SEED_VERSION = 6;
+// Version 8 replaces Cable Bar Curl with Cable Reverse Curl.
+export const NOAM_PROGRAM_SEED_VERSION = 8;
 
 export const NOAM_PROGRAM = {
   name: 'Heavy + Pump',
@@ -22,7 +22,7 @@ export const NOAM_PROGRAM = {
       exercise('Cable Fly', ['chest'], [['כבד',3,'12-15'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Crossover.gif'),
       exercise('Bayesian Cable Curl', ['bicep'], [['כבד',3,'8-10'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/One-Arm-Cable-Curl.gif'),
       exercise('Cable Rope Hammer Curl', ['bicep','forearm'], [['כבד',3,'10-12'],['פאמפ',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif'),
-      exercise('Cable Bar Curl', ['bicep'], [['כבד',3,'10-12'],['פאמפ',2,'15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif')
+      exercise('Cable Reverse Curl', ['bicep','forearm'], [['כבד',3,'10-12'],['פאמפ',2,'15']], 'https://fitnessprogramer.com/wp-content/uploads/2022/02/Cable-Reverse-Grip-EZ-bar-Biceps-Curl.gif', 'Cross Cable')
     ]},
     B: { id:'B', label:'Legs, Glutes, Shoulders & Triceps', locker:'', modes:['heavy','pump'], exercises:[
       exercise('Leg Extension', ['quad'], [['פאמפ',3,'15-20'],['כבד',4,'8-10']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/LEG-EXTENSION.gif'),
@@ -30,7 +30,8 @@ export const NOAM_PROGRAM = {
       exercise('Seated Leg Curl', ['hamstring'], [['פאמפ - קליל',3,'12-15'],['כבד',4,'8-10']], 'https://fitnessprogramer.com/wp-content/uploads/2021/08/Seated-Leg-Curl.gif'),
       exercise('Leg Press Calf Raise', ['calf'], [['פאמפ',3,'15-20'],['כבד',4,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/05/Leg-Press-Calf-Raise.gif'),
       exercise('Hip Thrust', ['glute','hamstring'], [['פאמפ',3,'12-15'],['כבד',3,'8-10']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Barbell-Hip-Thrust.gif'),
-      exercise('Multi Hip - Abduction + Adduction', ['glute'], [['פאמפ - חוץ + פנים, כל צד',3,'12-15'],['כבד - חוץ + פנים, כל צד',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Hip-Abduction.gif'),
+      exercise('Multi Hip Abduction', ['abductor','glute'], [['פאמפ',3,'12-15'],['כבד',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2022/04/Lever-Side-Hip-Abduction.gif', 'Multi Hip'),
+      exercise('Multi Hip Adduction', ['adductor'], [['פאמפ',3,'12-15'],['כבד',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/05/Lever-Side-Hip-Adduction.gif', 'Multi Hip'),
       exercise('Cable Lateral Raise', ['shoulder'], [['פאמפ',4,'15-20'],['כבד',4,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/09/Leaning-Cable-Lateral-Raise.gif'),
       exercise('Rear Delt Cable', ['shoulder','upper-back'], [['פאמפ',3,'12-15'],['כבד',3,'12-15']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-rear-delt-fly.gif'),
       exercise('Triceps Pushdown', ['tricep'], [['פאמפ',3,'12-15'],['כבד',3,'8-10']], 'https://fitnessprogramer.com/wp-content/uploads/2021/02/Pushdown.gif'),
@@ -49,13 +50,14 @@ export const NOAM_COMMENTS = {
   'Cable Fly':'כיפוף קל וקבוע במרפק. פתח בקשת עד מתיחה וקרב ידיים בתנועת חיבוק. התנועה מהכתף.',
   'Bayesian Cable Curl':'עמוד עם הגב לפולי והזרוע מאחורי קו הגוף. כופף כשהזרוע העליונה קבועה, סחוט וירד לאט למתיחה מלאה.',
   'Cable Rope Hammer Curl':'חבל בפולי תחתון ואחיזה ניטרלית. מרפקים צמודים, כופף בלי לפתוח את החבל וירד בשליטה.',
-  'Cable Bar Curl':'מוט ישר או EZ בפולי תחתון. אחיזה תחתית ברוחב כתפיים, מרפקים קבועים ובלי תנופה מהגב.',
+  'Cable Reverse Curl':'מוט EZ בפולי תחתון בקרוס כבל. אחוז באחיזה עילית, שמור מרפקים צמודים וקבועים, כופף בשליטה ורד לאט בלי תנופה.',
   'Leg Extension':'גב צמוד למשענת. יישר ברכיים במלואן, סחוט את הארבע ראשי שנייה וחזור לאט.',
   'Leg Press':'רגליים ברוחב כתפיים. רד בשליטה עד כ-90° בלי לגלגל גב תחתון. דחוף דרך העקבים בלי לנעול ברכיים.',
   'Seated Leg Curl':'כרית על הירכיים וגב נשען. משוך עקבים אחורה-מטה לכיווץ מלא וחזור לאט. ביום שלישי לפני שפאגט: קליל בלבד, בלי להתקרב לכשל.',
   'Leg Press Calf Raise':'כפות הרגליים בתחתית הפלטה והעקבים חופשיים. עלה לטווח מלא, סחוט ורד לאט למתיחה מלאה.',
   'Hip Thrust':'דחוף דרך העקבים עד קו ישר ברכיים-אגן-כתפיים. סחוט ישבן, סנטר מכונס ובלי לקמר גב.',
-  'Multi Hip - Abduction + Adduction':'חוץ: דחוף את הרגל החוצה. פנים: משוך פנימה. בצע כל צד וכל כיוון בנפרד, בשליטה ועם כיווץ בקצה.',
+  'Multi Hip Abduction':'עמוד יציב במכונת Multi Hip ודחוף את הרגל החוצה כנגד הכרית. שמור אגן יציב, בצע כל צד בנפרד וחזור בשליטה.',
+  'Multi Hip Adduction':'עמוד יציב במכונת Multi Hip ומשוך את הרגל פנימה כנגד הכרית. שמור אגן יציב, בצע כל צד בנפרד וחזור בשליטה.',
   'Cable Lateral Raise':'פולי תחתון והיד הרחוקה מהפולי. הרם עד גובה כתף בהובלת המרפק, עצור קצר ורד לאט. בלי תנופה.',
   'Rear Delt Cable':'פולי גבוה וכבלים מוצלבים. משוך החוצה-אחורה בקשת בהובלת המרפקים, סחוט וחזור לאט.',
   'Triceps Pushdown':'מרפקים צמודים וקבועים. דחוף מטה ליישור מלא, סחוט וחזור לאט בלי להזיז מרפקים.',

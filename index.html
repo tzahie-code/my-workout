@@ -1415,7 +1415,8 @@ const HE_MUSCLE_LABELS = {
   chest:'חזה', shoulder:'כתפיים', tricep:'יד אחורית',
   bicep:'יד קדמית', forearm:'אמות', abs:'בטן',
   'upper-back':'גב עליון', 'lower-back':'גב תחתון', lat:'לאט',
-  quad:'ארבע ראשי', hamstring:'ירך אחורית', glute:'ישבן', calf:'שוק'
+  quad:'ארבע ראשי', hamstring:'ירך אחורית', glute:'ישבן', calf:'שוק',
+  abductor:'מרחיקי ירך', adductor:'מקרבי ירך'
 };
 
 const HE_ROUTINE_LABELS = {
@@ -1510,8 +1511,11 @@ const HE_EXERCISE_NAMES = {
   'Bayesian Cable Curl':'כפיפת מרפק בייסיאנית בכבל',
   'Cable Rope Hammer Curl':'כפיפת פטיש בחבל',
   'Cable Bar Curl':'כפיפת מרפק בכבל עם מוט',
+  'Cable Reverse Curl':'כפיפת מרפק הפוכה בכבל',
   'Seated Leg Curl':'כפיפת ברכיים בישיבה',
   'Multi Hip - Abduction + Adduction':'מולטי היפ - הרחקה + קירוב',
+  'Multi Hip Abduction':'מולטי היפ - הרחקת ירך',
+  'Multi Hip Adduction':'מולטי היפ - קירוב ירך',
   'Cable Lateral Raise':'הרחקת כתף בכבל',
   'Rear Delt Cable':'כתף אחורית בכבלים',
   'Overhead Rope Extension':'פשיטת מרפק מעל הראש בחבל',
@@ -1800,8 +1804,11 @@ const EX_IMGS = {
   'Bayesian Cable Curl':              'https://fitnessprogramer.com/wp-content/uploads/2021/02/One-Arm-Cable-Curl.gif',
   'Cable Rope Hammer Curl':           'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif',
   'Cable Bar Curl':                   'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif',
+  'Cable Reverse Curl':               'https://fitnessprogramer.com/wp-content/uploads/2022/02/Cable-Reverse-Grip-EZ-bar-Biceps-Curl.gif',
   'Seated Leg Curl':                  'https://fitnessprogramer.com/wp-content/uploads/2021/08/Seated-Leg-Curl.gif',
   'Multi Hip - Abduction + Adduction':'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Hip-Abduction.gif',
+  'Multi Hip Abduction':              'https://fitnessprogramer.com/wp-content/uploads/2022/04/Lever-Side-Hip-Abduction.gif',
+  'Multi Hip Adduction':              'https://fitnessprogramer.com/wp-content/uploads/2021/05/Lever-Side-Hip-Adduction.gif',
   'Cable Lateral Raise':              'https://fitnessprogramer.com/wp-content/uploads/2021/09/Leaning-Cable-Lateral-Raise.gif',
   'Rear Delt Cable':                  'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-rear-delt-fly.gif',
   'Overhead Rope Extension':          'https://fitnessprogramer.com/wp-content/uploads/2021/04/Cable-Rope-Overhead-Triceps-Extension.gif',
@@ -1862,7 +1869,8 @@ const MUSCLE_LABELS = {
   chest:'Chest', shoulder:'Shoulders', tricep:'Triceps',
   bicep:'Biceps', forearm:'Forearms', abs:'Abs',
   'upper-back':'Upper Back', 'lower-back':'Lower Back', lat:'Lats',
-  quad:'Quads', hamstring:'Hamstrings', glute:'Glutes', calf:'Calves'
+  quad:'Quads', hamstring:'Hamstrings', glute:'Glutes', calf:'Calves',
+  abductor:'Hip Abductors', adductor:'Hip Adductors'
 };
 
 // ════════════════════════════════════
@@ -1872,7 +1880,8 @@ const MUSCLE_COLORS = {
   chest:'#ff6b35', shoulder:'#3b82f6', bicep:'#8b5cf6',
   tricep:'#ec4899', forearm:'#f59e0b', abs:'#10b981',
   'upper-back':'#6366f1', lat:'#0891b2', 'lower-back':'#7c3aed',
-  quad:'#d97706', hamstring:'#dc2626', glute:'#db2777', calf:'#059669'
+  quad:'#d97706', hamstring:'#dc2626', glute:'#db2777', calf:'#059669',
+  abductor:'#c026d3', adductor:'#e11d48'
 };
 
 const EXERCISE_LIBRARY = [
@@ -1967,8 +1976,11 @@ const EXERCISE_LIBRARY = [
   { name:'Bayesian Cable Curl',       muscles:['bicep'],                               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/One-Arm-Cable-Curl.gif' },
   { name:'Cable Rope Hammer Curl',    muscles:['bicep','forearm'],                     img:'https://fitnessprogramer.com/wp-content/uploads/2021/06/rope-bicep-curls.gif' },
   { name:'Cable Bar Curl',            muscles:['bicep'],                               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-curl.gif' },
+  { name:'Cable Reverse Curl',        muscles:['bicep','forearm'],                     img:'https://fitnessprogramer.com/wp-content/uploads/2022/02/Cable-Reverse-Grip-EZ-bar-Biceps-Curl.gif' },
   { name:'Seated Leg Curl',           muscles:['hamstring'],                           img:'https://fitnessprogramer.com/wp-content/uploads/2021/08/Seated-Leg-Curl.gif' },
   { name:'Multi Hip - Abduction + Adduction', muscles:['glute'],                       img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/Cable-Hip-Abduction.gif' },
+  { name:'Multi Hip Abduction',       muscles:['abductor','glute'],                    img:'https://fitnessprogramer.com/wp-content/uploads/2022/04/Lever-Side-Hip-Abduction.gif' },
+  { name:'Multi Hip Adduction',       muscles:['adductor'],                            img:'https://fitnessprogramer.com/wp-content/uploads/2021/05/Lever-Side-Hip-Adduction.gif' },
   { name:'Cable Lateral Raise',       muscles:['shoulder'],                            img:'https://fitnessprogramer.com/wp-content/uploads/2021/09/Leaning-Cable-Lateral-Raise.gif' },
   { name:'Rear Delt Cable',           muscles:['shoulder','upper-back'],               img:'https://fitnessprogramer.com/wp-content/uploads/2021/02/cable-rear-delt-fly.gif' },
   { name:'Overhead Rope Extension',   muscles:['tricep'],                              img:'https://fitnessprogramer.com/wp-content/uploads/2021/04/Cable-Rope-Overhead-Triceps-Extension.gif' },
@@ -4659,6 +4671,13 @@ function _reconcileSession(session, rid) {
     session.mode = mode;
     session.exercises = _newSessionExercises(rid, mode);
     return;
+  }
+  const combinedHipIdx = session.exercises.findIndex(ex => ex.name === 'Multi Hip - Abduction + Adduction');
+  if (combinedHipIdx >= 0 && ROUTINES[rid].exercises.some(ex => ex.name === 'Multi Hip Abduction')) {
+    const fresh = _newSessionExercises(rid, mode);
+    const abduction = fresh.find(ex => ex.name === 'Multi Hip Abduction');
+    const adduction = fresh.find(ex => ex.name === 'Multi Hip Adduction');
+    if (abduction && adduction) session.exercises.splice(combinedHipIdx, 1, abduction, adduction);
   }
   ROUTINES[rid].exercises.forEach(ex => {
     const already = session.exercises.find(e => e.name === ex.name);
