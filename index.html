@@ -2595,6 +2595,7 @@ function forceUpdate() {
 }
 
 let _availableUpdateRegistration = null;
+let _applyingAvailableUpdate = false;
 
 function showUpdatePrompt(registration) {
   _availableUpdateRegistration = registration || _availableUpdateRegistration;
@@ -2610,10 +2611,16 @@ function dismissUpdatePrompt() {
 function applyAvailableUpdate() {
   _emergencySave();
   localStorage.setItem('mwReloading', '1');
+  _applyingAvailableUpdate = true;
   dismissUpdatePrompt();
   const waiting = _availableUpdateRegistration?.waiting;
-  if (waiting) waiting.postMessage({ type:'SKIP_WAITING' });
-  window.location.reload();
+  if (waiting) {
+    waiting.postMessage({ type:'SKIP_WAITING' });
+    // controllerchange normally reloads immediately; this is a safety fallback.
+    setTimeout(() => window.location.reload(), 2500);
+  } else {
+    window.location.reload();
+  }
 }
 function showHistory() {
   const now = new Date();
@@ -6398,7 +6405,8 @@ else {
     window.addEventListener('load', () => {
       const hadController = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (hadController) showUpdatePrompt();
+        if (_applyingAvailableUpdate) window.location.reload();
+        else if (hadController) showUpdatePrompt();
       });
       navigator.serviceWorker.register('/sw.js').then(reg => {
         if (reg.waiting && hadController) showUpdatePrompt(reg);
@@ -6409,8 +6417,13 @@ else {
             if (worker.state === 'installed' && hadController) showUpdatePrompt(reg);
           });
         });
+        let lastUpdateCheck = Date.now();
         document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+          if (document.visibilityState !== 'visible') return;
+          if (Date.now() - lastUpdateCheck < 30 * 60 * 1000) return;
+          lastUpdateCheck = Date.now();
+          // Let the existing screen paint first; never delay foreground restoration.
+          setTimeout(() => reg.update().catch(() => {}), 5000);
         });
       }).catch(() => {});
     });

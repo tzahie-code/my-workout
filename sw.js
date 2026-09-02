@@ -10,7 +10,6 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_VER).then(cache => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
