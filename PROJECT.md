@@ -323,6 +323,7 @@ Production deployment is driven by GitHub `main` to Vercel. The application expe
 - Treat `index.html` as the primary client file, but inspect the API, build, and PWA files before changing authentication, persistence, deployment, or offline behavior.
 - Preserve local-first startup and failure isolation. A sync or migration failure should not leave the app stuck on a blank/auth-loading screen when usable local data exists.
 - Before deploying JavaScript changes, perform at least a syntax check or browser smoke test. A duplicate declaration or startup exception can prevent the entire single-file client from loading.
+- Saved standard-program exercises with missing set notes or target reps are repaired on every startup. Workout-card prescription summaries use the same effective rep values as the visible set rows, including history fallbacks.
 - When changing stored shapes or exercise identity, add a guarded migration and test old local data. Existing migration marker keys show the established pattern.
 - Keep active-session recovery intact when editing workout render or navigation code.
 - Test both English/LTR and Hebrew/RTL after UI changes.

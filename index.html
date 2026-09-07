@@ -3345,12 +3345,15 @@ function pickerConfirmAdd() {
 
 function _builderResolveSets(ex, rid) {
   // Preserve existing set notes (n) and reps (r) from the current ROUTINES definition.
-  // Only generate blank sets for brand-new exercises not already in ROUTINES.
+  // Fall back to the built-in program when an older saved copy has blank values.
+  // Only generate blank sets for brand-new exercises with no known prescription.
   const existing = ROUTINES[rid]?.exercises.find(e => e.name === ex.name);
+  const fallback = DEFAULT_ROUTINES[rid]?.exercises.find(e => e.name === ex.name);
   const count = ex.setCount || 3;
   return Array.from({length: count}, (_, i) => {
     const src = existing?.sets[i];
-    return { n: src?.n || '', w: '', r: src?.r || '' };
+    const defaultSet = fallback?.sets[i];
+    return { n: src?.n || defaultSet?.n || '', w: '', r: src?.r || defaultSet?.r || '' };
   });
 }
 
@@ -4003,13 +4006,12 @@ function _migrateProgramCableHammer() {
   }
 }
 
-// One-time repair: restore set notes (n) and target reps (r) that were wiped
+// Always-on repair: restore set notes (n) and target reps (r) that were wiped
 // when saveBuilder() regenerated sets as blank {n:'',w:'',r:''}.
 // Matches each exercise in mwProgram against the hardcoded ROUTINES template by name
-// and fills any empty n/r from the template. Runs once.
+// and fills any empty n/r from the template. Safe to run on every startup so a
+// later program edit cannot leave the prescription blank again.
 function _repairRoutineSets() {
-  if (localStorage.getItem(userStorageKey('mwSetsRepaired'))) return;
-  localStorage.setItem(userStorageKey('mwSetsRepaired'), '1');
   const prog = getProgramData();
   if (!prog || !prog.routines) return;
 
@@ -4923,8 +4925,15 @@ function wkUpdateProgressBar() {
 function buildCard(ex, i) {
   const ses     = S.session.exercises[i];
   const modeDefs = _modeSetDefs(ex, S.session.mode);
-  const prescription = modeDefs.length && modeDefs.every(def => String(def.r || '') === String(modeDefs[0].r || ''))
-    ? `${modeDefs.length} × ${modeDefs[0].r || '—'}` : '';
+  const variants   = ex.variants || null;
+  const variantIdx = ses.variantIdx || 0;
+  const activeName = variants ? variants[variantIdx] : ex.name;
+  const effectiveReps = modeDefs.map((def, si) => {
+    const set = ses.sets[si];
+    return String(set?._pr || set?.r || prevSetR(activeName, si, ex.name) || def.r || '');
+  });
+  const prescription = effectiveReps.length && effectiveReps[0] && effectiveReps.every(r => r === effectiveReps[0])
+    ? `${modeDefs.length} × ${effectiveReps[0]}` : '';
   const allDone    = ses.sets.every(s=>s.done);
   const doneCnt    = ses.sets.filter(s=>s.done).length;
   const inProgress = !allDone && doneCnt > 0;
@@ -4938,9 +4947,6 @@ function buildCard(ex, i) {
   else if (inProgress)      cls += ' inprog';
 
   // Variant support (e.g. "Lat Pulldown" vs "Pull Up")
-  const variants   = ex.variants || null;
-  const variantIdx = ses.variantIdx || 0;
-  const activeName = variants ? variants[variantIdx] : ex.name;
   const otherName  = variants ? variants[1 - variantIdx] : null;
 
   // Exercise illustration + completion overlay
