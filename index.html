@@ -3387,7 +3387,7 @@ function saveBuilder() {
 // ════════════════════════════════════
 // SETTINGS
 // ════════════════════════════════════
-function getSettings() { return getPrefs().settings || {}; }
+function getSettings() { return _workoutRenderPrefs().settings || {}; }
 function putSettings(s) { const p = getPrefs(); p.settings = s; putPrefs(p); }
 
 function getRestOpts() {
@@ -4224,9 +4224,10 @@ function getExerciseProgress(exName, variantIdx) {
 // Direct-only variant: skips the variant-name fallback so one exercise's history
 // can't bleed into another's "Last increase" badge in the workout card.
 function getLastUpscaleDirect(exName) {
-  const d = get();
-  const ovs = (getProgressOverrides()[exName]) || {};
-  const pts = d.sessions
+  const sessions = _wkRenderCache?.allSessions || get().sessions;
+  const allOverrides = _wkRenderCache?.overrides || getProgressOverrides();
+  const ovs = allOverrides[exName] || {};
+  const pts = sessions
     .filter(s => !S.session?.mode || s.mode === S.session.mode)
     .sort((a,b) => a.id - b.id).map(s => {
     const raw = _rawPoint(s, exName, undefined, true);
@@ -4869,8 +4870,10 @@ function wkRender() {
     document.getElementById('wk-mode-pump').textContent = getLang()==='he' ? 'פאמפ' : 'Pump';
   }
   wkUpdateProgressBar();
-  document.getElementById('wk-body').innerHTML =
-    rt.exercises.map((ex,i) => buildCard(ex,i)).join('');
+  _withWorkoutRenderCache(() => {
+    document.getElementById('wk-body').innerHTML =
+      rt.exercises.map((ex,i) => buildCard(ex,i)).join('');
+  });
 }
 
 // Rebuild a single card in-place, preserving its <img> so GIFs don't restart.
@@ -4882,7 +4885,7 @@ function wkRenderCard(i) {
   if (!cardEl) return;
   const rt = ROUTINES[S.rid];
   const tmp = document.createElement('div');
-  tmp.innerHTML = buildCard(rt.exercises[i], i);
+  _withWorkoutRenderCache(() => { tmp.innerHTML = buildCard(rt.exercises[i], i); });
   const newCard = tmp.firstElementChild;
 
   // Step 1: insert newCard into the live DOM right before the old card
@@ -4902,6 +4905,38 @@ function wkRenderCard(i) {
 
   // Step 3: remove the old card
   cardEl.remove();
+}
+
+// A workout render previously parsed and sorted the complete history separately
+// for every weight/reps lookup. Keep one fresh, short-lived snapshot per render.
+let _wkRenderCache = null;
+function _withWorkoutRenderCache(renderFn) {
+  const parentCache = _wkRenderCache;
+  if (!parentCache) {
+    const mode = S.session?.mode;
+    const workoutData = get();
+    _wkRenderCache = {
+      prefs: getPrefs(),
+      overrides: getProgressOverrides(),
+      allSessions: [...workoutData.sessions].sort((a, b) => a.id - b.id),
+      sessions: workoutData.sessions
+        .filter(s => s.routine === S.rid && (!mode || s.mode === mode))
+        .sort((a, b) => b.id - a.id)
+    };
+  }
+  try { return renderFn(); }
+  finally { _wkRenderCache = parentCache; }
+}
+
+function _workoutRenderPrefs() {
+  return _wkRenderCache?.prefs || getPrefs();
+}
+
+function _workoutRenderHistory() {
+  if (_wkRenderCache) return _wkRenderCache.sessions;
+  return get().sessions
+    .filter(s => s.routine === S.rid && (!S.session?.mode || s.mode === S.session.mode))
+    .sort((a, b) => b.id - a.id);
 }
 
 // Update progress bar fill and exercise counter after a set toggle.
@@ -5096,7 +5131,7 @@ function buildCard(ex, i) {
         ${variants ? `<button class="variant-btn" onclick="event.stopPropagation();switchVariant(${i})">⇄ ${tEx(_primaryName(otherName))}</button>` : ''}
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
-        ${(()=>{ const REST_OPTS=getRestOpts(); const savedRest=(getPrefs().rest&&getPrefs().rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
+        ${(()=>{ const REST_OPTS=getRestOpts(); const prefs=_workoutRenderPrefs(); const savedRest=(prefs.rest&&prefs.rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
         ${(()=>{ const u=getLastUpscaleDirect(activeName); return u?`<div class="upscale-badge">📈 ${t('last-increase')} ${new Date(u.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:'';})()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="${t('note-placeholder')}"
@@ -5130,15 +5165,14 @@ function toggleCard(i) {
 function prevSetW(name, idx, baseName, variantIdx) {
   // Used for INPUT PRE-FILL only — includes pending (_pw) values from current session.
   // 'name' = active variant name (or exercise name if no variants)
-  const p = getPrefs();
+  const p = _workoutRenderPrefs();
   const memoryKey = _modeMemoryKey(name);
   const _pw = p.lastWeights?.[memoryKey]?.[idx];
   if (_pw != null && _pw !== '') return _pw;
   // Fall back to session history — scan ALL recent sessions, not just the latest.
   // Also check the base name as a safety net for any pre-migration history entries,
   // but only when variantIdx matches (prevents cross-variant weight leakage).
-  const d = get();
-  const sessions = d.sessions.filter(s=>s.routine===S.rid && (!S.session?.mode || s.mode===S.session.mode)).sort((a,b)=>b.id-a.id);
+  const sessions = _workoutRenderHistory();
   for (const sess of sessions) {
     let ex = sess.exercises.find(e => e.name === name);
     if (!ex && baseName) {
@@ -5154,8 +5188,7 @@ function lastDoneW(name, idx, baseName, variantIdx) {
   // Used for the "Last: X kg" DISPLAY only — reads from session history, never
   // from pending inputs. This way typing or "Copy first to all" never corrupts
   // the "Last" label, which should always reflect the previous completed session.
-  const d = get();
-  const sessions = d.sessions.filter(s=>s.routine===S.rid && (!S.session?.mode || s.mode===S.session.mode)).sort((a,b)=>b.id-a.id);
+  const sessions = _workoutRenderHistory();
   for (const sess of sessions) {
     let ex = sess.exercises.find(e => e.name === name);
     if (!ex && baseName) {
@@ -5190,12 +5223,11 @@ function saveLastWeights(exName, sets) {
   putPrefs(p);
 }
 function prevSetR(name, idx, baseName) {
-  const p = getPrefs();
+  const p = _workoutRenderPrefs();
   const _pr = p.lastReps?.[_modeMemoryKey(name)]?.[idx];
   if (_pr != null && _pr !== '') return _pr;
   // Also scan session history for reps; check base name too for pre-migration safety.
-  const d = get();
-  const sessions = d.sessions.filter(s=>s.routine===S.rid && (!S.session?.mode || s.mode===S.session.mode)).sort((a,b)=>b.id-a.id);
+  const sessions = _workoutRenderHistory();
   for (const sess of sessions) {
     const ex = sess.exercises.find(e => e.name === name || (baseName && e.name === baseName));
     if (ex && ex.sets[idx] && ex.sets[idx].done && ex.sets[idx].r != null)
@@ -5366,7 +5398,7 @@ function saveMachine(ei, val) {
 // Stored in mwPrefs as machineLabels[exName] = ['Cable', 'Pulley', ...]
 // Index maps directly to the '/' split: M1=before first '/', M2=after, etc.
 function getMachineLabels(exName) {
-  return getPrefs().machineLabels?.[exName] || [];
+  return _workoutRenderPrefs().machineLabels?.[exName] || [];
 }
 function saveMachineLabel(ei, idx, val) {
   const exName = activeExName(ei);

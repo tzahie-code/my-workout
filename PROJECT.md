@@ -326,6 +326,7 @@ Production deployment is driven by GitHub `main` to Vercel. The application expe
 - Saved standard-program exercises with missing set notes or target reps are repaired on every startup. Workout-card prescription summaries use the same effective rep values as the visible set rows, including history fallbacks.
 - When changing stored shapes or exercise identity, add a guarded migration and test old local data. Existing migration marker keys show the established pattern.
 - Keep active-session recovery intact when editing workout render or navigation code.
+- Workout-card rendering uses one short-lived preferences/history snapshot per render. Previous-set lookups must not independently parse and sort the complete history for every set.
 - Test both English/LTR and Hebrew/RTL after UI changes.
 - Test service-worker changes through an actual HTTP deployment or local server; direct file opening cannot validate PWA behavior.
 - Do not commit `.env*.local`, `.vercel`, credentials, session tokens, or personal local-tool configuration.
