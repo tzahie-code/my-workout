@@ -368,6 +368,7 @@
       padding:4px 7px; cursor:pointer; white-space:nowrap; font-family:inherit; }
     .prog-hist-excl.excl { background:var(--red); color:white; border-color:var(--red); }
     .upscale-badge { font-size: 10px; color: var(--green); font-weight: 700; margin-top: 2px; }
+    .upscale-badge.previous-max { color: #ff9f0a; }
     .home-best { font-size: 11px; color: var(--txt2); padding: 2px 0 6px; }
 
     /* ── DONE ── */
@@ -5260,7 +5261,7 @@ function buildCard(ex, i) {
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
         ${(()=>{ const REST_OPTS=getRestOpts(); const prefs=_workoutRenderPrefs(); const savedRest=(prefs.rest&&prefs.rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
-        ${(()=>{ const s=getWorkoutWeightStatus(activeName); return s?`<div class="upscale-badge">${s.type==='max'?'🏆':'📈'} ${t(s.type==='max'?'previous-max':'last-increase')} ${s.value}</div>`:'';})()}
+        ${(()=>{ const s=getWorkoutWeightStatus(activeName); return s?`<div class="upscale-badge${s.type==='max'?' previous-max':''}">${s.type==='max'?'↩':'📈'} ${t(s.type==='max'?'previous-max':'last-increase')} ${s.value}</div>`:'';})()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="${t('note-placeholder')}"
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"
