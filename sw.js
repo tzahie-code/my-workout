@@ -4,6 +4,7 @@
 // CACHE_VER is replaced at build time by build.js — changes on every deploy
 // so stale content is never served after an update.
 const CACHE_VER = '__CACHE_VER__';
+const GIF_CACHE = 'mw-workout-gifs-v1';
 const APP_SHELL = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -15,7 +16,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_VER).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE_VER && k !== GIF_CACHE).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -28,9 +29,27 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Pass through: non-GET, API routes, external origins (Turso, Supabase, Google, etc.)
+  // Pass through: non-GET and external origins (Turso, Supabase, Google, etc.)
   if (e.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
+
+  // Exercise GIFs are immutable URLs. Keep every successfully loaded workout
+  // image on the device so a later outage of the external host cannot blank it.
+  if (url.pathname === '/api/img-proxy') {
+    e.respondWith(
+      caches.open(GIF_CACHE).then(async cache => {
+        const cached = await cache.match(e.request);
+        if (cached) return cached;
+        const response = await fetch(e.request);
+        if (response?.ok && (response.headers.get('content-type') || '').startsWith('image/')) {
+          await cache.put(e.request, response.clone());
+        }
+        return response;
+      })
+    );
+    return;
+  }
+
   if (url.pathname.startsWith('/api/')) return;
 
   // Only intercept the app shell (/ and /index.html)

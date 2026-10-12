@@ -1,8 +1,9 @@
 export const config = { runtime: 'edge' };
 
-// Proxies exercise GIF images so the PDF exporter can draw them onto a canvas.
+// Proxies exercise GIF images for both workout cards and the PDF exporter.
 // fitnessprogramer.com doesn't serve CORS headers, so canvas.toDataURL() would
-// throw a SecurityError if we fetched images directly.
+// throw a SecurityError if we fetched images directly. Vercel keeps a stale
+// successful response available while refreshing it from the upstream host.
 export default async function handler(req) {
   const CORS = { 'Access-Control-Allow-Origin': '*' };
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
@@ -32,6 +33,7 @@ export default async function handler(req) {
       ...CORS,
       'Content-Type': contentType,
       'Cache-Control': 'public, max-age=86400',
+      'Vercel-CDN-Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=2592000',
     }
   });
 }

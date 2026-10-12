@@ -1827,6 +1827,44 @@ function _exImgSrc(img) {
   if (!img) return '';
   return img.startsWith('http') ? img : `${_EX_BASE}${img}/0.jpg`;
 }
+// Workout GIFs use our same-origin proxy so Vercel and the service worker can
+// keep a working copy when the external image host is slow or unavailable.
+function _workoutImgSrc(img) {
+  const src = _exImgSrc(img);
+  if (!src) return '';
+  try {
+    const url = new URL(src, location.href);
+    if (url.hostname === 'fitnessprogramer.com' || url.hostname.endsWith('.fitnessprogramer.com')) {
+      return '/api/img-proxy?url=' + encodeURIComponent(url.href);
+    }
+  } catch {}
+  return src;
+}
+
+function _exerciseImgLoaded(img) {
+  clearTimeout(img._retryTimer);
+  img.style.visibility = '';
+  img.style.display = '';
+  delete img.dataset.retryCount;
+}
+
+function _exerciseImgFailed(img) {
+  clearTimeout(img._retryTimer);
+  const retryCount = Number(img.dataset.retryCount || 0);
+  if (retryCount >= 3) {
+    img.style.display = 'none';
+    return;
+  }
+  const retrySrc = img.dataset.retrySrc || img.src;
+  img.dataset.retrySrc = retrySrc;
+  img.dataset.retryCount = String(retryCount + 1);
+  img.style.visibility = 'hidden';
+  img._retryTimer = setTimeout(() => {
+    if (!img.isConnected) return;
+    img.removeAttribute('src');
+    requestAnimationFrame(() => { img.src = retrySrc; });
+  }, [5000, 15000, 30000][retryCount]);
+}
 const EX_IMGS = {
   'Shrugs':                           'https://fitnessprogramer.com/wp-content/uploads/2021/10/smith-machine-shrug.gif',
   'Dumbbell Shrugs':                  'https://fitnessprogramer.com/wp-content/uploads/2021/04/Dumbbell-Shrug.gif',
@@ -1890,7 +1928,8 @@ function getExerciseImg(name, fallbackImg) {
     || _exImgSrc(fallbackImg)                                                // 5. stored img field
     || '';
   if (!src) return '';
-  return `<img src="${src}" alt="" onerror="this.style.display='none'">`;
+  const reliableSrc = _workoutImgSrc(src);
+  return `<img src="${reliableSrc}" alt="" onload="_exerciseImgLoaded(this)" onerror="_exerciseImgFailed(this)">`;
 }
 
 // ════════════════════════════════════
@@ -5108,8 +5147,8 @@ function buildCard(ex, i) {
 
   const qkCls  = allDone ? ' done' : '';
   const qkIcon = allDone ? '✓' : '○';
-  const imgSrc = EX_IMGS[activeName]
-    || _exImgSrc(EXERCISE_LIBRARY.find(e=>e.name===activeName)?.img) || '';
+  const imgSrc = _workoutImgSrc(EX_IMGS[activeName]
+    || _exImgSrc(EXERCISE_LIBRARY.find(e=>e.name===activeName)?.img) || '');
   const _lpSrc  = imgSrc.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   const _lpName = _primaryName(activeName).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   return `<div class="${cls}" id="ec${i}">
