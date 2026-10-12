@@ -122,6 +122,7 @@ Current background-load rules are deliberately conservative:
 - A remote program is loaded only when no local program exists.
 - Local and remote workout histories are merged by stable session ID. Deletion tombstones prevent intentionally deleted sessions from being restored by another device.
 - Preferences are merged one object level deep, with local values winning conflicts.
+- The home-screen weekday bars are rebuilt from the merged current-week workout history, preventing stale browser preferences from showing different completed days on different devices.
 - A remote current session is loaded only when no local current session exists.
 - Remote archives are loaded only when the local archive list is empty.
 - After the merge, the client uploads its current combined state.

@@ -1431,6 +1431,24 @@ function mergePrefs(remote, local) {
   return m;
 }
 
+function reconcileCurrentWeekDays(prefs, workoutData) {
+  const reconciled = { ...(prefs || {}) };
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  ['A', 'B'].forEach(rid => {
+    const days = new Set();
+    (workoutData?.sessions || []).forEach(session => {
+      if (session.routine === rid && new Date(session.id) >= weekStart) {
+        days.add(DAYS[new Date(session.id).getDay()]);
+      }
+    });
+    reconciled[rid] = { ...(reconciled[rid] || {}), days: [...days] };
+    delete reconciled[rid].day;
+  });
+  return reconciled;
+}
+
 // Builder drag listeners (set up once, fire only when _dragState is active)
 window.addEventListener('touchmove', e => builderDragMove(e), { passive: false });
 window.addEventListener('touchend',  () => builderDragEnd());
@@ -6477,7 +6495,10 @@ async function _bgSync() {
         }
       }
       if (remote.prefs) {
-        putPrefs(mergePrefs(remote.prefs, getPrefs()));
+        // The weekday bar represents completed routines in the current week.
+        // Rebuild it from the merged history so stale per-browser preferences
+        // cannot make different devices show different workout days.
+        putPrefs(reconcileCurrentWeekDays(mergePrefs(remote.prefs, getPrefs()), get()));
         changed = true;
       }
       if (remote.currentSession && !loadCurrentSession()) {
