@@ -1597,6 +1597,7 @@ const TRANSLATIONS = {
     'note-placeholder':'note...','machine-placeholder':'machine / bench / location',
     'kg-placeholder':'kg','last-label':'Last:','key-badge':'🔥 Key',
     'last-increase':'Last increase:',
+    'previous-max':'Previous max:',
     'workout-done':'Workout Done!','back-to-home':'Back to Home',
     'duration':'Duration','exercises-label':'Exercises','sets-logged':'Sets logged',
     'no-workouts':'No workouts yet 💪','start-first':'Start your first session!',
@@ -1652,6 +1653,7 @@ const TRANSLATIONS = {
     'note-placeholder':'הערה...','machine-placeholder':'מכונה / ספסל / מיקום',
     'kg-placeholder':'ק״ג','last-label':'אחרון:','key-badge':'🔥 עיקרי',
     'last-increase':'עלייה אחרונה:',
+    'previous-max':'מקסימום קודם:',
     'workout-done':'האימון הסתיים!','back-to-home':'חזרה לבית',
     'duration':'משך זמן','exercises-label':'תרגילים','sets-logged':'סטים שנרשמו',
     'no-workouts':'עדיין אין אימונים 💪','start-first':'התחל את הסשן הראשון שלך!',
@@ -4346,6 +4348,49 @@ function getLastUpscaleDirect(exName) {
   return lastA.date > lastB.date ? lastA : lastB;
 }
 
+// Pick the single most useful weight message for a workout card. If the most
+// recent completed weight is below the historical best, that target replaces
+// the increase message. Otherwise show the latest increase as weights only.
+function getWorkoutWeightStatus(exName) {
+  const sessions = _wkRenderCache?.allSessions || get().sessions;
+  const allOverrides = _wkRenderCache?.overrides || getProgressOverrides();
+  const ovs = allOverrides[exName] || {};
+  const pts = sessions
+    .filter(s => !S.session?.mode || s.mode === S.session.mode)
+    .sort((a,b) => a.id - b.id).map(s => {
+      const raw = _rawPoint(s, exName, undefined, true);
+      if (!raw) return null;
+      const ov = ovs[s.id] || {};
+      if (ov.excl) return null;
+      const { maxA, maxB, max } = _applyOverrideToRaw(raw, ov.w ?? null);
+      return { date: s.id, max, maxA, maxB, bw: raw.bw };
+    }).filter(Boolean);
+  if (!pts.length) return null;
+
+  const latest = pts[pts.length - 1];
+  const isSplit = pts.some(p => p.maxB != null);
+  if (!latest.bw) {
+    if (!isSplit) {
+      const best = Math.max(...pts.map(p => p.max));
+      if (latest.max < best) return { type: 'max', value: `${best}kg` };
+    } else {
+      const aVals = pts.filter(p => p.maxA != null).map(p => p.maxA);
+      const bVals = pts.filter(p => p.maxB != null).map(p => p.maxB);
+      const bestA = aVals.length ? Math.max(...aVals) : null;
+      const bestB = bVals.length ? Math.max(...bVals) : null;
+      const belowBest = (latest.maxA != null && bestA != null && latest.maxA < bestA)
+        || (latest.maxB != null && bestB != null && latest.maxB < bestB);
+      if (belowBest) {
+        const value = bestB != null ? `${bestA ?? '—'}/${bestB}kg` : `${bestA}kg`;
+        return { type: 'max', value };
+      }
+    }
+  }
+
+  const increase = getLastUpscaleDirect(exName);
+  return increase ? { type: 'increase', value: `${increase.from}→${increase.to}kg` } : null;
+}
+
 function getLastUpscale(exName, variantIdx) {
   const pts = getExerciseProgress(exName, variantIdx);
   const isSplit = pts.some(p => p.maxB != null);
@@ -4498,7 +4543,7 @@ function progressRender() {
         ? `<strong>${bestA!=null?bestA+'kg':'—'}</strong> / <strong style="color:#ff9f0a">${bestB!=null?bestB+'kg':'—'}</strong>`
         : `<strong>${best!=null?best+'kg':'—'}</strong>`;
       const lastUpStr = lastUp
-        ? `· <span style="color:var(--green);font-weight:700">${t('last-increase')} ${new Date(lastUp.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (+${lastUp.to-lastUp.from}kg)</span>`
+        ? `· <span style="color:var(--green);font-weight:700">${t('last-increase')} ${lastUp.from}→${lastUp.to}kg</span>`
         : '';
       const isOpen   = _openProgEdits.has(editKey);
       const allPts   = getAllProgressRawPoints(ex.name, vIdx);
@@ -5215,7 +5260,7 @@ function buildCard(ex, i) {
         ${mach}
         ${tags ? `<div class="muscle-tags">${tags}${ytBtn(activeName)}</div>` : ytBtn(activeName)}
         ${(()=>{ const REST_OPTS=getRestOpts(); const prefs=_workoutRenderPrefs(); const savedRest=(prefs.rest&&prefs.rest[activeName])||''; return `<div class="rest-row" onclick="event.stopPropagation()"><span class="rest-lbl">${t('rest')}:</span><span class="rest-btns">${REST_OPTS.map(o=>`<button class="rest-opt${savedRest===o?' sel':''}" style="${savedRest===o?'background:'+color+';':''}" onclick="event.stopPropagation();saveRest('${activeName}','${o}',${i})">${o}</button>`).join('')}</span></div>`; })()}
-        ${(()=>{ const u=getLastUpscaleDirect(activeName); return u?`<div class="upscale-badge">📈 ${t('last-increase')} ${new Date(u.date).toLocaleDateString(getLang()==='he'?'he-IL':'en-US',{month:'short',day:'numeric'})} (${u.from}→${u.to}kg)</div>`:'';})()}
+        ${(()=>{ const s=getWorkoutWeightStatus(activeName); return s?`<div class="upscale-badge">${s.type==='max'?'🏆':'📈'} ${t(s.type==='max'?'previous-max':'last-increase')} ${s.value}</div>`:'';})()}
         <input class="ec-note-inp" id="cm${i}" type="text" dir="rtl"
           placeholder="${t('note-placeholder')}"
           value="${(ses.comment||'').replace(/"/g,'&quot;')}"

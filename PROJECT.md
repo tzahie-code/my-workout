@@ -280,7 +280,7 @@ History operations include:
 - Delaying the remote delete sync until the Undo window closes.
 - Updating current-week day markers when the last matching session is permanently deleted.
 
-Progress is derived from completed historical sets rather than a separate canonical progress database. It supports per-exercise history, mini charts, last-increase information, split weights, body-weight notation, variant-specific views, retired exercises, corrections, and exclusion of unsuitable points. History edits are written back to session data so progress recalculates from the corrected source.
+Progress is derived from completed historical sets rather than a separate canonical progress database. It supports per-exercise history, mini charts, last-increase information, split weights, body-weight notation, variant-specific views, retired exercises, corrections, and exclusion of unsuitable points. Workout cards show the latest increase as a weight change, or replace it with the historical maximum when the latest completed weight is lower. History edits are written back to session data so progress recalculates from the corrected source.
 
 The app also generates progressive-overload and workout reports. Reports can be previewed and copied as text or CSV for use in Excel or Google Sheets.
 
