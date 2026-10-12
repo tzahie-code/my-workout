@@ -1383,19 +1383,25 @@ function sbSaveDebounced() { // kept as alias so all existing callers still work
 async function syncToTurso() {
   if (!_gToken) return;
   try {
-    await fetch('/api/sync', {
+    const body = JSON.stringify({ data: {
+      workouts:         get(),
+      deletedSessionIds:getDeletedSessionIds(),
+      prefs:            getPrefs(),
+      currentSession:   loadCurrentSession(),
+      program:          getProgramData(),
+      archives:         getArchives(),
+      progressOverrides:getProgressOverrides(),
+      seedVersions:     getSeedVersions()
+    }});
+    const options = {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${_gToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: {
-        workouts:       get(),
-        prefs:          getPrefs(),
-        currentSession: loadCurrentSession(),
-        program:        getProgramData(),
-        archives:       getArchives(),
-        progressOverrides: getProgressOverrides(),
-        seedVersions:   getSeedVersions()
-      }})
-    });
+      body
+    };
+    // Small saves may continue after the app is backgrounded on mobile.
+    if (body.length < 60000) options.keepalive = true;
+    const res = await fetch('/api/sync', options);
+    if (!res.ok) throw new Error(`Sync failed (${res.status})`);
   } catch(e) { console.warn('Turso sync failed:', e); }
 }
 
@@ -2269,6 +2275,26 @@ let _calState = { year: new Date().getFullYear(), month: new Date().getMonth(), 
 // ════════════════════════════════════
 function get() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwData3'))||'{"sessions":[]}'); } catch{ return {sessions:[]}; } }
 function put(d) { localStorage.setItem(userStorageKey('mwData3'), JSON.stringify(d)); sbSaveDebounced(); }
+function getDeletedSessionIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(userStorageKey('mwDeletedSessions')) || '[]');
+    return Array.isArray(ids) ? ids.map(String) : [];
+  } catch { return []; }
+}
+function setDeletedSessionIds(ids) {
+  localStorage.setItem(userStorageKey('mwDeletedSessions'), JSON.stringify([...new Set(ids.map(String))]));
+}
+function mergeWorkoutData(local, remote, deletedIds = []) {
+  const deleted = new Set(deletedIds.map(String));
+  const sessions = new Map();
+  (remote?.sessions || []).forEach(s => { if (!deleted.has(String(s.id))) sessions.set(String(s.id), s); });
+  (local?.sessions || []).forEach(s => { if (!deleted.has(String(s.id))) sessions.set(String(s.id), s); });
+  return {
+    ...(remote || {}),
+    ...(local || {}),
+    sessions: [...sessions.values()].sort((a, b) => Number(a.id) - Number(b.id))
+  };
+}
 let _lastSavedSnapshot = null;
 // Build a snapshot that excludes _pw/_pr staging values — these are just pending
 // input buffer values that get re-initialized from the DOM on every auto-save,
@@ -5628,6 +5654,10 @@ function finish() {
   if (!Array.isArray(_p[S.rid].days)) _p[S.rid].days = [];
   if (!_p[S.rid].days.includes(_today)) { _p[S.rid].days.push(_today); putPrefs(_p); }
   const d = get(); d.sessions.push(S.session); put(d);
+  // A completed workout is important cross-device data. Start its upload now
+  // instead of relying only on the debounced timer, which mobile OSes may suspend.
+  clearTimeout(_syncTimer);
+  syncToTurso();
   const dur  = Math.round((S.session.endTime-S.session.startTime)/60000);
   const sets = S.session.exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
   document.getElementById('done-sub').textContent =
@@ -5997,8 +6027,10 @@ function deleteSession(id) {
 function _commitDelete(pending) {
   if (!pending) return;
   // Now it's permanent — sync to Turso and update home-screen day dots
-  sbSaveDebounced();
   const sess = pending.sess;
+  setDeletedSessionIds([...getDeletedSessionIds(), sess.id]);
+  clearTimeout(_syncTimer);
+  syncToTurso();
   const d    = get();
   const sessDate  = new Date(sess.id);
   const weekStart = new Date();
@@ -6431,9 +6463,15 @@ async function _bgSync() {
         localStorage.setItem(userStorageKey('mwSeedVersions'), JSON.stringify(remote.seedVersions));
       }
       if (remote.workouts?.sessions) {
+        const deletedIds = [...new Set([
+          ...getDeletedSessionIds(),
+          ...(Array.isArray(remote.deletedSessionIds) ? remote.deletedSessionIds.map(String) : [])
+        ])];
         const local = get();
-        if (!local.sessions?.length || remote.workouts.sessions.length > local.sessions.length) {
-          localStorage.setItem(userStorageKey('mwData3'), JSON.stringify(remote.workouts));
+        const merged = mergeWorkoutData(local, remote.workouts, deletedIds);
+        setDeletedSessionIds(deletedIds);
+        if (JSON.stringify(merged) !== JSON.stringify(local)) {
+          localStorage.setItem(userStorageKey('mwData3'), JSON.stringify(merged));
           changed = true;
           loadedUserData = true;
         }

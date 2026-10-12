@@ -107,6 +107,7 @@ The synchronized document contains:
 ```javascript
 {
   workouts:       get(),
+  deletedSessionIds: getDeletedSessionIds(),
   prefs:          getPrefs(),
   currentSession: loadCurrentSession(),
   program:        getProgramData(),
@@ -114,18 +115,18 @@ The synchronized document contains:
 }
 ```
 
-Client writes are debounced by two seconds. Changes continue to work locally when sync is unavailable; network errors are caught and logged rather than blocking the workout UI.
+Most client writes are debounced by two seconds. Completed workouts and permanent history deletions start syncing immediately. Changes continue to work locally when sync is unavailable; network errors are caught and logged rather than blocking the workout UI.
 
 Current background-load rules are deliberately conservative:
 
 - A remote program is loaded only when no local program exists.
-- Remote workout history replaces local history only when local history is empty or the remote history contains more sessions.
+- Local and remote workout histories are merged by stable session ID. Deletion tombstones prevent intentionally deleted sessions from being restored by another device.
 - Preferences are merged one object level deep, with local values winning conflicts.
 - A remote current session is loaded only when no local current session exists.
 - Remote archives are loaded only when the local archive list is empty.
 - After the merge, the client uploads its current combined state.
 
-These rules reduce accidental overwrites, but they are not a general conflict-resolution or per-record merge system. Changes made independently on multiple devices can still conflict.
+The server also merges workout sessions by ID before saving, so a stale device cannot erase a workout recorded elsewhere. Other document fields still use conservative last-write or client-side merge rules.
 
 `api/sync.js` also accepts legacy Google access tokens and Google JWTs, although current Google sign-in exchanges its ID token for an opaque application session.
 
@@ -136,6 +137,7 @@ The main keys are:
 | Key | Contents | Synced to Turso |
 |---|---|---|
 | `mwData3` | Completed workout history: `{ sessions: [...] }`. | Yes |
+| `mwDeletedSessions` | IDs of permanently deleted sessions, used to keep cross-device history merges from restoring them. | Yes |
 | `mwPrefs` | Routine UI preferences, language/settings, saved exercise-specific values, variants, days, lockers, and other persistent UI choices. | Yes |
 | `mwCurrent` | Recoverable active or view-mode session snapshot: `{ rid, session, viewing }`. | Yes |
 | `mwProgram` | Active named program and its A/B routine definitions. | Yes |

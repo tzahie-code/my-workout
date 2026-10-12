@@ -118,6 +118,36 @@ export default async function handler(req) {
     // Old clients may upload stale cached data before receiving the one-time
     // Noam seed. Apply the same guarded seed on writes so they cannot erase it.
     const seeded  = seedNoamProgram(body.data || {}, email);
+
+    // Workout history is edited on multiple devices. Merge individual sessions
+    // with the stored document so a stale device cannot erase a newer workout.
+    // Tombstones preserve intentional deletions while histories are combined.
+    const currentResult = await tursoExec(
+      'SELECT data FROM user_data WHERE user_id = ?',
+      [{ type: 'text', value: userId }]
+    );
+    const currentRows = currentResult.results?.[0]?.response?.result?.rows;
+    let currentData = {};
+    try { currentData = currentRows?.length ? JSON.parse(currentRows[0][0].value) : {}; } catch {}
+
+    const deletedSessionIds = [...new Set([
+      ...(Array.isArray(currentData.deletedSessionIds) ? currentData.deletedSessionIds : []),
+      ...(Array.isArray(seeded.data.deletedSessionIds) ? seeded.data.deletedSessionIds : [])
+    ].map(String))];
+    const deleted = new Set(deletedSessionIds);
+    const sessions = new Map();
+    (currentData.workouts?.sessions || []).forEach(s => {
+      if (!deleted.has(String(s.id))) sessions.set(String(s.id), s);
+    });
+    (seeded.data.workouts?.sessions || []).forEach(s => {
+      if (!deleted.has(String(s.id))) sessions.set(String(s.id), s);
+    });
+    seeded.data.workouts = {
+      ...(currentData.workouts || {}),
+      ...(seeded.data.workouts || {}),
+      sessions: [...sessions.values()].sort((a, b) => Number(a.id) - Number(b.id))
+    };
+    seeded.data.deletedSessionIds = deletedSessionIds;
     const dataStr = JSON.stringify(seeded.data);
     await tursoExec(
       `INSERT INTO user_data (user_id, email, data, updated_at) VALUES (?, ?, ?, ?)
