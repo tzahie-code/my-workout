@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="My Workout">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
-  <meta name="app-build" content="2026-10-14T13:09:56.102Z">
+  <meta name="app-build" content="2026-10-14T13:14:40.451Z">
   <title>My Workout</title>
   <!-- jsPDF loaded on-demand only when user exports PDF (saves ~200KB parse on every boot) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1024,7 +1024,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
           <script>
             (function(){
-              var d = new Date('2026-10-14T13:09:56.102Z');
+              var d = new Date('2026-10-14T13:14:40.451Z');
               if (isNaN(d)) return;
               var pad = function(n){ return String(n).padStart(2,'0'); };
               document.getElementById('app-version').textContent =
@@ -2722,6 +2722,7 @@ function currentBuildVersion() {
 }
 
 function showUpdatePrompt(registration) {
+  if (_applyingAvailableUpdate) return;
   _availableUpdateRegistration = registration || _availableUpdateRegistration;
   const popup = document.getElementById('update-popup');
   if (popup) popup.style.display = 'flex';
@@ -2732,26 +2733,48 @@ function dismissUpdatePrompt() {
   if (popup) popup.style.display = 'none';
 }
 
-function applyAvailableUpdate() {
-  if (_loadedBuildUpdate) {
-    const build = currentBuildVersion();
-    if (build) localStorage.setItem('mwAcceptedBuild', build);
-    _loadedBuildUpdate = false;
-    dismissUpdatePrompt();
-    return;
-  }
+function waitForWorkerInstall(worker, timeoutMs = 10000) {
+  if (!worker || ['installed', 'activated', 'redundant'].includes(worker.state)) return Promise.resolve();
+  return new Promise(resolve => {
+    const timeout = setTimeout(resolve, timeoutMs);
+    worker.addEventListener('statechange', () => {
+      if (!['installed', 'activated', 'redundant'].includes(worker.state)) return;
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
+}
+
+async function applyAvailableUpdate() {
+  if (_applyingAvailableUpdate) return;
   _emergencySave();
   localStorage.setItem('mwReloading', '1');
   localStorage.setItem('mwUpdateAcceptedOnReload', '1');
   _applyingAvailableUpdate = true;
   dismissUpdatePrompt();
-  const waiting = _availableUpdateRegistration?.waiting;
+  let registration = _availableUpdateRegistration;
+  if (!registration && 'serviceWorker' in navigator) {
+    registration = await navigator.serviceWorker.getRegistration().catch(() => null);
+  }
+  if (registration) {
+    // A previously waiting worker may represent an older deployment. Recheck
+    // the server and wait for the newest worker before activating anything.
+    await registration.update().catch(() => {});
+    await waitForWorkerInstall(registration.installing);
+  }
+  const waiting = registration?.waiting;
   if (waiting) {
     waiting.postMessage({ type:'SKIP_WAITING' });
     // controllerchange normally reloads immediately; this is a safety fallback.
     setTimeout(() => window.location.reload(), 2500);
   } else {
-    window.location.reload();
+    // The loaded page is already the newest build (common in a normal browser).
+    const build = currentBuildVersion();
+    if (build) localStorage.setItem('mwAcceptedBuild', build);
+    localStorage.removeItem('mwUpdateAcceptedOnReload');
+    localStorage.removeItem('mwReloading');
+    _loadedBuildUpdate = false;
+    _applyingAvailableUpdate = false;
   }
 }
 
