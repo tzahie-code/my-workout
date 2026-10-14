@@ -110,6 +110,7 @@ The synchronized document contains:
   deletedSessionIds: getDeletedSessionIds(),
   prefs:          getPrefs(),
   currentSession: loadCurrentSession(),
+  currentSessionUpdatedAt: getCurrentSessionUpdatedAt(),
   program:        getProgramData(),
   archives:       getArchives()
 }
@@ -127,7 +128,7 @@ Current background-load rules are deliberately conservative:
 - Remote archives are loaded only when the local archive list is empty.
 - After the merge, the client uploads its current combined state.
 
-The server also merges workout sessions by ID before saving, so a stale device cannot erase a workout recorded elsewhere. Other document fields still use conservative last-write or client-side merge rules.
+The server also merges workout sessions by ID and per-session revision before saving, so a stale device cannot erase or roll back a workout recorded or edited elsewhere. Active-session snapshots carry their own revision, including explicit clears after completion, and client uploads are serialized to prevent older requests from finishing last. Other document fields still use conservative last-write or client-side merge rules.
 
 `api/sync.js` also accepts legacy Google access tokens and Google JWTs, although current Google sign-in exchanges its ID token for an opaque application session.
 
@@ -283,6 +284,8 @@ History operations include:
 Progress is derived from completed historical sets rather than a separate canonical progress database. It supports per-exercise history, mini charts, last-increase information, split weights, body-weight notation, variant-specific views, retired exercises, corrections, and exclusion of unsuitable points. Workout cards show the latest increase as a weight change, or replace it with the historical maximum when the latest completed weight is lower. History edits are written back to session data so progress recalculates from the corrected source.
 
 The app also generates progressive-overload and workout reports. Reports can be previewed and copied as text or CSV for use in Excel or Google Sheets.
+
+An authenticated, query-triggered recovery path can copy each exercise's latest completed set weights into matching completed sessions from a specified date. It operates only on the currently signed-in account and preserves reps, notes, completion state, dates, and duration.
 
 ## Settings and localization
 

@@ -1332,6 +1332,7 @@ function authSignOut() {
   clearTimeout(_syncTimer);
   S = { rid:null, session:null, expanded:null, viewing:false };
   _lastSavedSnapshot = null;
+  _lastSavedSnapshotShown = null;
   _restActiveEx = null;
   _gToken = null; _gUser = null;
   localStorage.removeItem('mw_gtoken');
@@ -1376,12 +1377,20 @@ function migrateLegacyUserDataForCurrentUser() {
 // TURSO SYNC
 // ════════════════════════════════════
 let _syncTimer = null;
+let _syncChain = Promise.resolve();
 function sbSaveDebounced() { // kept as alias so all existing callers still work
   clearTimeout(_syncTimer);
   _syncTimer = setTimeout(() => syncToTurso(), 2000);
 }
 
-async function syncToTurso() {
+function syncToTurso() {
+  // Serialize saves. An older request must never finish after a newer one and
+  // replace its active-session snapshot or completed-workout edits.
+  _syncChain = _syncChain.catch(() => {}).then(() => _syncToTursoNow());
+  return _syncChain;
+}
+
+async function _syncToTursoNow() {
   if (!_gToken) return;
   try {
     const body = JSON.stringify({ data: {
@@ -1389,6 +1398,7 @@ async function syncToTurso() {
       deletedSessionIds:getDeletedSessionIds(),
       prefs:            getPrefs(),
       currentSession:   loadCurrentSession(),
+      currentSessionUpdatedAt: getCurrentSessionUpdatedAt(),
       program:          getProgramData(),
       archives:         getArchives(),
       progressOverrides:getProgressOverrides(),
@@ -2305,11 +2315,19 @@ function getDeletedSessionIds() {
 function setDeletedSessionIds(ids) {
   localStorage.setItem(userStorageKey('mwDeletedSessions'), JSON.stringify([...new Set(ids.map(String))]));
 }
+function workoutRevision(session) {
+  return Number(session?.updatedAt) || Number(session?.endTime)
+    || Number(session?.startTime) || Number(session?.id) || 0;
+}
 function mergeWorkoutData(local, remote, deletedIds = []) {
   const deleted = new Set(deletedIds.map(String));
   const sessions = new Map();
   (remote?.sessions || []).forEach(s => { if (!deleted.has(String(s.id))) sessions.set(String(s.id), s); });
-  (local?.sessions || []).forEach(s => { if (!deleted.has(String(s.id))) sessions.set(String(s.id), s); });
+  (local?.sessions || []).forEach(s => {
+    if (deleted.has(String(s.id))) return;
+    const existing = sessions.get(String(s.id));
+    if (!existing || workoutRevision(s) >= workoutRevision(existing)) sessions.set(String(s.id), s);
+  });
   return {
     ...(remote || {}),
     ...(local || {}),
@@ -2317,6 +2335,7 @@ function mergeWorkoutData(local, remote, deletedIds = []) {
   };
 }
 let _lastSavedSnapshot = null;
+let _lastSavedSnapshotShown = null;
 // Build a snapshot that excludes _pw/_pr staging values — these are just pending
 // input buffer values that get re-initialized from the DOM on every auto-save,
 // so comparing them would cause false "Saved" flashes on mere card taps/expands.
@@ -2335,13 +2354,18 @@ function _meaningfulSnap() {
 }
 function saveCurrentSession() {
   if (!S.session) return;
-  const snapshot = JSON.stringify({rid:S.rid, session:S.session, viewing:S.viewing||false});
-  localStorage.setItem(userStorageKey('mwCurrent'), snapshot);
-  sbSaveDebounced();
-  // Flash "✓ Saved" only when meaningful data actually changed (ignores _pw/_pr staging)
   const meaningful = _meaningfulSnap();
   if (meaningful !== _lastSavedSnapshot) {
+    S.session.updatedAt = Date.now();
     _lastSavedSnapshot = meaningful;
+  }
+  const snapshot = JSON.stringify({rid:S.rid, session:S.session, viewing:S.viewing||false});
+  localStorage.setItem(userStorageKey('mwCurrent'), snapshot);
+  localStorage.setItem(userStorageKey('mwCurrentUpdatedAt'), String(workoutRevision(S.session)));
+  sbSaveDebounced();
+  // Flash "✓ Saved" only when meaningful data actually changed (ignores _pw/_pr staging)
+  if (meaningful !== _lastSavedSnapshotShown) {
+    _lastSavedSnapshotShown = meaningful;
     const el = document.getElementById('wk-saved');
     if (el) {
       el.classList.add('show');
@@ -2384,8 +2408,16 @@ function _emergencySave() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _emergencySave(); });
 window.addEventListener('pagehide', _emergencySave);
 window.addEventListener('beforeunload', _emergencySave);
-function clearCurrentSession() { localStorage.removeItem(userStorageKey('mwCurrent')); sbSaveDebounced(); }
+function clearCurrentSession() {
+  localStorage.removeItem(userStorageKey('mwCurrent'));
+  localStorage.setItem(userStorageKey('mwCurrentUpdatedAt'), String(Date.now()));
+  sbSaveDebounced();
+}
 function loadCurrentSession() { try { return JSON.parse(localStorage.getItem(userStorageKey('mwCurrent'))||'null'); } catch{ return null; } }
+function getCurrentSessionUpdatedAt() {
+  const stored = Number(localStorage.getItem(userStorageKey('mwCurrentUpdatedAt')) || 0);
+  return stored || workoutRevision(loadCurrentSession()?.session);
+}
 
 // ════════════════════════════════════
 // SCREENS
@@ -3820,6 +3852,7 @@ function _writeWeightToSession(sessId, exName, newWeightStr) {
   const maxCur = Math.max(...doneSets.map(s => maxOf(s.w)));
   // Update the set(s) that hold the current max weight
   doneSets.filter(s => maxOf(s.w) === maxCur).forEach(s => { s.w = String(newWeightStr).trim(); });
+  sess.updatedAt = Date.now();
   put(d);
 }
 
@@ -3837,6 +3870,87 @@ function saveProgWeight(rid, ei, sessId, val) {
   if (!isNaN(num) && str !== '') {
     _writeWeightToSession(sessId, ROUTINES[rid].exercises[ei].name, str);
   }
+}
+
+function _historyExerciseIdentity(session, exercise) {
+  const routine = ROUTINES[session.routine];
+  if (!routine) return `${session.routine}|${exercise.activeName || exercise.name}`;
+  const def = routine.exercises.find(item =>
+    item.name === exercise.name || item.variants?.includes(exercise.name)
+  );
+  if (!def?.variants) return `${session.routine}|${def?.name || exercise.name}`;
+  const storedVariant = def.variants.indexOf(exercise.name);
+  const variantIdx = storedVariant >= 0 ? storedVariant : (exercise.variantIdx ?? 0);
+  return `${session.routine}|${def.variants[variantIdx] || exercise.name}`;
+}
+
+// One-time, explicitly triggered recovery tool. It copies the latest completed
+// set weights for each routine/exercise/variant into matching completed workouts
+// in the requested date range. Reps, notes, completion state and duration stay intact.
+function repairHistoricalWeightsFrom(fromDate) {
+  const from = new Date(`${fromDate}T00:00:00`).getTime();
+  if (!Number.isFinite(from)) return { sessions: 0, sets: 0 };
+  const through = Date.now();
+  const data = get();
+  const backupKey = userStorageKey(`mwRepairBackup-${fromDate}`);
+  if (localStorage.getItem(backupKey) === null) {
+    localStorage.setItem(backupKey, JSON.stringify({
+      createdAt: through,
+      workouts: data,
+      progressOverrides: getProgressOverrides()
+    }));
+  }
+  const ordered = [...(data.sessions || [])]
+    .filter(session => Number(session.id) <= through)
+    .sort((a, b) => Number(b.id) - Number(a.id));
+  const latestWeights = new Map();
+
+  ordered.forEach(session => {
+    (session.exercises || []).forEach(exercise => {
+      const key = _historyExerciseIdentity(session, exercise);
+      if (latestWeights.has(key)) return;
+      const weights = (exercise.sets || []).map(set => set.done && set.w != null && set.w !== '' ? String(set.w) : null);
+      if (weights.some(Boolean)) latestWeights.set(key, weights);
+    });
+  });
+
+  const overrides = getProgressOverrides();
+  let changedSessions = 0;
+  let changedSets = 0;
+  const repairTime = Date.now();
+  (data.sessions || []).forEach((session, sessionIndex) => {
+    if (Number(session.id) < from || Number(session.id) > through) return;
+    let sessionChanged = false;
+    (session.exercises || []).forEach(exercise => {
+      const weights = latestWeights.get(_historyExerciseIdentity(session, exercise));
+      if (!weights) return;
+      const fallbackWeight = [...weights].reverse().find(Boolean) || null;
+      (exercise.sets || []).forEach((set, setIndex) => {
+        if (!set.done) return;
+        const desired = weights[setIndex] || fallbackWeight;
+        if (desired != null && String(set.w ?? '') !== desired) {
+          set.w = desired;
+          changedSets++;
+          sessionChanged = true;
+        }
+      });
+      const overrideKey = _findBaseExName(exercise.name);
+      const override = overrides[overrideKey]?.[session.id];
+      if (override?.w != null) {
+        delete override.w;
+        if (!Object.keys(override).length) delete overrides[overrideKey][session.id];
+        if (!Object.keys(overrides[overrideKey]).length) delete overrides[overrideKey];
+      }
+    });
+    if (sessionChanged) {
+      session.updatedAt = repairTime + sessionIndex;
+      changedSessions++;
+    }
+  });
+
+  localStorage.setItem(userStorageKey('mwData3'), JSON.stringify(data));
+  localStorage.setItem(userStorageKey('mwProgOverrides'), JSON.stringify(overrides));
+  return { sessions: changedSessions, sets: changedSets };
 }
 
 function resetProgWeight(rid, ei, sessId) {
@@ -4659,9 +4773,10 @@ function viewRoutine(rid) {
   } else {
     S.rid = rid; S.expanded = null; S.viewing = true;
     const mode = getWorkoutMode(rid);
+    const now = Date.now();
     S.session = {
-      id: Date.now(), routine: rid, mode,
-      startTime: Date.now(), endTime: null,
+      id: now, routine: rid, mode,
+      startTime: now, endTime: null, updatedAt: now,
       exercises: _newSessionExercises(rid, mode)
     };
   }
@@ -4948,9 +5063,10 @@ function startWorkout(rid) {
   }
   S.rid = rid; S.expanded = null; S.viewing = false;
   const mode = getWorkoutMode(rid);
+  const now = Date.now();
   S.session = {
-    id: Date.now(), routine: rid, mode,
-    startTime: Date.now(), endTime: null,
+    id: now, routine: rid, mode,
+    startTime: now, endTime: null, updatedAt: now,
     exercises: _newSessionExercises(rid, mode)
   };
   show('workout');
@@ -5699,6 +5815,7 @@ function finish() {
   savePendingInputs();
   clearCurrentSession();
   S.session.endTime = Date.now();
+  S.session.updatedAt = S.session.endTime;
   // Store the actual variant name used — always rename, including variantIdx=0.
   // Without this, Hammer Curl (variantIdx=0) stays as 'Hammer Curl / Cable Curl'
   // in history, which never matches the 'Hammer Curl' key used in prevSetW/prefs.
@@ -6035,6 +6152,7 @@ function saveHistEdit(sessId) {
       }
     });
   });
+  sess.updatedAt = Date.now();
   put(d);
   // Clear weight overrides for this session's exercises so progress re-reads live values.
   // Use _findBaseExName because overrides are keyed by the routine base name
@@ -6480,6 +6598,7 @@ async function _startApp() {
     migrateLegacyUserDataForCurrentUser();
     S = { rid:null, session:null, expanded:null, viewing:false };
     _lastSavedSnapshot = null;
+    _lastSavedSnapshotShown = null;
     _restActiveEx = null;
     loadProgram();
     repairNullWeights();
@@ -6509,10 +6628,12 @@ async function _startApp() {
 // Runs after home is already visible — merges remote data silently
 async function _bgSync() {
   // ── Turso (primary sync) ─────────────────────────────────────────────────
+  let remoteLoaded = false;
   try {
     const remote = await loadFromTurso();
     if (remote === 'expired') { _appInited = false; _showAuthForm(); return; }
     if (remote) {
+      remoteLoaded = true;
       let changed = false;
       let loadedUserData = false;
       // Load program FIRST so ROUTINES is up-to-date before migrations run.
@@ -6547,8 +6668,15 @@ async function _bgSync() {
         putPrefs(reconcileCurrentWeekDays(mergePrefs(remote.prefs, getPrefs()), get()));
         changed = true;
       }
-      if (remote.currentSession && !loadCurrentSession()) {
-        localStorage.setItem(userStorageKey('mwCurrent'), JSON.stringify(remote.currentSession));
+      const remoteCurrentRevision = Number(remote.currentSessionUpdatedAt || 0)
+        || workoutRevision(remote.currentSession?.session);
+      if (remoteCurrentRevision > getCurrentSessionUpdatedAt()) {
+        if (remote.currentSession) {
+          localStorage.setItem(userStorageKey('mwCurrent'), JSON.stringify(remote.currentSession));
+        } else {
+          localStorage.removeItem(userStorageKey('mwCurrent'));
+        }
+        localStorage.setItem(userStorageKey('mwCurrentUpdatedAt'), String(remoteCurrentRevision));
         changed = true;
       }
       if (remote.archives?.length && !getArchives().length) {
@@ -6567,6 +6695,19 @@ async function _bgSync() {
       if (changed) homeUpdate(); // silently refresh home with remote data
     }
   } catch(e) { console.warn('Turso load error:', e); }
+
+  const repairFrom = new URLSearchParams(location.search).get('repairWeightsFrom');
+  if (repairFrom) {
+    history.replaceState(null, '', location.pathname);
+    if (remoteLoaded) {
+      const result = repairHistoricalWeightsFrom(repairFrom);
+      await syncToTurso();
+      homeUpdate();
+      alert(`Weight history repaired: ${result.sets} sets across ${result.sessions} workouts.`);
+    } else {
+      alert('Weight repair could not load the synced history. Please open the repair link again while online.');
+    }
+  }
 
   syncToTurso();
 }

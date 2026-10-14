@@ -135,12 +135,16 @@ export default async function handler(req) {
       ...(Array.isArray(seeded.data.deletedSessionIds) ? seeded.data.deletedSessionIds : [])
     ].map(String))];
     const deleted = new Set(deletedSessionIds);
+    const revision = session => Number(session?.updatedAt) || Number(session?.endTime)
+      || Number(session?.startTime) || Number(session?.id) || 0;
     const sessions = new Map();
     (currentData.workouts?.sessions || []).forEach(s => {
       if (!deleted.has(String(s.id))) sessions.set(String(s.id), s);
     });
     (seeded.data.workouts?.sessions || []).forEach(s => {
-      if (!deleted.has(String(s.id))) sessions.set(String(s.id), s);
+      if (deleted.has(String(s.id))) return;
+      const existing = sessions.get(String(s.id));
+      if (!existing || revision(s) >= revision(existing)) sessions.set(String(s.id), s);
     });
     seeded.data.workouts = {
       ...(currentData.workouts || {}),
@@ -148,6 +152,21 @@ export default async function handler(req) {
       sessions: [...sessions.values()].sort((a, b) => Number(a.id) - Number(b.id))
     };
     seeded.data.deletedSessionIds = deletedSessionIds;
+
+    // Active-session saves can arrive out of order when a phone backgrounds or
+    // reconnects. Keep the newest snapshot, including a newer explicit clear.
+    const currentRevision = Number(currentData.currentSessionUpdatedAt || 0)
+      || revision(currentData.currentSession?.session);
+    const hasIncomingRevision = Object.prototype.hasOwnProperty.call(seeded.data, 'currentSessionUpdatedAt');
+    const incomingRevision = hasIncomingRevision
+      ? (Number(seeded.data.currentSessionUpdatedAt || 0) || revision(seeded.data.currentSession?.session))
+      : Date.now(); // Preserve clear/save behavior for clients updating from the previous release.
+    if (currentRevision > incomingRevision) {
+      seeded.data.currentSession = currentData.currentSession || null;
+      seeded.data.currentSessionUpdatedAt = currentRevision;
+    } else {
+      seeded.data.currentSessionUpdatedAt = incomingRevision;
+    }
     const dataStr = JSON.stringify(seeded.data);
     await tursoExec(
       `INSERT INTO user_data (user_id, email, data, updated_at) VALUES (?, ?, ?, ?)
