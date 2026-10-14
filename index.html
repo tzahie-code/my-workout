@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="My Workout">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
-  <meta name="app-build" content="__BUILD_DATE__">
+  <meta name="app-build" content="2026-10-14T13:01:51.694Z">
   <title>My Workout</title>
   <!-- jsPDF loaded on-demand only when user exports PDF (saves ~200KB parse on every boot) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1024,7 +1024,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
           <script>
             (function(){
-              var d = new Date('__BUILD_DATE__');
+              var d = new Date('2026-10-14T13:01:51.694Z');
               if (isNaN(d)) return;
               var pad = function(n){ return String(n).padStart(2,'0'); };
               document.getElementById('app-version').textContent =
@@ -6706,6 +6706,23 @@ async function _bgSync() {
       alert(`Weight history repaired: ${result.sets} sets across ${result.sessions} workouts.`);
     } else {
       alert('Weight repair could not load the synced history. Please open the repair link again while online.');
+    }
+  }
+
+  if (new URLSearchParams(location.search).get('cleanupUnusedTzahi') === '1') {
+    history.replaceState(null, '', location.pathname);
+    try {
+      const response = await fetch('/api/account-maintenance', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${_gToken}` }
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Cleanup failed');
+      alert(result.unwantedAccountFound
+        ? `Unused account removed. Login records: ${result.removed.loginRecords}, sessions: ${result.removed.sessions}, workout records: ${result.removed.workoutRecords}.`
+        : 'No account exists for tzahi@nucleix.com. Nothing was deleted.');
+    } catch (error) {
+      alert(`Account cleanup failed: ${error.message}`);
     }
   }
 
