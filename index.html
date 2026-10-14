@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="My Workout">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
-  <meta name="app-build" content="2026-10-14T13:01:51.694Z">
+  <meta name="app-build" content="2026-10-14T13:09:56.102Z">
   <title>My Workout</title>
   <!-- jsPDF loaded on-demand only when user exports PDF (saves ~200KB parse on every boot) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1024,7 +1024,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
           <script>
             (function(){
-              var d = new Date('2026-10-14T13:01:51.694Z');
+              var d = new Date('2026-10-14T13:09:56.102Z');
               if (isNaN(d)) return;
               var pad = function(n){ return String(n).padStart(2,'0'); };
               document.getElementById('app-version').textContent =
@@ -3953,6 +3953,44 @@ function repairHistoricalWeightsFrom(fromDate) {
   return { sessions: changedSessions, sets: changedSets };
 }
 
+// Read-only verification for weights edited from Progress. Each weight override
+// should already have been written into the matching completed History sets.
+function auditProgressHistoryConsistency() {
+  const data = get();
+  const overrides = getProgressOverrides();
+  const mismatches = [];
+  let checked = 0;
+
+  Object.entries(overrides).forEach(([exerciseName, sessions]) => {
+    Object.entries(sessions || {}).forEach(([sessionId, override]) => {
+      if (override?.w == null) return;
+      checked++;
+      const session = (data.sessions || []).find(item => String(item.id) === String(sessionId));
+      const raw = session ? _rawPoint(session, exerciseName) : null;
+      if (!raw) {
+        mismatches.push({ exerciseName, sessionId, reason: 'missing history record' });
+        return;
+      }
+
+      const desired = String(override.w);
+      const split = desired.includes('/');
+      const parsed = parseSplitWeight(desired);
+      const matches = split
+        ? raw.maxA === parsed.a && raw.maxB === parsed.b
+        : raw.computedMax === parsed.a;
+      if (!matches) {
+        mismatches.push({
+          exerciseName,
+          sessionId,
+          reason: `Progress ${desired}, History ${raw.maxB != null ? `${raw.maxA}/${raw.maxB}` : raw.computedMax}`
+        });
+      }
+    });
+  });
+
+  return { checked, mismatches };
+}
+
 function resetProgWeight(rid, ei, sessId) {
   _applyProgOverride(rid, ei, sessId, ov => { delete ov.w; });
   // Override removed — progress will now re-read from session data (already in sync)
@@ -6723,6 +6761,21 @@ async function _bgSync() {
         : 'No account exists for tzahi@nucleix.com. Nothing was deleted.');
     } catch (error) {
       alert(`Account cleanup failed: ${error.message}`);
+    }
+  }
+
+  if (new URLSearchParams(location.search).get('auditProgressHistory') === '1') {
+    history.replaceState(null, '', location.pathname);
+    const audit = auditProgressHistoryConsistency();
+    if (!audit.mismatches.length) {
+      alert(`Progress and History match. Checked ${audit.checked} corrected weight records.`);
+    } else {
+      const lines = audit.mismatches.slice(0, 12).map(item => {
+        const date = new Date(Number(item.sessionId)).toLocaleDateString('en-GB');
+        return `${item.exerciseName} (${date}): ${item.reason}`;
+      });
+      const more = audit.mismatches.length > lines.length ? `\n…and ${audit.mismatches.length - lines.length} more.` : '';
+      alert(`Found ${audit.mismatches.length} Progress/History mismatches out of ${audit.checked} corrected records:\n\n${lines.join('\n')}${more}`);
     }
   }
 
