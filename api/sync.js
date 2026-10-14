@@ -1,4 +1,4 @@
-import { repairNoamHistoricalWeights, seedNoamProgram } from './noam-program.js';
+import { seedNoamProgram } from './noam-program.js';
 
 export const config = { runtime: 'edge' };
 
@@ -93,8 +93,7 @@ export default async function handler(req) {
     const rows = result.results?.[0]?.response?.result?.rows;
     const storedData = rows?.length ? JSON.parse(rows[0][0].value) : null;
     const seeded = seedNoamProgram(storedData, email);
-    const repaired = repairNoamHistoricalWeights(seeded.data, email);
-    if (seeded.changed || repaired.changed) {
+    if (seeded.changed) {
       await tursoExec(
         `INSERT INTO user_data (user_id, email, data, updated_at) VALUES (?, ?, ?, ?)
          ON CONFLICT(user_id) DO UPDATE SET
@@ -104,11 +103,11 @@ export default async function handler(req) {
         [
           { type:'text', value:userId },
           { type:'text', value:email },
-          { type:'text', value:JSON.stringify(repaired.data) },
+          { type:'text', value:JSON.stringify(seeded.data) },
           { type:'integer', value:String(Date.now()) }
         ]
       );
-      return ok({ data: repaired.data, email });
+      return ok({ data: seeded.data, email });
     }
     return ok({ data: storedData, email });
   }
@@ -153,13 +152,6 @@ export default async function handler(req) {
       sessions: [...sessions.values()].sort((a, b) => Number(a.id) - Number(b.id))
     };
     seeded.data.deletedSessionIds = deletedSessionIds;
-    seeded.data.repairVersions = {
-      ...(currentData.repairVersions || {}),
-      ...(seeded.data.repairVersions || {})
-    };
-    if (!seeded.data.lastWeightRepair && currentData.lastWeightRepair) {
-      seeded.data.lastWeightRepair = currentData.lastWeightRepair;
-    }
 
     // Active-session saves can arrive out of order when a phone backgrounds or
     // reconnects. Keep the newest snapshot, including a newer explicit clear.
@@ -175,8 +167,7 @@ export default async function handler(req) {
     } else {
       seeded.data.currentSessionUpdatedAt = incomingRevision;
     }
-    const repaired = repairNoamHistoricalWeights(seeded.data, email);
-    const dataStr = JSON.stringify(repaired.data);
+    const dataStr = JSON.stringify(seeded.data);
     await tursoExec(
       `INSERT INTO user_data (user_id, email, data, updated_at) VALUES (?, ?, ?, ?)
        ON CONFLICT(user_id) DO UPDATE SET

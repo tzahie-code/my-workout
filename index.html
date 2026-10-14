@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="My Workout">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
-  <meta name="app-build" content="2026-10-14T12:47:59.799Z">
+  <meta name="app-build" content="__BUILD_DATE__">
   <title>My Workout</title>
   <!-- jsPDF loaded on-demand only when user exports PDF (saves ~200KB parse on every boot) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1024,7 +1024,7 @@ svg.picker-bsvg polygon.bs { fill:#101020; stroke:#50506e; stroke-width:.4; curs
           <div id="app-version" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:4px;opacity:.5"></div>
           <script>
             (function(){
-              var d = new Date('2026-10-14T12:47:59.799Z');
+              var d = new Date('__BUILD_DATE__');
               if (isNaN(d)) return;
               var pad = function(n){ return String(n).padStart(2,'0'); };
               document.getElementById('app-version').textContent =

@@ -3,7 +3,7 @@
 // go directly to the network so your workout data always syncs normally.
 // CACHE_VER is replaced at build time by build.js — changes on every deploy
 // so stale content is never served after an update.
-const CACHE_VER = 'mw-20261014-1247';
+const CACHE_VER = '__CACHE_VER__';
 const GIF_CACHE = 'mw-workout-gifs-v1';
 const APP_SHELL = ['/', '/index.html', '/manifest.json'];
 
